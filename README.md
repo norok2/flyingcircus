@@ -1,12 +1,10 @@
-============
-FlyingCircus
-============
+# FlyingCircus
+
 
 **FlyingCircus** - Everything you always wanted to have in Python.*
 
 (*But were afraid to write)
 
-.. code::
      _____ _       _              ____ _
     |  ___| |_   _(_)_ __   __ _ / ___(_)_ __ ___ _   _ ___
     | |_  | | | | | | '_ \ / _` | |   | | '__/ __| | | / __|
@@ -14,8 +12,8 @@ FlyingCircus
     |_|   |_|\__, |_|_| |_|\__, |\____|_|_|  \___|\__,_|___/
              |___/         |___/
 
-Overview
---------
+
+## Overview
 This software provides a library of miscellaneous utilities for Python.
 It is relatively easy to extend and users are encouraged to tweak with it.
 
@@ -25,40 +23,39 @@ As a result of the code maturity, some of the library components may undergo
 (eventually heavy) refactoring, although this is currently unexpected.
 
 
-Releases information are available through ``NEWS.rst``.
+Releases information are available through `NEWS.rst`.
 
-For a more comprehensive list of changes see ``CHANGELOG.rst``.
+For a more comprehensive list of changes see `CHANGELOG.rst`.
 
 
-Installation
-------------
+## Installation
 The recommended way of installing the software is through
-`PyPI <https://pypi.python.org/pypi/flyingcircus>`_:
+[PyPI](<https://pypi.python.org/pypi/flyingcircus>):
 
-.. code:: shell
-
-    $ pip install flyingcircus
+```bash
+$ pip install flyingcircus
+```
 
 Alternatively, you can clone the source repository from
-`Bitbucket <https://bitbucket.org/norok2/flyingcircus>`_:
+[Bitbucket](<https://bitbucket.org/norok2/flyingcircus>):
 
-.. code:: shell
 
-    $ git clone git@bitbucket.org:norok2/flyingcircus.git
-    $ cd flyingcircus
-    $ pip install -e .
+```bash
+$ git clone git@bitbucket.org:norok2/flyingcircus.git
+$ cd flyingcircus
+$ pip install -e .
+```
 
-For more details see also ``INSTALL.rst``.
+For more details see also `INSTALL.rst`.
 
-License
--------
+## License
 This work is licensed through the terms and conditions of the
-`GPLv3+ <http://www.gnu.org/licenses/gpl-3.0.html>`_
-See the accompanying ``LICENSE.rst`` for more details.
+[GPLv3+](http://www.gnu.org/licenses/gpl-3.0.html)
+See the accompanying `LICENSE.rst` for more details.
 
 
 Acknowledgements
 ----------------
-For a complete list of authors please see ``AUTHORS.rst``.
+For a complete list of authors please see `AUTHORS.rst`.
 
-People who have influenced this work are acknowledged in ``THANKS.rst``.
+People who have influenced this work are acknowledged in `THANKS.rst`.
