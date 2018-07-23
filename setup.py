@@ -132,7 +132,7 @@ setup(
         'Topic :: Scientific/Engineering :: Information Analysis',
         'Topic :: Scientific/Engineering :: Visualization',
         'Topic :: Software Development',
-        'Topic :: Software Development :: Libraries'
+        'Topic :: Software Development :: Libraries',
         'Topic :: System',
         'Topic :: Utilities',
     ],
