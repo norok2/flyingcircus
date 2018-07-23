@@ -162,37 +162,26 @@ setup(
     },
 
     package_data={
-        'pymrt': [
-            'resources/icon.*',
-            'sequences/pulses/*.csv', ],
+        # 'flyingcircus': [
+        #     'resources/icon.*',
+        #     'sequences/pulses/*.csv',
+        # ],
     },
     include_package_data=True,
 
-    data_files=[('share/icons', ['artwork/pymrt_logo.svgz'])],
+    # data_files=[('share/icons', ['artwork/flyingcircus_logo.svgz'])],
 
     entry_points={
         'console_scripts': [
-            'pymrt_batch_compute=scripts_cli.batch_compute:main',
-            'pymrt_compute=scripts_cli.compute:main',
-            'pymrt_correlate=scripts_cli.correlate:main',
-
-            'pymrt_calc_mask=scripts_cli.calc_mask:main',
-            'pymrt_gen_phantom=scripts_cli.gen_phantom:main',
-            'pymrt_ernst_calc=scripts_cli.ernst_calc:main',
-            'pymrt_unwrap=scripts_cli.unwrap:main',
-            'pymrt_coil_combine=scripts_cli.coil_combine:main',
-
-            'pymrt_extract_nifti_bruker=scripts_cli.extract_nifti_bruker:main',
+            # '<exec_name>=<module>.<submodule>:<callable>',
         ],
 
         'gui_scripts': [
-            'pymrt_mp2rage_t1=scripts_gui.mp2rage_t1_sensitivity_b1t:main',
-            'pymrt_mp2rage_b1t=scripts_gui.mp2rage_b1t_sensitivity_t1:main',
-            'pymrt_ernst_angle=scripts_gui.flash_ernst_angle:main',
+            # '<exec_name>=<module>.<submodule>:<callable>',
         ],
     },
 )
 
 # ======================================================================
 # :: create user directory
-from pymrt import _pkg_paths
+from flyingcircus import _pkg_paths

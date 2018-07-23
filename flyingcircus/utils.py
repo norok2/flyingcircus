@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-pymrt.utils: generic basic utilities.
+flyingcircus.utils: generic basic utilities.
 """
 
 # ======================================================================
@@ -50,13 +50,13 @@ from numpy.fft import fftshift, ifftshift
 from scipy.fftpack import fftn, ifftn
 
 # :: Internal Imports
-import pymrt as mrt
+import flyingcircus as mrt
 
 # :: Local Imports
-from pymrt import INFO, PATH
-from pymrt import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
-from pymrt import elapsed, report
-from pymrt import msg, dbg
+from flyingcircus import INFO, PATH
+from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
+from flyingcircus import elapsed, report
+from flyingcircus import msg, dbg
 
 # ======================================================================
 # :: Custom defined constants
@@ -1245,7 +1245,7 @@ def factorize_k(
              - 'alt1': factors are alternated before splitting;
              - 'optimal', 'similar', '!', '=': factors have the similar sizes.
         balanced (bool): Balance the number of primes in each factor.
-            See `pymrt.utils.chunks()` for more info.
+            See `flyingcircus.utils.chunks()` for more info.
 
     Returns:
         tuple (int): A listing of `k` factors of `num`.
@@ -1644,7 +1644,7 @@ def multi_replace(
 
     Examples:
         >>> multi_replace('python.best', (('thon', 'mrt'), ('est', 'ase')))
-        'pymrt.base'
+        'flyingcircus.base'
         >>> multi_replace('x-x-x-x', (('x', 'est'), ('est', 'test')))
         'test-test-test-test'
         >>> multi_replace('x-x-', (('-x-', '.test'),))
@@ -1959,7 +1959,7 @@ def hash_file(
             If str, must be a valid coding.
             If None, the object is kept as bytes.
         block_size (int|None): The block size.
-            See `size` argument of `pymrt.utils.blocks` for exact behavior.
+            See `size` argument of `flyingcircus.utils.blocks` for exact behavior.
 
     Returns:
         hash_key (str|bytes): The result of the hashing.
@@ -3301,20 +3301,20 @@ def safe_filename(
         text (str): The filtered text.
 
     Examples:
-        >>> safe_filename('pymrt.txt')
-        'pymrt.txt'
-        >>> safe_filename('pymrt+12.txt')
-        'pymrt_12.txt'
-        >>> safe_filename('pymrt+12.txt')
-        'pymrt_12.txt'
-        >>> safe_filename('pymrt+++12.txt')
-        'pymrt_12.txt'
-        >>> safe_filename('pymrt+++12.txt', group_consecutive=False)
-        'pymrt___12.txt'
-        >>> safe_filename('pymrt+12.txt', allowed='a-zA-Z0-9._+-')
-        'pymrt+12.txt'
-        >>> safe_filename('pymrt+12.txt', replacing='-')
-        'pymrt-12.txt'
+        >>> safe_filename('flyingcircus.txt')
+        'flyingcircus.txt'
+        >>> safe_filename('flyingcircus+12.txt')
+        'flyingcircus_12.txt'
+        >>> safe_filename('flyingcircus+12.txt')
+        'flyingcircus_12.txt'
+        >>> safe_filename('flyingcircus+++12.txt')
+        'flyingcircus_12.txt'
+        >>> safe_filename('flyingcircus+++12.txt', group_consecutive=False)
+        'flyingcircus___12.txt'
+        >>> safe_filename('flyingcircus+12.txt', allowed='a-zA-Z0-9._+-')
+        'flyingcircus+12.txt'
+        >>> safe_filename('flyingcircus+12.txt', replacing='-')
+        'flyingcircus-12.txt'
     """
     return re.sub(
         r'[^{allowed}]{greedy}'.format(
@@ -5309,7 +5309,7 @@ def auto_bins(
         arrs (Iterable[np.ndarray]): The input arrays.
         method (str|Iterable[str]|None): The method for calculating bins.
             If str, the same method is applied to both arrays.
-            See `pymrt.utils.auto_bin()` for available methods.
+            See `flyingcircus.utils.auto_bin()` for available methods.
         dim (int|None): The dimension of the histogram.
         combine (callable|None): Combine each bin using the combine function.
             combine(n_bins) -> n_bin
@@ -5688,7 +5688,7 @@ def gaussian_nd(
             If True, position values are interpreted as relative,
             i.e. they are scaled for `shape` values.
             Otherwise, they are interpreted as absolute (in px).
-            Uses `pymrt.utils.grid_coord()` internally.
+            Uses `flyingcircus.utils.grid_coord()` internally.
 
     Returns:
         arr (np.ndarray): The array containing the N-dim Gaussian.
@@ -6411,8 +6411,8 @@ def otsu_threshold(
         items (Iterable): The input items.
         bins (int|str|None): Number of bins used to calculate histogram.
             If str or None, this is automatically calculated from the data
-            using `pymrt.utils.auto_bin()` with `method` set to `bins` if str,
-            and using the default `pymrt.utils.auto_bin()` method if set to
+            using `flyingcircus.utils.auto_bin()` with `method` set to `bins` if str,
+            and using the default `flyingcircus.utils.auto_bin()` method if set to
             None.
 
     Returns:
@@ -6486,12 +6486,12 @@ def auto_num_components(
             Accepted values are:
              - 'all': use all components.
              - 'full': same as 'all'.
-             - 'elbow': use `pymrt.utils.marginal_sep_elbow()`.
-             - 'quad': use `pymrt.utils.marginal_sep_quad()`.
-             - 'quad_weight': use `pymrt.utils.marginal_sep_quad_weight()`.
+             - 'elbow': use `flyingcircus.utils.marginal_sep_elbow()`.
+             - 'quad': use `flyingcircus.utils.marginal_sep_quad()`.
+             - 'quad_weight': use `flyingcircus.utils.marginal_sep_quad_weight()`.
              - 'quad_inv_weight': use
-             `pymrt.utils.marginal_sep_quad_inv_weight()`.
-             - 'otsu': use `pymrt.segmentation.threshold_otsu()`.
+             `flyingcircus.utils.marginal_sep_quad_inv_weight()`.
+             - 'otsu': use `flyingcircus.segmentation.threshold_otsu()`.
              - 'X%': set the threshold at 'X' percent of the largest eigenval.
         q (Iterable[int|float|complex]|None): The values of the components.
             If None, `num` must be specified.
