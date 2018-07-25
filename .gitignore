@@ -101,6 +101,8 @@ target/
 
 # IPython
 *.ipynb*
+
+.vscode
 .idea/
 docs/
 notebooks/
