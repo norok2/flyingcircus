@@ -22,15 +22,48 @@ This software provides a library of miscellaneous utilities for Python.
 It is relatively easy to extend and users are encouraged to tweak with
 it.
 
-Most of the code is used is used in a number of projects
+Most of the code is used is used in a number of projects where it is tested
+against real-life scenarios.
 
 As a result of the code maturity, some of the library components may
-undergo (eventually heavy) refactoring, although this is currently
-unexpected.
+undergo (eventually heavy) refactoring.
+While this is not expected, this will be documented.
+Please file a bug report if you detect an undocumented refactoring.
 
 Releases information are available through ``NEWS.rst``.
 
-For a more comprehensive list of changes see ``CHANGELOG.rst``.
+For a more comprehensive list of changes see ``CHANGELOG.rst`` (automatically
+generated from the version control system).
+
+
+Features
+--------
+
+The package contain two main packages:
+ - ``utils``
+ - ``numeric``
+
+
+The package ``utils`` contains a number of generic functions like
+  - ``multi_replace()``: performs multiple replacements in a string.
+  - ``flatten()``: recursively flattens nested iterables, e.g.
+    list of list of tuples to flat list).
+  - ``uniques()``: extract unique items from an iterable while
+    keeping the order of appearance.
+  - ``grouping``: generates a tuple of grouped items.
+etc.
+
+The package ``numeric`` (which requires both ``numpy`` and ``scipy``)
+contains a number of numerical functions, typically
+working on or generating ``numpy.ndarray`` inputs, like:
+ - ``sgnlogspace()``: generates logarithmically spaced samples between
+   signed start and stop endpoints.
+ - ``unsqueeze()``: add singletons to the shape of an array to
+   broadcast-match a given shape.
+ - ``subst()``: substitute all occurrences of a value in an array.
+etc.
+
+Additional packages may be added in the future.
 
 
 Installation

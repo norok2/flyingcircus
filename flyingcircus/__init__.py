@@ -62,12 +62,12 @@ _EVENTS = []
 # ======================================================================
 # Greetings
 MY_GREETINGS = r"""
- _____ _       _              ____ _                    
-|  ___| |_   _(_)_ __   __ _ / ___(_)_ __ ___ _   _ ___ 
+ _____ _       _              ____ _
+|  ___| |_   _(_)_ __   __ _ / ___(_)_ __ ___ _   _ ___
 | |_  | | | | | | '_ \ / _` | |   | | '__/ __| | | / __|
 |  _| | | |_| | | | | | (_| | |___| | | | (__| |_| \__ \
 |_|   |_|\__, |_|_| |_|\__, |\____|_|_|  \___|\__,_|___/
-         |___/         |___/                            
+         |___/         |___/
 """
 # generated with: figlet 'FlyingCircus' -f standard
 
@@ -297,7 +297,7 @@ def report(
 
 
 # ======================================================================
-def _pkg_paths(
+def pkg_paths(
         name=INFO['name'],
         author=INFO['author'],
         version=INFO['version']):
@@ -317,13 +317,12 @@ def _pkg_paths(
             - 'log': directory for log files.
 
     Examples:
-        >>> sorted(_pkg_paths().keys())
+        >>> sorted(pkg_paths().keys())
         ['base', 'cache', 'config', 'data', 'log', 'resources']
     """
     dirpaths = dict((
         ('base', os.path.dirname(__file__)),  # todo: fix for pyinstaller
-        ('resources', pkg_resources.resource_filename(
-            'flyingcircus', 'resources')),
+        ('resources', pkg_resources.resource_filename('resources', '.')),
         ('config', appdirs.user_config_dir(name, author, version)),
         ('cache', appdirs.user_cache_dir(name, author, version)),
         ('data', appdirs.user_data_dir(name, author, version)),
@@ -336,7 +335,7 @@ def _pkg_paths(
 
 
 # ======================================================================
-PATH = _pkg_paths()
+PATH = pkg_paths()
 
 # ======================================================================
 elapsed()

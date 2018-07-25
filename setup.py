@@ -184,4 +184,4 @@ setup(
 
 # ======================================================================
 # :: create user directory
-from flyingcircus import _pkg_paths
+from flyingcircus import pkg_paths
