@@ -39,7 +39,7 @@ generated from the version control system).
 Features
 --------
 
-The package contain two main packages:
+The package contain two main sub-packages:
 
 -  ``utils``
 -  ``numeric``
