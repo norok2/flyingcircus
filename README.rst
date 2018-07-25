@@ -40,27 +40,32 @@ Features
 --------
 
 The package contain two main packages:
- - ``utils``
- - ``numeric``
+
+-  ``utils``
+-  ``numeric``
 
 
 The package ``utils`` contains a number of generic functions like
-  - ``multi_replace()``: performs multiple replacements in a string.
-  - ``flatten()``: recursively flattens nested iterables, e.g.
-    list of list of tuples to flat list).
-  - ``uniques()``: extract unique items from an iterable while
-    keeping the order of appearance.
-  - ``grouping``: generates a tuple of grouped items.
+
+-  ``multi_replace()``: performs multiple replacements in a string.
+-  ``flatten()``: recursively flattens nested iterables, e.g.
+   list of list of tuples to flat list).
+-  ``uniques()``: extract unique items from an iterable while
+   keeping the order of appearance.
+-  ``grouping``: generates a tuple of grouped items.
+
 etc.
 
 The package ``numeric`` (which requires both ``numpy`` and ``scipy``)
 contains a number of numerical functions, typically
 working on or generating ``numpy.ndarray`` inputs, like:
- - ``sgnlogspace()``: generates logarithmically spaced samples between
+
+-  ``sgnlogspace()``: generates logarithmically spaced samples between
    signed start and stop endpoints.
- - ``unsqueeze()``: add singletons to the shape of an array to
+-  ``unsqueeze()``: add singletons to the shape of an array to
    broadcast-match a given shape.
- - ``subst()``: substitute all occurrences of a value in an array.
+-  ``subst()``: substitute all occurrences of a value in an array.
+
 etc.
 
 Additional packages may be added in the future.
