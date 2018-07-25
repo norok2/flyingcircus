@@ -42,8 +42,8 @@ import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
 
 # :: External Imports Submodules
-import scipy.optimize  # SciPy: Optimization Algorithms
-import scipy.stats  # SciPy: Statistical functions
+# import scipy.optimize  # SciPy: Optimization Algorithms
+# import scipy.stats  # SciPy: Statistical functions
 import scipy.signal  # SciPy: Signal Processing
 
 from numpy.fft import fftshift, ifftshift
@@ -64,16 +64,7 @@ from flyingcircus import msg, dbg
 
 # ======================================================================
 # :: Default values usable in functions.
-COMMENT_TOKEN = '#'
-CSV_DELIMITER = '\t'
-PNG_INTERVAL = (0.0, 255.0)
 EXT = {
-    'plot': 'png',
-    'nii': 'nii',
-    'niz': 'nii.gz',
-    'text': 'txt',
-    'tab': 'csv',
-    'data': 'json',
     'gzip': 'gz',
     'bzip': 'bz2',
     'bzip2': 'bz2',
