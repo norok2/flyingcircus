@@ -245,9 +245,9 @@ You may convey a covered work in object code form under the terms of sections
 Source under the terms of this License, in one of these ways:
 
 * **a)** Convey the object code in, or embodied in, a physical product 
-(including a physical distribution medium), accompanied by the Corresponding 
-Source fixed on a durable physical medium customarily used for software 
-interchange.
+  (including a physical distribution medium), accompanied by the Corresponding
+  Source fixed on a durable physical medium customarily used for software
+  interchange.
 * **b)** Convey the object code in, or embodied in, a physical product 
   (including a physical distribution medium), accompanied by a written offer, 
   valid for at least three years and valid for as long as you offer spare 
