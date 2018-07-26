@@ -900,7 +900,7 @@ def is_prime(num):
     See Also:
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
-    # : fastest implementation
+    # : fastest implementation (skip both 2 and 3 multiples!)
     num = abs(num)
     if (num % 2 == 0 and num > 2) or (num % 3 == 0 and num > 3):
         return False
@@ -2170,14 +2170,17 @@ def which(args):
 
     It mimics the behavior of the POSIX command `which`.
 
-    Deprecated: for Python >3.3 use `shutil.which()`.
+    This has a similar behavior as `shutil.which()` except that it works on
+    a list of arguments as returned by `shlex.split()` where the first item
+    is the command to test.
 
     Args:
         args (str|list[str]): Command to execute as a list of tokens.
-            Optionally can accept a string which will be tokenized.
+            If str this is filtered (tokenized) by `shlex.split()`.
+            Otherwise, assumes an input like the output of `shlex.split()`.
 
     Returns:
-        args (list[str]): Command to execute as a list of tokens.
+        args (str|list[str]): Command to execute as a list of tokens.
             The first item of the list is the full path of the executable.
             If the executable is not found in path, returns the first token of
             the input.
@@ -2224,6 +2227,13 @@ def execute(
         verbose=D_VERB_LVL):
     """
     Execute command and retrieve/print output at the end of execution.
+
+    Better handles `stdin`, `stdout` and `stderr`, as well as timeout,
+    dry-run and verbosity compared to the many alternatives as provided by
+    (the `subprocess` module, `os.system()`, `os.spawn*()`).
+
+    For some applications the high-level API provided by `subprocess.run()`
+    may be more appropriate.
 
     Args:
         args (str|list[str]): Command to execute as a list of tokens.

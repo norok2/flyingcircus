@@ -36,7 +36,7 @@ INFO = {
     'contrib': (
         'Riccardo Metere <rick@metere.it>',
     ),
-    'copyright': 'Copyright (C) 2015-2017',
+    'copyright': 'Copyright (C) 2014-2018',
     'license': 'GNU General Public License version 3 or later (GPLv3+)',
     'notice':
         """
@@ -72,7 +72,7 @@ MY_GREETINGS = r"""
 # generated with: figlet 'FlyingCircus' -f standard
 
 # :: Causes the greetings to be printed any time the library is loaded.
-print(MY_GREETINGS)
+# print(MY_GREETINGS)
 
 
 # ======================================================================
