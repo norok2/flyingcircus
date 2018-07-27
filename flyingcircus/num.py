@@ -3268,7 +3268,7 @@ def rel_err(
         use_average (bool): Use the input arrays average as the exact values
 
     Returns:
-        array (ndarray): The relative error array
+        arr (ndarray): The relative error array
 
     Examples:
         >>> arr1 = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
@@ -3312,7 +3312,7 @@ def euclid_dist(
         unsigned (bool): Use signed distance
 
     Returns:
-        array (ndarray): The resulting array
+        arr (ndarray): The resulting array
 
     Examples:
         >>> arr1 = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
@@ -3324,10 +3324,10 @@ def euclid_dist(
         array([-1.41421356, -2.82842712, -4.24264069, -5.65685425, -7.07106781,
                -8.48528137])
     """
-    array = (arr2 - arr1) / np.sqrt(2.0)
+    arr = (arr2 - arr1) / np.sqrt(2.0)
     if unsigned:
-        array = np.abs(array)
-    return array
+        arr = np.abs(arr)
+    return arr
 
 
 # ======================================================================

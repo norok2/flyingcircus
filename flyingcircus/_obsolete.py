@@ -195,21 +195,21 @@ def interval_size(interval):
 
 
 # ======================================================================
-def ndstack(arrays, axis=-1):
+def ndstack(arrs, axis=-1):
     """
     Stack a list of arrays of the same size along a specific axis.
 
     DEPRECATED! (by `numpy.stack()`)
 
     Args:
-        arrays (list[ndarray]): A list of (N-1)-dim arrays of the same size
-        axis (int): Direction for the concatenation of the arrays
+        arrs (list[ndarray]): A list of (N-1)-dim arrays of the same size.
+        axis (int): Direction for the concatenation of the arrays.
 
     Returns:
-        array (ndarray): The concatenated N-dim array
+        arr (ndarray): The concatenated N-dim array.
     """
-    array = arrays[0]
-    n_dim = array.ndim + 1
+    arr = arrs[0]
+    n_dim = arr.ndim + 1
     if axis < 0:
         axis += n_dim
     if axis < 0:
@@ -217,38 +217,38 @@ def ndstack(arrays, axis=-1):
     if axis > n_dim:
         axis = n_dim
     # calculate new shape
-    shape = array.shape[:axis] + tuple([len(arrays)]) + array.shape[axis:]
+    shape = arr.shape[:axis] + tuple([len(arrs)]) + arr.shape[axis:]
     # stack arrays together
-    array = np.zeros(shape, dtype=array.dtype)
-    for i, src in enumerate(arrays):
+    arr = np.zeros(shape, dtype=arr.dtype)
+    for i, src in enumerate(arrs):
         index = [slice(None)] * n_dim
         index[axis] = i
-        array[tuple(index)] = src
-    return array
+        arr[tuple(index)] = src
+    return arr
 
 
 # ======================================================================
-def ndsplit(array, axis=-1):
+def ndsplit(arr, axis=-1):
     """
     Split an array along a specific axis into a list of arrays
 
     DEPRECATED! (by `numpy.split()`)
 
     Args:
-        array (ndarray): The N-dim array to split
-        axis (int): Direction for the splitting of the array
+        arr (ndarray): The N-dim array to split.
+        axis (int): Direction for the splitting of the array.
 
     Returns:
-        arrays (list[ndarray]): A list of (N-1)-dim arrays of the same size
+        arrs (list[ndarray]): A list of (N-1)-dim arrays of the same size.
     """
     # split array apart
-    arrays = []
-    for i in range(array.shape[axis]):
+    arrs = []
+    for i in range(arr.shape[axis]):
         # determine index for slicing
-        index = [slice(None)] * array.ndim
+        index = [slice(None)] * arr.ndim
         index[axis] = i
-        arrays.append(array[index])
-    return arrays
+        arrs.append(arr[index])
+    return arrs
 
 
 # ======================================================================
