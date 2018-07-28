@@ -825,6 +825,87 @@ def unique_partitions(
 
 
 # ======================================================================
+def listdict2dictlist(
+        listdict,
+        labels=None,
+        d_val=None):
+    """
+    Convert tabular data from a list of dicts to a dict of lists.
+
+    Args:
+        listdict (Iterable[dict]): The tabular data as a list of dicts.
+        labels (Iterable|None): The labels of the tabular data.
+            If Iterable, all elements should be present as keys of the dicts.
+            If the dicts contain keys not specified in `labels` they will be
+            ignored.
+            If None, the `labels` are guessed from the data.
+        d_val (Any): The default value to use for incomplete dicts.
+            This will be inserted in the lists to keep track of missing data.
+
+    Returns:
+        dictlist (dict[Any:list]): The tabular data as a dict of lists.
+            All list will have the same size.
+
+    Examples:
+        >>> ld = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a': 5, 'b': 6}]
+        >>> tuple(listdict2dictlist(ld).items())
+        (('a', [1, 3, 5]), ('b', [2, 4, 6]))
+        >>> ld = [{'a': 1}, {'b': 4}, {'b': 6}]
+        >>> tuple(listdict2dictlist(ld).items())
+        (('a', [1, None, None]), ('b', [None, 4, 6]))
+        >>> ld == dictlist2listdict((listdict2dictlist(ld)))
+        True
+    """
+    if not labels:
+        labels = sorted(functools.reduce(
+            lambda x, y: x.union(y), [set(x.keys()) for x in listdict]))
+    dictlist = {
+        label: [item[label] if label in item else d_val for item in listdict]
+        for label in labels}
+    return dictlist
+
+
+# ======================================================================
+def dictlist2listdict(
+        dictlist,
+        labels=None,
+        d_val=None):
+    """
+    Convert tabular data from a dict of lists to a list of dicts.
+
+    Args:
+        dictlist (Iterable[dict): The tabular data as a dict of lists.
+            All lists must have the same length.
+        labels (Iterable|None): The labels of the tabular data.
+            If None, the `labels` are guessed from the data.
+        d_val (Any): The default value to be used for reducing dicts.
+            The values matching `d_val` are not included in the dicts.
+
+    Returns:
+        dictlist (dict[Any:list]): The tabular data as a dict of lists.
+            All list will have the same size.
+
+    Examples:
+        >>> dl = {'a': [1, 3, 5], 'b': [2, 4, 6]}
+        >>> [sorted(d.items()) for d in dictlist2listdict(dl)]
+        [[('a', 1), ('b', 2)], [('a', 3), ('b', 4)], [('a', 5), ('b', 6)]]
+        >>> dl = {'a': [1, None, None], 'b': [None, 4, 6]}
+        >>> [sorted(d.items()) for d in dictlist2listdict(dl)]
+        [[('a', 1)], [('b', 4)], [('b', 6)]]
+        >>> dl == listdict2dictlist((dictlist2listdict(dl)))
+        True
+    """
+    if not labels:
+        labels = tuple(dictlist.keys())
+    num_elems = len(dictlist[labels[0]])
+    listdict = [
+        {label: dictlist[label][i] for label in labels
+         if dictlist[label][i] is not d_val}
+        for i in range(num_elems)]
+    return listdict
+
+
+# ======================================================================
 def isqrt(num):
     """
     Calculate the integer square root of a number.
