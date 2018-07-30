@@ -741,9 +741,27 @@ def sgnlogspace(
     """
     Logarithmically spaced samples between signed start and stop endpoints.
 
+    Since the logarithm has a singularity in 0, both `start` and `stop` cannot
+    be 0, similarly to `linspace` not accepting infinity as extrema.
+
+    When `start` and `stop` do not have the same sign:
+     - the number of points is distributed equally between positive and
+       negative values if `num` is even, otherwise the additional point is
+       assigned to the largest interval.
+     - the absolute value of `start` and `stop` must be greater than 1.
+     - the smallest absolute values before changing sign is determined by
+       the absolute values of the extrema, so that to a large extremum it
+       corresponds a smaller value before changing sign. This is calculated
+       by inverting the logarithm of the extremum, e.g. if `start` is:
+       100 = 10^2, the minimum value before changing sign is: 0.01 = 10^-2.
+
     Args:
         start (float): The starting value of the sequence.
+            Cannot be 0. If start and stop have different signs, must be
+            larger than 1 in absolute value.
         stop (float): The end value of the sequence.
+            Cannot be 0. If start and stop have different signs, must be
+            larger than 1 in absolute value.
         num (int): Number of samples to generate. Must be non-negative.
         endpoint (bool): The value of 'stop' is the last sample.
         base (float): The base of the log space. Must be non-negative.
@@ -762,28 +780,41 @@ def sgnlogspace(
         array([-10. ,  -0.1,   0.1,   1. ,  10. ])
         >>> sgnlogspace(2, 10, 4)
         array([ 2.        ,  3.41995189,  5.84803548, 10.        ])
+        >>> sgnlogspace(-2, 10, 4)
+        array([-2. , -0.5,  0.1, 10. ])
+        >>> sgnlogspace(-10, 2, 6)
+        array([-10. ,  -1. ,  -0.1,   0.5,   1. ,   2. ])
+        >>> sgnlogspace(10, -2, 5)
+        array([10. ,  1. ,  0.1, -0.5, -2. ])
+        >>> sgnlogspace(10, -1, 5)
+        Traceback (most recent call last):
+            ....
+        AssertionError
     """
     if not util.is_same_sign((start, stop)):
-        bounds = (
+        assert(abs(start) > 1 and abs(stop) > 1)
+        intervals = (
             (start, -(2 ** (-np.log2(np.abs(start))))),
             ((2 ** (-np.log2(np.abs(stop)))), stop))
-        args_bounds = tuple(
-            tuple(np.log2(np.abs(val)) / np.log2(base) for val in arg_bounds)
-            for arg_bounds in bounds)
-        args_num = (num // 2, num - num // 2)
-        args_sign = (np.sign(start), np.sign(stop))
-        args_endpoint = True, endpoint
+        bounds = tuple(
+            tuple(np.log2(np.abs(val)) / np.log2(base) for val in extrema)
+            for extrema in intervals)
+        equity = 1 if num % 2 == 1 and abs(start) > abs(stop) else 0
+        nums = (num // 2 + equity, num - num // 2 - equity)
+        signs = (np.sign(start), np.sign(stop))
+        endpoints = True, endpoint
         logspaces = tuple(
-            np.logspace(*(arg_bounds + (arg_num, arg_endpoint, base))) *
-            arg_sign
-            for arg_bounds, arg_sign, arg_num, arg_endpoint
-            in zip(args_bounds, args_sign, args_num, args_endpoint))
+            np.logspace(
+                *bound_, num=num_, endpoint=endpoint_, base=base) * sign_
+            for bound_, sign_, num_, endpoint_
+            in zip(bounds, signs, nums, endpoints))
         samples = np.concatenate(logspaces)
     else:
         sign = np.sign(start)
-        logspace_bound = tuple(
+        bound = tuple(
             np.log2(np.abs(val)) / np.log2(base) for val in (start, stop))
-        samples = np.logspace(*(logspace_bound + (num, endpoint, base))) * sign
+        samples = sign * np.logspace(
+            *bound, num=num, endpoint=endpoint, base=base)
     return samples
 
 
@@ -2554,30 +2585,30 @@ def filter_cx(
         filter_kws = {}
     if mode == 'cartesian':
         arr = (
-            filter_func(arr.real, *filter_args, **filter_kws) +
-            1j * filter_func(arr.imag, *filter_args, **filter_kws))
+                filter_func(arr.real, *filter_args, **filter_kws) +
+                1j * filter_func(arr.imag, *filter_args, **filter_kws))
     elif mode == 'polar':
         arr = (
-            filter_func(np.abs(arr), *filter_args, **filter_kws) *
-            np.exp(
-                1j * filter_func(
-                    np.angle(arr), *filter_args, **filter_kws)))
+                filter_func(np.abs(arr), *filter_args, **filter_kws) *
+                np.exp(
+                    1j * filter_func(
+                        np.angle(arr), *filter_args, **filter_kws)))
     elif mode == 'real':
         arr = (
-            filter_func(
-                arr.real, *filter_args, **filter_kws) + 1j * arr.imag)
+                filter_func(
+                    arr.real, *filter_args, **filter_kws) + 1j * arr.imag)
     elif mode == 'imag':
         arr = (
-            arr.real + 1j * filter_func(
-                arr.imag, *filter_args, **filter_kws))
+                arr.real + 1j * filter_func(
+            arr.imag, *filter_args, **filter_kws))
     elif mode == 'mag':
         arr = (
-            filter_func(np.abs(arr), *filter_args, **filter_kws) *
-            np.exp(1j * np.angle(arr)))
+                filter_func(np.abs(arr), *filter_args, **filter_kws) *
+                np.exp(1j * np.angle(arr)))
     elif mode == 'phs':
         arr = (
-            np.abs(arr) * np.exp(
-                1j * filter_func(np.angle(arr), *filter_args, **filter_kws)))
+                np.abs(arr) * np.exp(
+            1j * filter_func(np.angle(arr), *filter_args, **filter_kws)))
     else:
         warnings.warn(
             'Mode `{}` not known'.format(mode) + ' Using default.')
