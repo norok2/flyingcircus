@@ -732,12 +732,11 @@ def sgnlog(
 
 
 # ======================================================================
-def sgnlogspace(
+def sgngeomspace(
         start,
         stop,
         num=50,
-        endpoint=True,
-        base=10.0):
+        endpoint=True):
     """
     Logarithmically spaced samples between signed start and stop endpoints.
 
@@ -753,7 +752,7 @@ def sgnlogspace(
        the absolute values of the extrema, so that to a large extremum it
        corresponds a smaller value before changing sign. This is calculated
        by inverting the logarithm of the extremum, e.g. if `start` is:
-       100 = 10^2, the minimum value before changing sign is: 0.01 = 10^-2.
+       100, the minimum value before changing sign is: 1 / 100.
 
     Args:
         start (float): The starting value of the sequence.
@@ -770,51 +769,39 @@ def sgnlogspace(
         samples (ndarray): equally spaced samples on a log scale.
 
     Examples:
-        >>> sgnlogspace(-10, 10, 3)
+        >>> sgngeomspace(-10, 10, 3)
         array([-10. ,   0.1,  10. ])
-        >>> sgnlogspace(-100, -1, 3)
+        >>> sgngeomspace(-100, -1, 3)
         array([-100.,  -10.,   -1.])
-        >>> sgnlogspace(-10, 10, 6)
+        >>> sgngeomspace(-10, 10, 6)
         array([-10. ,  -1. ,  -0.1,   0.1,   1. ,  10. ])
-        >>> sgnlogspace(-10, 10, 5)
+        >>> sgngeomspace(-10, 10, 5)
         array([-10. ,  -0.1,   0.1,   1. ,  10. ])
-        >>> sgnlogspace(2, 10, 4)
+        >>> sgngeomspace(2, 10, 4)
         array([ 2.        ,  3.41995189,  5.84803548, 10.        ])
-        >>> sgnlogspace(-2, 10, 4)
+        >>> sgngeomspace(-2, 10, 4)
         array([-2. , -0.5,  0.1, 10. ])
-        >>> sgnlogspace(-10, 2, 6)
+        >>> sgngeomspace(-10, 2, 6)
         array([-10. ,  -1. ,  -0.1,   0.5,   1. ,   2. ])
-        >>> sgnlogspace(10, -2, 5)
+        >>> sgngeomspace(10, -2, 5)
         array([10. ,  1. ,  0.1, -0.5, -2. ])
-        >>> sgnlogspace(10, -1, 5)
+        >>> sgngeomspace(10, -1, 5)
         Traceback (most recent call last):
             ....
         AssertionError
     """
     if not util.is_same_sign((start, stop)):
         assert(abs(start) > 1 and abs(stop) > 1)
-        intervals = (
-            (start, -(2 ** (-np.log2(np.abs(start))))),
-            ((2 ** (-np.log2(np.abs(stop)))), stop))
-        bounds = tuple(
-            tuple(np.log2(np.abs(val)) / np.log2(base) for val in extrema)
-            for extrema in intervals)
+        bounds = ((start, 1 / start), (1 / stop, stop))
         equity = 1 if num % 2 == 1 and abs(start) > abs(stop) else 0
         nums = (num // 2 + equity, num - num // 2 - equity)
-        signs = (np.sign(start), np.sign(stop))
         endpoints = True, endpoint
         logspaces = tuple(
-            np.logspace(
-                *bound_, num=num_, endpoint=endpoint_, base=base) * sign_
-            for bound_, sign_, num_, endpoint_
-            in zip(bounds, signs, nums, endpoints))
+            np.geomspace(*bound_, num=num_, endpoint=endpoint_)
+            for bound_, num_, endpoint_ in zip(bounds, nums, endpoints))
         samples = np.concatenate(logspaces)
     else:
-        sign = np.sign(start)
-        bound = tuple(
-            np.log2(np.abs(val)) / np.log2(base) for val in (start, stop))
-        samples = sign * np.logspace(
-            *bound, num=num, endpoint=endpoint, base=base)
+        samples = np.geomspace(start, stop, num=num, endpoint=endpoint)
     return samples
 
 
