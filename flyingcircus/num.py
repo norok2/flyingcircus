@@ -791,7 +791,7 @@ def sgngeomspace(
         AssertionError
     """
     if not util.is_same_sign((start, stop)):
-        assert(abs(start) > 1 and abs(stop) > 1)
+        assert (abs(start) > 1 and abs(stop) > 1)
         bounds = ((start, 1 / start), (1 / stop, stop))
         equity = 1 if num % 2 == 1 and abs(start) > abs(stop) else 0
         nums = (num // 2 + equity, num - num // 2 - equity)
@@ -1360,12 +1360,13 @@ def padding(
     if pad_width:
         shape = arr.shape
         pad_width = util.auto_pad_width(pad_width, shape)
-        # mask = tuple(slice(borders, -borders)) * arr.ndim
+        # mask = (slice(borders, -borders),) * arr.ndim
         mask = tuple(slice(lower, -upper) for (lower, upper) in pad_width)
         arr = np.pad(arr, pad_width, pad_mode, **pad_kws)
     else:
-        mask = tuple(slice(None)) * arr.ndim
+        mask = (slice(None),) * arr.ndim
     return arr, mask
+
 
 # ======================================================================
 def gradients(
