@@ -60,8 +60,8 @@ The package ``numeric`` (which requires both ``numpy`` and ``scipy``)
 contains a number of numerical functions, typically
 working on or generating ``numpy.ndarray`` inputs, like:
 
--  ``sgnlogspace()``: generates logarithmically spaced samples between
-   signed start and stop endpoints.
+-  ``sgngeomspace()``: generates geometrically / logarithmically spaced
+   samples between signed start and stop endpoints.
 -  ``unsqueeze()``: add singletons to the shape of an array to
    broadcast-match a given shape.
 -  ``subst()``: substitute all occurrences of a value in an array.
