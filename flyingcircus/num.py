@@ -1331,11 +1331,48 @@ def exp_gradient_kernels(
 
 
 # ======================================================================
+def padding(
+        arr,
+        pad_width=0,
+        pad_mode='constant',
+        pad_kws=(('constant_values', 0.0),)):
+    """
+    Array padding with a constant value.
+
+    Useful for zero-padding. This is the default behavior.
+
+    Args:
+        arr (np.ndarray): The input array.
+        pad_width (int|float): Size of the padding to use.
+            See `fc.util.auto_pad_width()` for more details.
+        pad_mode (str): The padding mode.
+            See `np.pad()` for more details.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+            These are passed to `np.pad()`.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - arr (np.ndarray): The padded array.
+             - mask (tuple(slice)): The mask delimiting the input array.
+    """
+    pad_kws = dict(pad_kws) if pad_kws else {}
+    if pad_width:
+        shape = arr.shape
+        pad_width = util.auto_pad_width(pad_width, shape)
+        # mask = tuple(slice(borders, -borders)) * arr.ndim
+        mask = tuple(slice(lower, -upper) for (lower, upper) in pad_width)
+        arr = np.pad(arr, pad_width, pad_mode, **pad_kws)
+    else:
+        mask = tuple(slice(None)) * arr.ndim
+    return arr, mask
+
+# ======================================================================
 def gradients(
         arr,
         dims=None,
         ft_factor=(2 * np.pi),
-        pad_width=0):
+        pad_width=0.0):
     """
     Apply the gradient operator (in the Fourier domain).
 
@@ -1356,14 +1393,7 @@ def gradients(
     See Also:
         gradient_kernels()
     """
-    if pad_width:
-        shape = arr.shape
-        pad_width = util.auto_pad_width(pad_width, shape)
-        # mask = [slice(borders, -borders)] * arr.ndim
-        mask = [slice(lower, -upper) for (lower, upper) in pad_width]
-        arr = np.pad(arr, pad_width, 'constant', constant_values=0)
-    else:
-        mask = [slice(None)] * arr.ndim
+    arr, mask = padding(arr, pad_width)
     arrs = tuple(
         (((-1j * ft_factor) ** 2) * ifftn(fftshift(kk) * fftn(arr)))[mask]
         for kk in gradient_kernels(arr.shape, dims, arr.shape))
@@ -1396,14 +1426,7 @@ def exp_gradients(
     See Also:
         exp_gradient_kernels()
     """
-    if pad_width:
-        shape = arr.shape
-        pad_width = util.auto_pad_width(pad_width, shape)
-        # mask = [slice(borders, -borders)] * arr.ndim
-        mask = [slice(lower, -upper) for (lower, upper) in pad_width]
-        arr = np.pad(arr, pad_width, 'constant', constant_values=0)
-    else:
-        mask = [slice(None)] * arr.ndim
+    arr, mask = padding(arr, pad_width)
     arrs = tuple(
         (((-1j * ft_factor) ** 2) * ifftn(fftshift(kk) * fftn(arr)))[mask]
         for kk in exp_gradient_kernels(arr.shape, dims, arr.shape))
@@ -1432,13 +1455,7 @@ def laplacian(
     Returns:
         arr (np.ndarray): The output array.
     """
-    if pad_width:
-        shape = arr.shape
-        pad_width = util.auto_pad_width(pad_width, shape)
-        mask = [slice(lower, -upper) for (lower, upper) in pad_width]
-        arr = np.pad(arr, pad_width, 'constant', constant_values=0)
-    else:
-        mask = [slice(None)] * arr.ndim
+    arr, mask = padding(arr, pad_width)
     kk_2 = fftshift(laplace_kernel(arr.shape, arr.shape))
     arr = ((1j * ft_factor) ** 2) * ifftn(kk_2 * fftn(arr))
     return arr[mask]
@@ -1464,14 +1481,7 @@ def inv_laplacian(
     Returns:
         arr (np.ndarray): The output array.
     """
-    if pad_width:
-        shape = arr.shape
-        pad_width = util.auto_pad_width(pad_width, shape)
-        # mask = [slice(borders, -borders)] * arr.ndim
-        mask = [slice(lower, -upper) for (lower, upper) in pad_width]
-        arr = np.pad(arr, pad_width, 'constant', constant_values=0)
-    else:
-        mask = [slice(None)] * arr.ndim
+    arr, mask = padding(arr, pad_width)
     kk_2 = fftshift(laplace_kernel(arr.shape, arr.shape))
     kk_2[kk_2 != 0] = 1.0 / kk_2[kk_2 != 0]
     arr = ((-1j / ft_factor) ** 2) * ifftn(kk_2 * fftn(arr))
