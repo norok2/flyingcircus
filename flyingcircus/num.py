@@ -13,6 +13,8 @@ from __future__ import (
 # :: Python Standard Library Imports
 import warnings  # Warning control
 import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
+import itertools  # Functions creating iterators for efficient looping
+import random  # Generate pseudo-random numbers
 
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
@@ -32,6 +34,7 @@ import scipy as sp  # SciPy (signal and image processing library)
 # import scipy.constants  # SciPy: Mathematal and Physical Constants
 # import scipy.stats  # SciPy: Statistical functions
 import scipy.signal  # SciPy: Signal processing
+import scipy.ndimage  # SciPy: ND-image Manipulation
 
 from numpy.fft import fftshift, ifftshift
 from scipy.fftpack import fftn, ifftn
@@ -114,7 +117,7 @@ def ndim_slice(
         slab[axis] = index
     # print(slab)  # debug
     # slice the array
-    return arr[slab]
+    return arr[tuple(slab)]
 
 
 # ======================================================================
@@ -736,7 +739,9 @@ def sgngeomspace(
         start,
         stop,
         num=50,
-        endpoint=True):
+        endpoint=True,
+        inner_stop=None,
+        inner_start=None):
     """
     Logarithmically spaced samples between signed start and stop endpoints.
 
@@ -763,7 +768,8 @@ def sgngeomspace(
             larger than 1 in absolute value.
         num (int): Number of samples to generate. Must be non-negative.
         endpoint (bool): The value of 'stop' is the last sample.
-        base (float): The base of the log space. Must be non-negative.
+        inner_stop (float|callable|None):
+        inner_start (float|callable|None):
 
     Returns:
         samples (ndarray): equally spaced samples on a log scale.
@@ -1098,6 +1104,69 @@ def grid_coord(
 
 
 # ======================================================================
+def rel2abs(shape, size=0.5):
+    """
+    Calculate the absolute size from a relative size for a given shape.
+
+    Args:
+        shape (int|Iterable[int]): The shape of the container in px.
+        size (float|tuple[float]): Relative position (to the lowest edge).
+            Each element of the tuple should be in the range [0, 1].
+
+    Returns:
+        position (float|tuple[float]): Absolute position inside the shape.
+            Each element of the tuple should be in the range [0, dim - 1],
+            where dim is the corresponding dimension of the shape.
+
+    Examples:
+        >>> rel2abs((100, 100, 101, 101), (0.0, 1.0, 0.0, 1.0))
+        (0.0, 99.0, 0.0, 100.0)
+        >>> rel2abs((100, 99, 101))
+        (49.5, 49.0, 50.0)
+        >>> rel2abs((100, 200, 50, 99, 37), (0.0, 1.0, 0.2, 0.3, 0.4))
+        (0.0, 199.0, 9.8, 29.4, 14.4)
+        >>> rel2abs((100, 100, 100), (1.0, 10.0, -1.0))
+        (99.0, 990.0, -99.0)
+        >>> shape = (100, 100, 100, 100, 100)
+        >>> abs2rel(shape, rel2abs(shape, (0.0, 0.25, 0.5, 0.75, 1.0)))
+        (0.0, 0.25, 0.5, 0.75, 1.0)
+    """
+    size = fc.util.auto_repeat(size, len(shape), check=True)
+    return tuple((s - 1.0) * p for p, s in zip(size, shape))
+
+
+# ======================================================================
+def abs2rel(shape, position=0):
+    """
+    Calculate the relative size from an absolute size for a given shape.
+
+    Args:
+        shape (int|Iterable[int]): The shape of the container in px.
+        position (float|tuple[float]): Absolute position inside the shape.
+            Each element of the tuple should be in the range [0, dim - 1],
+            where dim is the corresponding dimension of the shape.
+
+    Returns:
+        position (float|tuple[float]): Relative position (to the lowest edge).
+            Each element of the tuple should be in the range [0, 1].
+
+    Examples:
+        >>> abs2rel((100, 100, 101, 99), (0, 100, 100, 100))
+        (0.0, 1.0101010101010102, 1.0, 1.0204081632653061)
+        >>> abs2rel((100, 99, 101))
+        (0.0, 0.0, 0.0)
+        >>> abs2rel((412, 200, 37), (30, 33, 11.7))
+        (0.072992700729927, 0.1658291457286432, 0.32499999999999996)
+        >>> abs2rel((100, 100, 100), (250, 10, -30))
+        (2.525252525252525, 0.10101010101010101, -0.30303030303030304)
+        >>> shape = (100, 100, 100, 100, 100)
+        >>> abs2rel(shape, rel2abs(shape, (0, 25, 50, 75, 100)))
+        (0.0, 25.0, 50.0, 75.0, 100.0)
+    """
+    position = fc.util.auto_repeat(position, len(shape), check=True)
+    return tuple(p / (s - 1.0) for p, s in zip(position, shape))
+
+# ======================================================================
 def laplace_kernel(
         shape,
         factors=1):
@@ -1382,7 +1451,7 @@ def gradients(
         dims (int|Iterable[int]): The direction of the gradient.
             Values must be between `len(shape)` and `-len(shape)`.
         ft_factor (float): The Fourier factor for the gradient operator.
-            Should be either 1 or 2*pi, depending on DFT implementation.
+            Should be either 1 or 2π, depending on DFT implementation.
         pad_width (float|int): Size of the border to use.
             This is useful for mitigating border effects.
             If int, it is interpreted as absolute size.
@@ -1415,7 +1484,7 @@ def exp_gradients(
         dims (int|Iterable[int]): The direction of the gradient.
             Values must be between `len(shape)` and `-len(shape)`.
         ft_factor (float): The Fourier factor for the gradient operator.
-            Should be either 1 or 2*pi, depending on DFT implementation.
+            Should be either 1 or 2π, depending on DFT implementation.
         pad_width (float|int): Size of the border to use.
             This is useful for mitigating border effects.
             If int, it is interpreted as absolute size.
@@ -1445,7 +1514,7 @@ def laplacian(
     Args:
         arr (np.ndarray): The input array.
         ft_factor (float): The Fourier factor for the gradient operator.
-            Should be either 1 or 2*pi, depending on DFT implementation.
+            Should be either 1 or 2π, depending on DFT implementation.
         pad_width (float|int|Iterable[float|int]): Size of the padding to use.
             This is useful for mitigating border effects.
             If Iterable, a value for each dim must be specified.
@@ -1473,7 +1542,7 @@ def inv_laplacian(
     Args:
         arr (np.ndarray): The input array.
         ft_factor (float): The Fourier factor for the gradient operator.
-            Should be either 1 or 2*pi, depending on DFT implementation.
+            Should be either 1 or 2π, depending on DFT implementation.
         pad_width (float|int): Size of the border to use.
             This is useful for mitigating border effects.
             If int, it is interpreted as absolute size.
@@ -2615,6 +2684,27 @@ def filter_cx(
 
 
 # ======================================================================
+def wrap_cyclic(
+        arr,
+        size=2 * np.pi,
+        offset=np.pi):
+    """
+    Cyclic wrap values to a range with a specific size and offset.
+
+    This is useful to emulate the behavior of phase wrapping.
+
+    Args:
+        arr (int|float|np.ndarray): The input value or array.
+        size (int|float): The size of the wrapped range.
+        offset (int|float): The offset of the wrapped range.
+
+    Returns:
+        arr (int|float|np.ndarray): The wrapped value or array.
+    """
+    return (arr + offset) % size - offset
+
+
+# ======================================================================
 def marginal_sep_elbow(items):
     """
     Determine the marginal separation using the elbow method.
@@ -3281,6 +3371,1083 @@ def calc_stats(
                 print_str += '{}={}, '.format(label, stats_dict[label])
         print(print_str)
     return stats_dict
+
+
+# ======================================================================
+def apply_mask(
+        arr,
+        mask,
+        borders=None,
+        background=0.0,
+        do_unsqueeze=True):
+    """
+    Apply a mask to an array.
+
+    Note: this will not produced a masked array `numpy.ma` object.
+
+    Args:
+        arr (np.ndarray): The input array.
+        mask (np.ndarray|None): The mask array.
+            If np.ndarray, the shape of `arr` and `mask` must be identical,
+            broadcastable through `np.broadcast_to()`, or unsqueezable using
+            `fc.num.unsqueeze()`.
+            If None, no masking is performed.
+        borders (int|float|tuple[int|float]|None): The border size(s).
+            If None, the border is not modified.
+            Otherwise, a border is added to the masked array.
+            If int, this is in units of pixels.
+            If float, this is proportional to the initial array shape.
+            If int or float, uses the same value for all dimensions,
+            unless `unsqueezing` is set to True, in which case, the same value
+            is used only for non-singletons, while 0 is used for singletons.
+            If Iterable, the size must match `arr` dimensions.
+            If 'use_longest' is True, use the longest dimension for the
+            calculations.
+        background (int|float): The value used for masked-out pixels.
+        do_unsqueeze (bool): Unsqueeze mask to input.
+            If True, use `fc.num.unsqueeze()` on mask.
+            Only effective when `arr` and `mask` shapes do not match and
+            are not already broadcastable.
+            Otherwise, shapes must match or be broadcastable.
+
+    Returns:
+        arr (np.ndarray): The output array.
+            Values outside of the mask are set to background.
+            Array shape may have changed (depending on `borders`).
+
+    Raises:
+        ValueError: If the mask and array shapes are not compatible.
+
+    See Also:
+        frame()
+    """
+    if mask is not None:
+        mask = mask.astype(bool)
+        if arr.ndim > mask.ndim and do_unsqueeze:
+            old_shape = mask.shape
+            mask = unsqueeze(mask, shape=arr.shape)
+            if isinstance(borders, (int, float)):
+                borders = [borders if dim != 1 else 0 for dim in mask.shape]
+            elif borders is not None and len(borders) == len(old_shape):
+                borders = list(
+                    fc.util.replace_iter(
+                        mask.shape, lambda x: x == 1, borders))
+        arr = arr.copy()
+        if arr.shape != mask.shape:
+            mask = np.broadcast_to(mask, arr.shape)
+        if arr.shape == mask.shape:
+            arr[~mask] = background
+            if borders is not None:
+                container = sp.ndimage.find_objects(mask.astype(int))[0]
+                if container:
+                    arr = arr[container]
+                arr = frame(arr, borders, background)
+        else:
+            raise ValueError(
+                'Cannot apply mask shaped `{}` to array shaped `{}`.'.format(
+                    mask.shape, arr.shape))
+    return arr
+
+
+# ======================================================================
+def frame(
+        arr,
+        borders=0.05,
+        background=0.0,
+        use_longest=True):
+    """
+    Add a background frame to an array specifying the borders.
+
+    Args:
+        arr (np.ndarray): The input array.
+        borders (int|float|Iterable[int|float]): The border size(s).
+            If int, this is in units of pixels.
+            If float, this is proportional to the initial array shape.
+            If int or float, uses the same value for all dimensions.
+            If Iterable, the size must match `arr` dimensions.
+            If 'use_longest' is True, use the longest dimension for the
+            calculations.
+        background (int|float): The background value to be used for the frame.
+        use_longest (bool): Use longest dimension to get the border size.
+
+    Returns:
+        result (np.ndarray): The result array with added borders.
+
+    See Also:
+        reframe()
+    """
+    borders = fc.util.auto_repeat(borders, arr.ndim)
+    if any(borders) < 0:
+        raise ValueError('relative border cannot be negative')
+    if isinstance(borders[0], float):
+        if use_longest:
+            dim = max(arr.shape)
+            borders = [round(border * dim) for border in borders]
+        else:
+            borders = [
+                round(border * dim) for dim, border in zip(arr.shape, borders)]
+    result = np.full(
+        [dim + 2 * border for dim, border in zip(arr.shape, borders)],
+        background, dtype=arr.dtype)
+    inner = [
+        slice(border, border + dim, None)
+        for dim, border in zip(arr.shape, borders)]
+    result[inner] = arr
+    return result
+
+
+# ======================================================================
+def reframe(
+        arr,
+        new_shape,
+        position=0.5,
+        background=0.0):
+    """
+    Add a frame to an array by centering the input array into a new shape.
+
+    Args:
+        arr (np.ndarray): The input array.
+        new_shape (int|Iterable[int]): The shape of the output array.
+            If int, uses the same value for all dimensions.
+            If Iterable, the size must match `arr` dimensions.
+            Additionally, each value of `new_shape` must be greater than or
+            equal to the corresponding dimensions of `arr`.
+        position (int|float|Iterable[int|float]): Position within new shape.
+            Determines the position of the array within the new shape.
+            If int or float, it is considered the same in all dimensions,
+            otherwise its length must match the number of dimensions of the
+            array.
+            If int or Iterable of int, the values are absolute and must be
+            less than or equal to the difference between the shape of the array
+            and the new shape.
+            If float or Iterable of float, the values are relative and must be
+            in the [0, 1] range.
+        background (int|float): The background value to be used for the frame.
+
+    Returns:
+        result (np.ndarray): The result array with added borders.
+
+    Raises:
+        IndexError: input and output shape sizes must match.
+        ValueError: output shape cannot be smaller than the input shape.
+
+    See Also:
+        frame()
+
+    Examples:
+        >>> arr = np.ones((2, 3))
+        >>> reframe(arr, (4, 5))
+        array([[0., 0., 0., 0., 0.],
+               [0., 1., 1., 1., 0.],
+               [0., 1., 1., 1., 0.],
+               [0., 0., 0., 0., 0.]])
+        >>> reframe(arr, (4, 5), 0)
+        array([[1., 1., 1., 0., 0.],
+               [1., 1., 1., 0., 0.],
+               [0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.]])
+        >>> reframe(arr, (4, 5), (2, 0))
+        array([[0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.],
+               [1., 1., 1., 0., 0.],
+               [1., 1., 1., 0., 0.]])
+        >>> reframe(arr, (4, 5), (0.0, 1.0))
+        array([[0., 0., 1., 1., 1.],
+               [0., 0., 1., 1., 1.],
+               [0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.]])
+    """
+    new_shape = fc.util.auto_repeat(new_shape, arr.ndim, check=True)
+    position = fc.util.auto_repeat(position, arr.ndim, check=True)
+    if any([old > new for old, new in zip(arr.shape, new_shape)]):
+        raise ValueError('new shape cannot be smaller than the old one.')
+    position = [
+        int(round((new - old) * x_i)) if isinstance(x_i, float) else x_i
+        for old, new, x_i in zip(arr.shape, new_shape, position)]
+    if any([old + x_i > new
+            for old, new, x_i in zip(arr.shape, new_shape, position)]):
+        raise ValueError(
+            'Incompatible `new_shape`, `array shape` and `position`.')
+    result = np.full(new_shape, background)
+    inner = tuple(
+        slice(offset, offset + dim, None)
+        for dim, offset in zip(arr.shape, position))
+    result[inner] = arr
+    return result
+
+
+# ======================================================================
+def multi_reframe(
+        arrs,
+        new_shape=None,
+        background=0.0,
+        dtype=None):
+    """
+    Reframe arrays (by adding border) to match the same shape.
+
+    Note that:
+     - uses 'reframe' under the hood;
+     - the sampling / resolution / voxel size will NOT change;
+     - the support space / field-of-view will change.
+
+    Args:
+        arrs (Iterable[np.ndarray]): The input arrays.
+        new_shape (Iterable[int]): The new base shape of the arrays.
+        background (int|float|complex): The background value for the frame.
+        dtype (data-type): Desired output data-type.
+            If None, its guessed from dtype of arrs.
+            See `np.ndarray()` for more.
+
+    Returns:
+        result (np.ndarray): The output array.
+            It contains all reframed arrays from `arrs`, through the last dim.
+            The shape of this array is `new_shape` + `len(arrs)`.
+    """
+    # calculate new shape
+    if new_shape is None:
+        shapes = [arr.shape for arr in arrs]
+        new_shape = [1] * max([len(shape) for shape in shapes])
+        shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
+        for i, shape in enumerate(shapes):
+            shape_arr[i, :len(shape)] = np.array(shape)
+        new_shape = tuple(
+            max(*list(shape_arr[:, i]))
+            for i in range(len(new_shape)))
+
+    if dtype is None:
+        # dtype = functools.reduce(
+        #     (lambda x, y: np.promote_types(x, y.dtype)), arrs)
+        dtype = bool
+        for arr in arrs:
+            dtype = np.promote_types(dtype, arr.dtype)
+
+    result = np.array(new_shape + (len(arrs),), dtype=dtype)
+    for i, arr in enumerate(arrs):
+        # ratio should not be kept: keep_ratio_method=None
+        result[..., i] = reframe(arr, new_shape, background=background)
+    return result
+
+
+# ======================================================================
+def zoom_prepare(
+        zoom_factors,
+        shape,
+        extra_dim=True,
+        fill_dim=True):
+    """
+    Prepare the zoom and shape tuples to allow for non-homogeneous shapes.
+
+    Args:
+        zoom_factors (float|tuple[float]): The zoom factors for each
+        directions.
+        shape (int|Iterable[int]): The shape of the array to operate with.
+        extra_dim (bool): Force extra dimensions in the zoom parameters.
+        fill_dim (bool): Dimensions not specified are left untouched.
+
+    Returns:
+        zoom (tuple[float]): The zoom factors for each directions.
+        shape (int|Iterable[int]): The shape of the array to operate with.
+    """
+    zoom_factors = list(fc.util.auto_repeat(zoom_factors, len(shape)))
+    if extra_dim:
+        shape = list(shape) + [1] * (len(zoom_factors) - len(shape))
+    else:
+        zoom_factors = zoom_factors[:len(shape)]
+    if fill_dim and len(zoom_factors) < len(shape):
+        zoom_factors[len(zoom_factors):] = \
+            [1.0] * (len(shape) - len(zoom_factors))
+    return zoom_factors, shape
+
+
+# ======================================================================
+def shape2zoom(
+        old_shape,
+        new_shape,
+        aspect=None):
+    """
+    Calculate zoom (or conversion) factor between two shapes.
+
+    Args:
+        old_shape (int|Iterable[int]): The shape of the source array.
+        new_shape (int|Iterable[int]): The target shape of the array.
+        aspect (callable|None): Function for the manipulation of the zoom.
+            Signature: aspect(Iterable[float]) -> float.
+            None to leave the zoom unmodified. If specified, the function is
+            applied to zoom factors tuple for fine tuning of the aspect.
+            Particularly, to obtain specific aspect ratio results:
+             - 'min': image strictly contained into new shape
+             - 'max': new shape strictly contained into image
+
+    Returns:
+        zoom (tuple[float]): The zoom factors for each directions.
+    """
+    if len(old_shape) != len(new_shape):
+        raise IndexError('length of tuples must match')
+    zoom_factors = [new / old for old, new in zip(old_shape, new_shape)]
+    if aspect:
+        zoom_factors = [aspect(zoom_factors)] * len(zoom_factors)
+    return zoom_factors
+
+
+# ======================================================================
+def zoom(
+        arr,
+        factors,
+        window=None,
+        interp_order=0,
+        extra_dim=True,
+        fill_dim=True):
+    """
+    Zoom the array with a specified magnification factor.
+
+    Args:
+        arr (np.ndarray): The input array.
+        factors (int|float|Iterable[int|float]): The zoom factor(s).
+            If int or float, uses isotropic factor along all axes.
+            If Iterable, its size must match the number of dims of `arr`.
+            Values larger than 1 increase `arr` size along the axis.
+            Values smaller than 1 decrease `arr` size along the axis.
+        window (int|Iterable[int]|None): Uniform pre-filter window size.
+            This is the size of the window for the uniform filter using
+            `sp.ndimage.uniform_filter()`.
+            If Iterable, its size must match the number of dims of `arr`.
+            If int, uses an isotropic window with the specified size.
+            If None, the window is calculated automatically from the `zoom`
+            parameter.
+        interp_order (int): Order of the spline interpolation.
+            0: nearest. Accepted range: [0, 5].
+        extra_dim (bool): Force extra dimensions in the zoom parameters.
+        fill_dim (bool): Dimensions not specified are left untouched.
+
+    Returns:
+        result (np.ndarray): The output array.
+
+    See Also:
+        geometry.zoom
+    """
+    factors, shape = zoom_prepare(factors, arr.shape, extra_dim, fill_dim)
+    if window is None:
+        window = [round(1.0 / (2.0 * x)) for x in factors]
+    arr = sp.ndimage.uniform_filter(arr, window)
+    arr = sp.ndimage.zoom(
+        arr.reshape(shape), factors, order=interp_order)
+    return arr
+
+
+# ======================================================================
+def resample(
+        arr,
+        new_shape,
+        aspect=None,
+        window=None,
+        interp_order=0,
+        extra_dim=True,
+        fill_dim=True):
+    """
+    Reshape the array to a new shape (different resolution / pixel size).
+
+    Args:
+        arr (np.ndarray): The input array.
+        new_shape (Iterable[int|None]): New dimensions of the array.
+        aspect (callable|Iterable[callable]|None): Zoom shape manipulation.
+            Useful for obtaining specific aspect ratio effects.
+            This is passed to `fc.num.shape2zoom()`.
+        window (int|Iterable[int]|None): Uniform pre-filter window size.
+            This is the size of the window for the uniform filter using
+            `sp.ndimage.uniform_filter()`.
+            If Iterable, its size must match the number of dims of `arr`.
+            If int, uses an isotropic window with the specified size.
+            If None, the window is calculated automatically from `new_shape`.
+        interp_order (int|None): Order of the spline interpolation.
+            0: nearest. Accepted range: [0, 5].
+        extra_dim (bool): Force extra dimensions in the zoom parameters.
+        fill_dim (bool): Dimensions not specified are left untouched.
+
+    Returns:
+        arr (np.ndarray): The output array.
+
+    See Also:
+        geometry.zoom
+    """
+    factors = shape2zoom(arr.shape, new_shape, aspect)
+    factors, shape = zoom_prepare(
+        factors, arr.shape, extra_dim, fill_dim)
+    arr = zoom(arr, factors, window=window, interp_order=interp_order)
+    return arr
+
+
+# ======================================================================
+def multi_resample(
+        arrs,
+        new_shape=None,
+        lossless=False,
+        window=None,
+        interp_order=0,
+        extra_dim=True,
+        fill_dim=True,
+        dtype=None):
+    """
+    Resample arrays to match the same shape.
+
+    Note that:
+     - uses 'geometry.resample()' internally;
+     - the sampling / resolution / voxel size will change;
+     - the support space / field-of-view will NOT change.
+
+    Args:
+        arrs (Iterable[np.ndarray]): The input arrays,
+        new_shape (Iterable[int]): The new base shape of the arrays.
+        lossless (bool): allow for lossy resampling.
+        window (int|Iterable[int]|None): Uniform pre-filter window size.
+            This is the size of the window for the uniform filter using
+            `sp.ndimage.uniform_filter()`.
+            If Iterable, its size must match the number of dims of `arr`.
+            If int, uses an isotropic window with the specified size.
+            If None, the window is calculated automatically from `new_shape`.
+        interp_order (int|None): Order of the spline interpolation.
+            0: nearest. Accepted range: [0, 5].
+        extra_dim (bool): Force extra dimensions in the zoom parameters.
+        fill_dim (bool): Dimensions not specified are left untouched.
+        dtype (data-type): Desired output data-type.
+            If None, its guessed from dtype of arrs.
+            See `np.ndarray()` for more.
+
+    Returns:
+        result (np.ndarray): The output array.
+            It contains all reshaped arrays from `arrs`, through the last dim.
+            The shape of this array is `new_shape` + `len(arrs)`.
+    """
+    # calculate new shape
+    if new_shape is None:
+        shapes = [arr.shape for arr in arrs]
+        new_shape = [1] * max([len(shape) for shape in shapes])
+        shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
+        for i, shape in enumerate(shapes):
+            shape_arr[i, :len(shape)] = np.array(shape)
+        combiner = fc.util.lcm if lossless else max
+        new_shape = tuple(
+            combiner(*list(shape_arr[:, i]))
+            for i in range(len(new_shape)))
+    else:
+        new_shape = tuple(new_shape)
+
+    # resample images
+    if lossless:
+        interp_order = 0
+        window = None
+
+    if dtype is None:
+        # dtype = functools.reduce(
+        #     (lambda x, y: np.promote_types(x, y.dtype)), arrs)
+        dtype = bool
+        for arr in arrs:
+            dtype = np.promote_types(dtype, arr.dtype)
+
+    result = np.array(new_shape + (len(arrs),), dtype=dtype)
+    for i, arr in enumerate(arrs):
+        # ratio should not be kept: keep_ratio_method=None
+        result[..., i] = resample(
+            arr, new_shape, aspect=None, window=window,
+            interp_order=interp_order, extra_dim=extra_dim, fill_dim=fill_dim)
+    return result
+
+
+# ======================================================================
+def decode_affine(
+        affine):
+    """
+    Decompose the affine matrix into a linear transformation and a translation.
+
+    Args:
+        affine (np.ndarray): The (N+1)-sized affine square matrix.
+
+    Returns:
+        linear (np.ndarray): The N-sized linear square matrix.
+        shift (np.ndarray): The shift along each axis in px.
+    """
+    dims = affine.shape
+    linear = affine[:dims[0] - 1, :dims[1] - 1]
+    shift = affine[:-1, -1]
+    return linear, shift
+
+
+# ======================================================================
+def encode_affine(
+        linear,
+        shift):
+    """
+    Combine a linear transformation and a translation into the affine matrix.
+
+    Args:
+        linear (np.ndarray): The N-sized linear square matrix.
+        shift (np.ndarray): The shift along each axis in px.
+
+    Returns:
+        affine (np.ndarray): The (N+1)-sized affine square matrix.
+    """
+    dims = linear.shape
+    affine = np.eye(dims[0] + 1)
+    affine[:dims[0], :dims[1]] = linear
+    affine[:-1, -1] = shift
+    return affine
+
+
+# ======================================================================
+def num_angles_from_dim(n_dim):
+    """
+    Calculate the complete number of angles given the dimension.
+
+    Given the dimension of an array, calculate the number of all possible
+    cartesian orthogonal planes of rotations, using the formula:
+
+    :math:`N = n * (n - 1) / 2` [ :math:`N = n! / 2! / (n - 2)!` ]
+    (N: num of angles, n: num of dim)
+
+    Args:
+        n_dim (int): The number of dimensions.
+
+    Returns:
+        n_angles (int): The corresponding number of angles.
+
+    See Also:
+        fc.num.num_dim_from_angles()
+    """
+    return n_dim * (n_dim - 1) // 2
+
+
+# ======================================================================
+def num_dim_from_angles(
+        n_angles,
+        raise_err=False):
+    """
+    Computes the number of dimensions from the number of angles.
+
+    This is the solution for `n` to the equation: :math:`n * (n - 1) / 2 = N`
+    (N: num of angles, n: num of dim)
+
+    Args:
+        n_angles (int): The number of angles.
+        raise_err (bool): Raise an exception if invalid number of angles.
+
+    Returns:
+        n_dim (int): The corresponding number of dimensions.
+
+    Raises:
+        ValueError: if `raise_err == True` and the number of angles is invalid!
+
+    See Also:
+        fc.num.num_angles_from_dim()
+    """
+    n_dim = ((1 + np.sqrt(1 + 8 * n_angles)) / 2)
+    # alternatives: numpy.modf, math.modf
+    int_part, dec_part = divmod(n_dim, 1)
+    if not np.isclose(dec_part, 0.0) and raise_err:
+        raise ValueError('cannot get the dimension from the number of angles')
+    return int(np.ceil(n_dim))
+
+
+# ======================================================================
+def angles2linear(
+        angles,
+        n_dim=None,
+        axes_list=None,
+        use_degree=True,
+        atol=None):
+    """
+    Calculate the linear transformation relative to the specified rotations.
+
+    Args:
+        angles (tuple[float]): The angles to be used for rotation.
+        n_dim (int|None): The number of dimensions to consider.
+            The number of angles and `n_dim` should satisfy the relation:
+            `n_angles = n_dim * (n_dim - 1) / 2`.
+            If `len(angles)` is smaller than expected for a given `n_dim`,
+            the remaining angles are set to 0.
+            If `len(angles)` is larger than expected, the exceeding `angles`
+            are ignored.
+            If None, n_dim is computed from `len(angles)`.
+        axes_list (tuple[tuple[int]]|None): The axes of the rotation plane.
+            If not None, for each rotation angle a pair of axes
+            (i.e. a 2-tuple of int) must be specified to define the associated
+            plane of rotation.
+            The number of 2-tuples should match the number of of angles
+            `len(angles) == len(axes_list)`.
+            If `len(angles) < len(axes_list)` or `len(angles) > len(axes_list)`
+            the unspecified rotations are not performed.
+            If None, generates `axes_list` using the output of
+            `itertools.combinations(range(n_dim), 2)`.
+        use_degree (bool): Interpret angles as expressed in degree.
+            Otherwise, use radians.
+        atol (float|None): Absolute tolerance in the approximation.
+            If error tolerance is exceded, a warning is issued.
+            If float, the specified number is used as threshold.
+            If None, a threshold is computed based on the size of the linear
+            transformation matrix: `dim ** 4 * np.finfo(np.double).eps`.
+
+    Returns:
+        linear (np.ndarray): The rotation matrix as defined by the angles.
+
+    See Also:
+        fc.num.num_angles_from_dim(),
+        fc.num.num_dim_from_angles(),
+        itertools.combinations
+    """
+    if n_dim is None:
+        n_dim = num_dim_from_angles(len(angles))
+    if not axes_list:
+        axes_list = list(itertools.combinations(range(n_dim), 2))
+    lin_mat = np.eye(n_dim).astype(np.double)
+    for angle, axes in zip(angles, axes_list):
+        if use_degree:
+            angle = np.deg2rad(angle)
+        rotation = np.eye(n_dim)
+        rotation[axes[0], axes[0]] = np.cos(angle)
+        rotation[axes[1], axes[1]] = np.cos(angle)
+        rotation[axes[0], axes[1]] = -np.sin(angle)
+        rotation[axes[1], axes[0]] = np.sin(angle)
+        lin_mat = np.dot(lin_mat, rotation)
+    # :: check that this is a rotation matrix
+    det = np.linalg.det(lin_mat)
+    if not atol:
+        atol = lin_mat.ndim ** 4 * np.finfo(np.double).eps
+    if np.abs(det) - 1.0 > atol:
+        text = 'rotation matrix may be inaccurate [det = {}]'.format(repr(det))
+        warnings.warn(text)
+    return lin_mat
+
+
+# ======================================================================
+def linear2angles(
+        linear,
+        use_degree=True,
+        atol=None):
+    # todo: implement the inverse of angles2linear
+    raise NotImplementedError
+
+
+# ======================================================================
+def prepare_affine(
+        shape,
+        lin_mat,
+        shift=None,
+        origin=None):
+    """
+    Prepare parameters to be used with `scipy.ndimage.affine_transform()`.
+
+    In particular, it computes the linear matrix and the offset implementing
+    an affine transformation followed by a translation on the array.
+
+    The result can be passed directly as `matrix` and `offset` parameters of
+    `scipy.ndimage.affine_transform()`.
+
+    Args:
+        shape (Iterable): The shape of the array to be transformed.
+        lin_mat (np.ndarray): The N-sized linear square matrix.
+        shift (np.ndarray|None): The shift along each axis in px.
+            If None, no shift is performed.
+        origin (np.ndarray|None): The origin of the linear transformation.
+            If None, uses the center of the array.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - lin_mat (np.ndarray): The N-sized linear square matrix.
+             - offset (np.ndarray): The offset along each axis in px.
+
+    See Also:
+        scipy.ndimage.affine_transform()
+    """
+    ndim = len(shape)
+    if shift is None:
+        shift = 0
+    if origin is None:
+        origin = np.array(rel2abs(shape, (0.5,) * ndim))
+    offset = origin - np.dot(lin_mat, origin + shift)
+    return lin_mat, offset
+
+
+# ======================================================================
+def weighted_center(
+        arr,
+        labels=None,
+        index=None):
+    """
+    Determine the weighted mean of the rendered objects inside an array.
+
+    .. math::
+        \\sum_i w_i (\\vec{x}_i - \\vec{o}_i)
+
+    for i spanning through all support space.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+
+    Returns:
+        center (np.ndarray): The coordinates of the weighed center.
+
+    See Also:
+        fc.num.tensor_of_inertia(),
+        fc.num.rotatio_axes(),
+        fc.num.auto_rotation(),
+        fc.num.realigning()
+    """
+    # numpy.double to improve the accuracy of the norm and the weighted center
+    arr = arr.astype(np.double)
+    norm = sp.ndimage.sum(arr, labels, index)
+    grid = np.ogrid[[slice(0, i) for i in arr.shape]]
+    # numpy.double to improve the accuracy of the result
+    center = np.zeros(arr.ndim).astype(np.double)
+    for i in range(arr.ndim):
+        center[i] = sp.ndimage.sum(arr * grid[i], labels, index) / norm
+    return center
+
+
+# ======================================================================
+def weighted_covariance(
+        arr,
+        labels=None,
+        index=None,
+        origin=None):
+    """
+    Determine the weighted covariance matrix with respect to the origin.
+
+    .. math::
+        \\sum_i w_i (\\vec{x}_i - \\vec{o}) (\\vec{x}_i - \\vec{o})^T
+
+    for i spanning through all support space, where:
+    o is the origin vector,
+    x_i is the coordinate vector of the point i,
+    w_i is the weight, i.e. the value of the array at that coordinate.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        origin (np.ndarray|None): The origin for the covariance matrix.
+            If None, the weighted center is used.
+
+    Returns:
+        cov (np.ndarray): The covariance weight matrix from the origin.
+
+    See Also:
+        fc.num.tensor_of_inertia,
+        fc.num.rotation_axes,
+        fc.num.auto_rotation,
+        fc.num.realigning
+    """
+    # numpy.double to improve the accuracy of the norm and the weighted center
+    arr = arr.astype(np.double)
+    norm = sp.ndimage.sum(arr, labels, index)
+    if origin is None:
+        origin = np.array(sp.ndimage.center_of_mass(arr, labels, index))
+    grid = np.ogrid[[slice(0, i) for i in arr.shape]] - origin
+    # numpy.double to improve the accuracy of the result
+    cov = np.zeros((arr.ndim, arr.ndim)).astype(np.double)
+    for i in range(arr.ndim):
+        for j in range(arr.ndim):
+            if i <= j:
+                cov[i, j] = sp.ndimage.sum(
+                    arr * grid[i] * grid[j], labels, index) / norm
+            else:
+                # the covariance weight matrix is symmetric
+                cov[i, j] = cov[j, i]
+    return cov
+
+
+# ======================================================================
+def tensor_of_inertia(
+        arr,
+        labels=None,
+        index=None,
+        origin=None):
+    """
+    Determine the tensor of inertia with respect to the origin.
+
+    I = Id * tr(C) - C
+
+    where:
+    C is the weighted covariance matrix,
+    Id is the identity matrix.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        origin (np.ndarray|None): The origin for the covariance matrix.
+            If None, the weighted center is used.
+
+    Returns:
+        inertia (np.ndarray): The tensor of inertia from the origin.
+
+    See Also:
+        fc.num.weighted_covariance(),
+        fc.num.rotation_axes(),
+        fc.num.auto_rotation(),
+        fc.num.realigning()
+    """
+    cov = weighted_covariance(arr, labels, index, origin)
+    inertia = np.eye(arr.ndim) * np.trace(cov) - cov
+    return inertia
+
+
+# ======================================================================
+def rotation_axes(
+        arr,
+        labels=None,
+        index=None,
+        sort_by_shape=False):
+    """
+    Calculate the principal axes of rotation.
+
+    These can be found as the eigenvectors of the tensor of inertia.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        sort_by_shape (bool): Sort the axes by the array shape.
+            This is useful in order to obtain the optimal rotations to
+            align the objects to the shape.
+            Otherwise, it is sorted by increasing eigenvalues.
+
+    Returns:
+        axes (list[np.ndarray]): The principal axes of rotation.
+
+    See Also:
+        fc.num.weighted_covariance(),
+        fc.num.tensor_of_inertia(),
+        fc.num.auto_rotation(),
+        fc.num.realigning()
+    """
+    # calculate the tensor of inertia with respect to the weighted center
+    inertia = tensor_of_inertia(arr, labels, index, None).astype(np.double)
+    # numpy.linalg only supports up to numpy.double
+    eigenvalues, eigenvectors = np.linalg.eigh(inertia)
+    if sort_by_shape:
+        tmp = [
+            (size, eigenvalue, eigenvector)
+            for size, eigenvalue, eigenvector
+            in zip(
+                sorted(arr.shape, reverse=True),
+                eigenvalues,
+                tuple(eigenvectors.transpose()))]
+        tmp = sorted(tmp, key=lambda x: arr.shape.index(x[0]))
+        axes = []
+        for size, eigenvalue, eigenvector in tmp:
+            axes.append(eigenvector)
+    else:
+        axes = [axis for axis in eigenvectors.transpose()]
+    return axes
+
+
+# ======================================================================
+def rotation_axes_to_matrix(axes):
+    """
+    Compute the rotation matrix from the principal axes of rotation.
+
+    This matrix describes the linear transformation required to bring the
+    principal axes of rotation along the axes of the canonical basis.
+
+    Args:
+        axes (Iterable[np.ndarray]): The principal axes of rotation.
+
+    Returns:
+        lin_mat (np.ndarray): The linear transformation matrix.
+    """
+    return np.array(axes).transpose()
+
+
+# ======================================================================
+def auto_rotation(
+        arr,
+        labels=None,
+        index=None,
+        origin=None):
+    """
+    Compute the linear transformation and shift for optimal rotation.
+
+    The principal axis of rotation will be parallel to the cartesian axes.
+
+    The result can be passed directly as `matrix` and `offset` parameters of
+    `scipy.ndimage.affine_transform()`.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        origin (np.ndarray|None): The origin for the covariance matrix.
+            If None, the weighted center is used.
+
+    Returns:
+        lin_mat (np.ndarray): The linear matrix for the rotation.
+        offset (np.ndarray): The offset for the translation.
+
+    See Also:
+        scipy.ndimage.center_of_mass(),
+        scipy.ndimage.affine_transform(),
+        fc.num.weighted_covariance(),
+        fc.num.tensor_of_inertia(),
+        fc.num.rotation_axes(),
+        fc.num.angles2linear(),
+        fc.num.linear2angles(),
+        fc.num.auto_rotation(),
+        fc.num.realigning()
+    """
+    lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
+    lin_mat, offset = prepare_affine(arr.shape, lin_mat, origin=origin)
+    return lin_mat, offset
+
+
+# ======================================================================
+def auto_shifting(
+        arr,
+        labels=None,
+        index=None,
+        origin=None):
+    """
+    Compute the linear transformation and shift for optimal shifting.
+
+    Weighted center will be at a given point (e.g. the middle of the support).
+
+    The result can be passed directly as `matrix` and `offset` parameters of
+    `scipy.ndimage.affine_transform()`.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        origin (np.ndarray|None): The origin for the covariance matrix.
+            If None, the weighted center is used.
+
+    Returns:
+        lin_mat (np.ndarray): The linear matrix for the rotation.
+        offset (np.ndarray): The offset for the translation.
+
+    See Also:
+        scipy.ndimage.center_of_mass(),
+        scipy.ndimage.affine_transform(),
+        fc.num.weighted_covariance(),
+        fc.num.tensor_of_inertia(),
+        fc.num.rotation_axes(),
+        fc.num.angles2linear(),
+        fc.num.linear2angles(),
+        fc.num.auto_rotation(),
+        fc.num.realigning()
+    """
+    lin_mat = np.eye(arr.ndim)
+    com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
+    lin_mat, offset = prepare_affine(arr.shape, lin_mat, com, origin)
+    return lin_mat, offset
+
+
+# ======================================================================
+def realigning(
+        arr,
+        labels=None,
+        index=None,
+        origin=None):
+    """
+    Compute the linear transformation and shift for optimal grid alignment.
+
+    The principal axis of rotation will be parallel to the cartesian axes.
+    Weighted center will be at a given point (e.g. the middle of the support).
+
+    The result can be passed directly as `matrix` and `offset` parameters of
+    `scipy.ndimage.affine_transform()`.
+
+    Args:
+        arr (np.ndarray): The input array.
+        labels (np.ndarray|None): Cumulative mask array for the objects.
+            The output of `scipy.ndimage.label` is expected.
+            The number of dimensions must be the same as `array`.
+            Only uses the labels as indicated by `index`.
+        index (int|Iterable[int]|None): Labels used for the calculation.
+            If an int, uses all labels between 1 and the specified value.
+            If a tuple of int, uses only the selected labels.
+            If None, uses all positive labels.
+        origin (np.ndarray|None): The origin for the covariance matrix.
+            If None, the weighted center is used.
+
+    Returns:
+        lin_mat (np.ndarray): The linear matrix for the rotation.
+        offset (np.ndarray): The offset for the translation.
+
+    See Also:
+        scipy.ndimage.center_of_mass(),
+        scipy.ndimage.affine_transform(),
+        fc.num.weighted_covariance(),
+        fc.num.tensor_of_inertia(),
+        fc.num.rotation_axes(),
+        fc.num.angles2linear(),
+        fc.num.linear2angles(),
+        fc.num.auto_rotation(),
+        fc.num.auto_shift()
+    """
+    com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
+    lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
+    lin_mat, offset = prepare_affine(arr.shape, lin_mat, com, origin)
+    return lin_mat, offset
+
+
+# ======================================================================
+def rand_mask(
+        arr,
+        density=0.01):
+    """
+    Calculate a randomly distributed mask of specified density.
+
+    Args:
+        arr (np.ndarray): The target array.
+        density (float): The density of the mask.
+            Must be in the (0, 1) interval.
+
+    Returns:
+        mask
+    """
+    if not 0 < density < 1:
+        raise ValueError('Density must be between 0 and 1')
+    shape = arr.shape
+    mask = np.zeros_like(arr).astype(np.bool).ravel()
+    mask[random.sample(range(arr.size), int(arr.size * density))] = True
+    return mask.reshape(shape)
 
 
 # ======================================================================
