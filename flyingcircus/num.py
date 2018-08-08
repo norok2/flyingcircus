@@ -121,6 +121,183 @@ def ndim_slice(
 
 
 # ======================================================================
+def slice_swap(a_slice):
+    """
+    Swap the `start` and `stop` attributes of a slice.
+
+    If `step` is specified, `-step` is used as new `step`.
+
+    Args:
+        a_slice (slice): The input slice.
+
+    Returns:
+        r_slice (slice): The output slice.
+
+    Examples:
+        >>> slice_swap(slice(10, 20))
+        slice(20, 10, None)
+        >>> slice_swap(slice(10, 20, 2))
+        slice(20, 10, -2)
+    """
+    return slice(
+        a_slice.stop, a_slice.start, -a_slice.step if a_slice.step else None)
+
+
+# ======================================================================
+def compute_edge_weights(
+        arr,
+        weighting=lambda x, y: x + y,
+        weighting_kws=None,
+        circular=False,
+        endpoint=np.nan):
+    """
+    Compute the weights associate to edges for a given input.
+
+    These are obtained by computing some weighting function over adjacent
+    data elements. The computation is vectorized.
+
+    Args:
+        arr (np.ndarray): The input array.
+        weighting (callable): The function for computing the weighting.
+            Must have the following signature:
+            weighting(np.ndarray, np.ndarray, ...) -> np.ndarray
+        weighting_kws (dict|tuple[tuple]|None): Keyword arguments.
+            These are passed to the function specified in `weighting`.
+            If tuple[tuple], must be convertible to a dictionary.
+            If None, no keyword arguments will be passed.
+        circular (bool|Iterable[bool]): Specify if circularly connected.
+            If Iterable, each axis can be specified separately.
+            If True, the input array is considered circularly connected.
+            If False, the input is not circularly connected and the
+            index arrays are set to `-1`.
+            Note that when both `orig_idx_arr` and `dest_idx_arr` elements
+            are negative, these means that the edges are unconnected.
+        endpoint (int|float): The value to assign to endpoint edges.
+            This value is assigned to endpoint edge weights, only if
+            circular is False.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - edge_weights_arr (np.ndarray): The edge weightings.
+             - orig_idx_arr (np.ndarray): The indexes of the edge origins.
+                   Both `edge_weights_arr` and `orig_idx_arr` must be ravelled
+                   to be used.
+             - dest_idx_arr (np.ndarray): The indexes of the edge destinations.
+                   Both `edge_weights_arr` and `orig_idx_arr` must be ravelled
+                   to be used.
+
+    Examples:
+        >>> arr = np.arange((2 * 3)).reshape(2, 3)
+        >>> print(arr)
+        [[0 1 2]
+         [3 4 5]]
+
+        >>> edge_weights_arr, o_idx_arr, d_idx_arr = compute_edge_weights(arr)
+        >>> print(edge_weights_arr)
+        [[[ 3.  1.]
+          [ 5.  3.]
+          [ 7. nan]]
+        <BLANKLINE>
+         [[nan  7.]
+          [nan  9.]
+          [nan nan]]]
+        >>> print(o_idx_arr)
+        [[[ 0  0]
+          [ 1  1]
+          [ 2 -1]]
+        <BLANKLINE>
+         [[-1  3]
+          [-1  4]
+          [-1 -1]]]
+        >>> print(d_idx_arr)
+        [[[ 3  1]
+          [ 4  2]
+          [ 5 -1]]
+        <BLANKLINE>
+         [[-1  4]
+          [-1  5]
+          [-1 -1]]]
+
+        >>> edge_weights_arr, o_idx_arr, d_idx_arr = compute_edge_weights(
+        ...     arr, circular=True)
+        >>> print(edge_weights_arr)
+        [[[3 1]
+          [5 3]
+          [7 2]]
+        <BLANKLINE>
+         [[3 7]
+          [5 9]
+          [7 8]]]
+        >>> print(o_idx_arr)
+        [[[0 0]
+          [1 1]
+          [2 2]]
+        <BLANKLINE>
+         [[3 3]
+          [4 4]
+          [5 5]]]
+        >>> print(d_idx_arr)
+        [[[3 1]
+          [4 2]
+          [5 0]]
+        <BLANKLINE>
+         [[0 4]
+          [1 5]
+          [2 3]]]
+    """
+    endpoint_idx = -1
+    weighting_kws = dict(weighting_kws) if weighting_kws is not None else {}
+    windows = (slice(None, -1), slice(1, None))
+    # : implemented with list comprehension for speed
+    edge_weights_arr = np.stack([
+        np.concatenate((
+            weighting(
+                arr[tuple(
+                    slice(None) if i != j else windows[0]
+                    for j in range(arr.ndim))],
+                arr[tuple(
+                    slice(None) if i != j else windows[1]
+                    for j in range(arr.ndim))],
+                **weighting_kws),
+            weighting(
+                arr[tuple(
+                    slice(None) if i != j else slice_swap(windows[0])
+                    for j in range(arr.ndim))],
+                arr[tuple(
+                    slice(None) if i != j else slice_swap(windows[1])
+                    for j in range(arr.ndim))],
+                **weighting_kws)
+            if circular else
+            np.full(tuple(
+                1 if i == j else d
+                for j, d in enumerate(arr.shape)),
+                endpoint)),
+            axis=i)
+        for i in range(arr.ndim)], axis=-1)
+    idx_arr = np.arange(fc.util.prod(arr.shape), dtype=int).reshape(arr.shape)
+    orig_idx_arr, dest_idx_arr = tuple(
+        np.stack([
+            np.concatenate((
+                idx_arr[tuple(
+                    slice(None) if i != j else window
+                    for j in range(idx_arr.ndim))],
+                idx_arr[tuple(
+                    slice(None) if i != j else slice_swap(window)
+                    for j in range(idx_arr.ndim))]
+                if circular else
+                np.full(tuple(
+                    1 if i == j else d
+                    for j, d in enumerate(idx_arr.shape)),
+                    endpoint_idx)),
+                axis=i)
+            for i in range(arr.ndim)],
+            axis=-1)
+        for window in windows)
+    return edge_weights_arr, orig_idx_arr, dest_idx_arr
+
+
+# ======================================================================
 def shuffle_on_axis(arr, axis=-1):
     """
     Shuffle the elements of the array separately along the specified axis.
@@ -1165,6 +1342,7 @@ def abs2rel(shape, position=0):
     """
     position = fc.util.auto_repeat(position, len(shape), check=True)
     return tuple(p / (s - 1.0) for p, s in zip(position, shape))
+
 
 # ======================================================================
 def laplace_kernel(
