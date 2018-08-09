@@ -149,6 +149,8 @@ setup(
         'blessed',
         'numpy',
         'scipy',
+        'numba',
+        'numexpr',
     ],
 
     setup_requires=[

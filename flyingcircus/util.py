@@ -46,6 +46,7 @@ from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report
 from flyingcircus import msg, dbg
+from flyingcircus import HAS_JIT, jit
 
 # ======================================================================
 # :: Custom defined constants
@@ -2552,8 +2553,9 @@ def add_extsep(ext):
         '.'
     """
     ext = (
-        ('' if ext and ext.startswith(os.path.extsep) else os.path.extsep) +
-        (ext if ext else ''))
+            ('' if ext and ext.startswith(
+                os.path.extsep) else os.path.extsep) +
+            (ext if ext else ''))
     return ext
 
 
@@ -3046,8 +3048,9 @@ def zopen(filepath, mode='rb', *args, **kwargs):
             head = file_obj.read(16)
             gz_by_header = head[:2] == b'\x1f\x8b'
             bz2_by_header = (
-                head[:2] == b'BZ' and head[2:3] == b'h' and head[3:4].isdigit()
-                and head[4:10] == b'\x31\x41\x59\x26\x53\x59')
+                    head[:2] == b'BZ' and head[2:3] == b'h' and head[
+                                                                3:4].isdigit()
+                    and head[4:10] == b'\x31\x41\x59\x26\x53\x59')
             xz_by_header = head[:1] == b'\xfd7zXz\x00'
         except io.UnsupportedOperation:
             gz_by_header = False
@@ -3059,8 +3062,8 @@ def zopen(filepath, mode='rb', *args, **kwargs):
         gz_by_ext = split_ext(filepath)[1].endswith(add_extsep(EXT['gzip']))
         bz2_by_ext = split_ext(filepath)[1].endswith(add_extsep(EXT['bzip2']))
         xz_by_ext = (
-            split_ext(filepath)[1].endswith(add_extsep(EXT['xz'])) or
-            split_ext(filepath)[1].endswith(add_extsep(EXT['lzma'])))
+                split_ext(filepath)[1].endswith(add_extsep(EXT['xz'])) or
+                split_ext(filepath)[1].endswith(add_extsep(EXT['lzma'])))
 
         if gz_by_header or gz_by_ext:
             file_obj = gzip.GzipFile(fileobj=file_obj, mode=mode)

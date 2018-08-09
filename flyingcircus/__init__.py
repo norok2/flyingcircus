@@ -75,6 +75,19 @@ MY_GREETINGS = r"""
 # print(MY_GREETINGS)
 
 
+# Numba import
+try:
+    from numba import jit
+except ImportError:
+    HAS_JIT = False
+
+
+    def jit(f):
+        return f
+else:
+    HAS_JIT = True
+
+
 # ======================================================================
 def msg(
         text,
