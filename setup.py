@@ -149,7 +149,6 @@ setup(
         'blessed',
         'numpy',
         'scipy',
-        'numba',
         'numexpr',
     ],
 
