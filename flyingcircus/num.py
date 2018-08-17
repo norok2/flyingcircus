@@ -726,6 +726,59 @@ def ndot(
 
 
 # ======================================================================
+def alternating_array(
+        size,
+        values=(1, -1),
+        dtype=None):
+    """
+    Compute an alternating array.
+
+    There are a number of alternative equivalent constructs on lists, like:
+
+    .. code-block:: python
+
+        [values[i % len(values)] for i in range(size)]
+
+        [x for x in itertools.islice(itertools.cycle(values), size)]
+
+    This method is particularly efficient for NumPy arrays.
+
+    Args:
+        size (int): The size of the resulting array.
+        values (Iterable|np.ndarray): The values to alternate.
+        dtype (np.dtype|None): The data type of the resulting array.
+
+    Returns:
+        result (np.ndarray): The alternating array.
+
+    Examples:
+        >>> alternating_array(10)
+        array([ 1., -1.,  1., -1.,  1., -1.,  1., -1.,  1., -1.])
+        >>> alternating_array(10, dtype=int)
+        array([ 1, -1,  1, -1,  1, -1,  1, -1,  1, -1])
+        >>> alternating_array(10, (1, 2, 3))
+        array([1., 2., 3., 1., 2., 3., 1., 2., 3., 1.])
+        >>> values = (1, 2, 3)
+        >>> size = 100
+        >>> np.all(np.isclose(
+        ...     alternating_array(size, values),
+        ...     [values[i % len(values)] for i in range(size)]))
+        True
+        >>> np.all(np.isclose(
+        ...     alternating_array(size, values),
+        ...     [x for x in itertools.islice(itertools.cycle(values), size)]))
+        True
+
+    """
+    if dtype is None and isinstance(values, np.ndarray):
+        dtype = values.dtype
+    result = np.empty(size, dtype=dtype)
+    for i, value in enumerate(values):
+        result[i::len(values)] = value
+    return result
+
+
+# ======================================================================
 def commutator(a, b):
     """
     Calculate the commutator of two arrays: [A,B] = AB - BA
@@ -753,6 +806,298 @@ def anticommutator(a, b):
         c (np.ndarray): The operation result
     """
     return np.dot(a, b) + np.dot(b, a)
+
+
+# ======================================================================
+def p_norm(
+        arr,
+        p=2):
+    """
+    Compute the p-norm of an array.
+
+    The p-norm is defined as:
+
+    .. math::
+        s = \\left(\\sum_i \\left[ |x_i|^p \\right] \\right)^\\frac{1}{p}
+
+    for any :math:`p > 0` (:math:`x_i` being an element of the array).
+
+    When `p == 2`, the p-norm becomes the Euclidean norm.
+
+    Args:
+        arr (np.ndarray): The input array.
+        p (int|float): The exponent parameter of the norm.
+
+    Returns:
+        p_norm (float): The p-norm value.
+
+    Examples:
+        >>> p_norm(np.ones(100), 1)
+        100.0
+        >>> p_norm(np.ones(100), 2)
+        10.0
+        >>> [round(p_norm(np.ones(100), p), 2) for p in range(1, 12)]
+        [100.0, 10.0, 4.64, 3.16, 2.51, 2.15, 1.93, 1.78, 1.67, 1.58, 1.52]
+        >>> [round(p_norm(np.ones(1000), p), 2) for p in range(1, 12)]
+        [1000.0, 31.62, 10.0, 5.62, 3.98, 3.16, 2.68, 2.37, 2.15, 2.0, 1.87]
+        >>> [round(p_norm(np.ones(1000), 1 / p), 2) for p in range(1, 5)]
+        [1000.0, 1000000.0, 1000000000.0, 1000000000000.0]
+        >>> [round(p_norm(np.arange(10), 1 / p), 2) for p in range(1, 7)]
+        [45.0, 372.72, 3248.16, 28740.24, 255959.55, 2287279.92]
+    """
+    assert (p > 0)
+    return np.sum(np.abs(arr) ** p) ** (1 / p)
+
+
+# ======================================================================
+def normalize(
+        arr,
+        normalization=np.linalg.norm):
+    """
+    Compute the normalized array, i.e. the array divided by its non-zero norm.
+
+    If the norm is zero, the array is left untouched.
+
+    Args:
+        arr (np.ndarray): The input array.
+        normalization (callable): The normalization function.
+            Must have the following signature:
+            normalization(np.ndarray) -> float
+
+    Returns:
+        arr (np.ndarray): The normalized array.
+
+    Examples:
+        >>> normalize(np.array([3, 4]))
+        array([0.6, 0.8])
+        >>> normalize(np.array([0, 0, 0, 1, 0]))
+        array([0., 0., 0., 1., 0.])
+        >>> normalize(np.array([0, 0, 0, 0, 0]))
+        array([0, 0, 0, 0, 0])
+        >>> normalize(np.ones(4))
+        array([0.5, 0.5, 0.5, 0.5])
+        >>> normalize(np.ones(8), lambda x: p_norm(x, 3))
+        array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+    """
+    norm = normalization(arr)
+    return arr / norm if norm else arr
+
+
+# ======================================================================
+def square_size_to_num_tria(
+        square_size,
+        has_diag=False):
+    """
+    Compute the number of triangular indices from the size of a square matrix.
+
+    Define:
+     - :math:`N` the number of triangular indices
+     - :math:`n` the linear size of a square matrix
+
+    If the diagonal is excluded:
+
+    :math:`N = \\frac{n (n - 1)}{2}`
+
+    else:
+
+    :math:`N = \\frac{n (n + 1)}{2}`
+
+    Args:
+        square_size (int): The linear size of the square matrix.
+        has_diag (bool): Assume that the diagonal is included.
+
+    Returns:
+        num_tria (int): The number of triangular indices.
+
+    Examples:
+        >>> square_size_to_num_tria(3)
+        3
+        >>> square_size_to_num_tria(4)
+        6
+        >>> square_size_to_num_tria(5, False)
+        10
+        >>> square_size_to_num_tria(4, True)
+        10
+        >>> square_size_to_num_tria(5, True)
+        15
+        >>> all(square_size_to_num_tria(num_tria_to_square_size(n))
+        ...     for n in range(1, 100))
+        True
+        >>> all(square_size_to_num_tria(num_tria_to_square_size(n, True), True)
+        ...     for n in range(1, 100))
+        True
+
+    See Also:
+        fc.num.num_tria_to_square_size()
+    """
+    assert(square_size > 0)
+    return square_size * (square_size + (1 if has_diag else -1)) // 2
+
+
+# ======================================================================
+def num_tria_to_square_size(
+        num_tria,
+        has_diag=False,
+        raise_err=False):
+    """
+    Compute the size of a square matrix from the number of triangular indices.
+
+    Define:
+     - :math:`N` the number of triangular indices
+     - :math:`n` the linear size of a square matrix
+
+    If the diagonal is excluded:
+
+    :math:`N = \\frac{n (n - 1)}{2}`
+
+    else:
+
+    :math:`N = \\frac{n (n + 1)}{2}`
+
+    Either of the equation is solved for `n` (assuming `n > 0`).
+
+    The solution can be written as follows.
+
+    If the diagonal is excluded:
+
+    :math:`n = \\frac{\\sqrt{1 + 8 N} + 1}{2}`
+
+    else:
+
+    :math:`n = \\frac{\\sqrt{1 + 8 N} - 1}{2}`
+
+    Args:
+        num_tria (int): The number of triangular indices.
+        has_diag (bool): Assume that the diagonal is included.
+        raise_err (bool): Raise an exception if invalid number of angles.
+
+    Returns:
+        square_size (int): The linear size of the square matrix.
+
+    Raises:
+        ValueError: if the number of triangular indices is invalid
+            (only if also `raise_err == True`).
+
+    Examples:
+        >>> num_tria_to_square_size(3)
+        3
+        >>> num_tria_to_square_size(6)
+        4
+        >>> num_tria_to_square_size(10, False)
+        5
+        >>> num_tria_to_square_size(10, True)
+        4
+        >>> num_tria_to_square_size(15, True)
+        5
+        >>> all(square_size_to_num_tria(num_tria_to_square_size(n))
+        ...     for n in range(1, 100))
+        True
+        >>> num_tria_to_square_size(8)
+        5
+        >>> num_tria_to_square_size(8, raise_err=True)
+        Traceback (most recent call last):
+            ....
+        ValueError: invalid number of triangular indices
+
+    See Also:
+        fc.num.square_size_to_num_tria()
+    """
+    square_size = ((np.sqrt(1 + 8 * num_tria) + (-1 if has_diag else 1)) / 2)
+    # alternatives to `divmod()`: numpy.modf(), math.modf()
+    int_part, dec_part = divmod(square_size, 1)
+    if not np.isclose(dec_part, 0.0) and raise_err:
+        raise ValueError('invalid number of triangular indices')
+    return int(np.ceil(square_size))
+
+
+# ======================================================================
+def to_self_adjoint_matrix(
+        numbers,
+        square_size=None,
+        has_diag=False,
+        skew=False,
+        fill=0,
+        force=True):
+    """
+    Compute the self-adjoint matrix from numbers.
+
+    Args:
+        numbers (Iterable[int|float]): The input numbers.
+        square_size (int): The linear size of the self-adjoint square matrix.
+        has_diag (bool): Place the numbers also in the diagonal.
+            If True, the numbers as put also in the diagonal.
+            Otherwise, the diagonal contains only zeros.
+        skew (bool): Compute the skew matrix.
+        fill (int|float|None): The filling number.
+            This is used fill missing numbers in case the length
+        force (bool): Force the matrix to be self-adjoint.
+            This is only useful when `had_diag == True`, else it has no effect.
+
+    Returns:
+        result (np.ndarray): The self-adjoint square matrix.
+
+    Raises:
+        ValueError: if the number of triangular indices is invalid
+            (only if also `raise_err == True`).
+
+    Examples:
+        >>> to_self_adjoint_matrix([1, 2, 3])
+        array([[0, 1, 2],
+               [1, 0, 3],
+               [2, 3, 0]])
+        >>> to_self_adjoint_matrix([1, 2, 3], 4)
+        array([[0, 1, 2, 3],
+               [1, 0, 0, 0],
+               [2, 0, 0, 0],
+               [3, 0, 0, 0]])
+        >>> to_self_adjoint_matrix([1, 2, 3], has_diag=True)
+        array([[1, 2],
+               [2, 3]])
+        >>> to_self_adjoint_matrix([1, 2, 3], skew=True)
+        array([[ 0,  1,  2],
+               [-1,  0,  3],
+               [-2, -3,  0]])
+        >>> to_self_adjoint_matrix([1, 2, 3], 4, fill=9)
+        array([[0, 1, 2, 3],
+               [1, 0, 9, 9],
+               [2, 9, 0, 9],
+               [3, 9, 9, 0]])
+        >>> to_self_adjoint_matrix([], 3, fill=9)
+        array([[0, 9, 9],
+               [9, 0, 9],
+               [9, 9, 0]])
+        >>> to_self_adjoint_matrix([1j, 2j, 3j])
+        array([[0.+0.j, 0.+1.j, 0.+2.j],
+               [0.-1.j, 0.+0.j, 0.+3.j],
+               [0.-2.j, 0.-3.j, 0.+0.j]])
+        >>> to_self_adjoint_matrix([1j, 2j, 3j], has_diag=True)
+        array([[0.+0.j, 0.+2.j],
+               [0.-2.j, 0.+0.j]])
+        >>> to_self_adjoint_matrix([1j, 2j, 3j], has_diag=True, force=False)
+        array([[0.+1.j, 0.+2.j],
+               [0.-2.j, 0.+3.j]])
+    """
+    numbers = np.array(numbers).ravel()
+    if square_size is None:
+        square_size = num_tria_to_square_size(numbers.size, has_diag)
+    num_tria = square_size_to_num_tria(square_size, has_diag)
+    if num_tria != numbers.size:
+        if fill is not None:
+            old_numbers = numbers
+            numbers = np.full(
+                num_tria, fill, dtype=numbers.dtype if numbers.size else None)
+            numbers[:min(num_tria, old_numbers.size)] = \
+                old_numbers[:min(num_tria, old_numbers.size)]
+        else:
+            raise ValueError('invalid size of the input')
+    rows, cols = np.triu_indices(square_size, 0 if has_diag else 1)
+    result = np.zeros((square_size, square_size), dtype=numbers.dtype)
+    result[cols, rows] = (-1 * numbers.conj() if skew else numbers.conj())
+    result[rows, cols] = numbers
+    if has_diag and force and np.any(np.iscomplex(np.diagonal(result))):
+        rows, cols = np.diag_indices_from(result)
+        result[rows, cols] = np.real(result[rows, cols])
+    return result
 
 
 # ======================================================================
@@ -4072,60 +4417,6 @@ def encode_affine(
 
 
 # ======================================================================
-def num_angles_from_dim(n_dim):
-    """
-    Calculate the complete number of angles given the dimension.
-
-    Given the dimension of an array, calculate the number of all possible
-    cartesian orthogonal planes of rotations, using the formula:
-
-    :math:`N = n * (n - 1) / 2` [ :math:`N = n! / 2! / (n - 2)!` ]
-    (N: num of angles, n: num of dim)
-
-    Args:
-        n_dim (int): The number of dimensions.
-
-    Returns:
-        n_angles (int): The corresponding number of angles.
-
-    See Also:
-        fc.num.num_dim_from_angles()
-    """
-    return n_dim * (n_dim - 1) // 2
-
-
-# ======================================================================
-def num_dim_from_angles(
-        n_angles,
-        raise_err=False):
-    """
-    Computes the number of dimensions from the number of angles.
-
-    This is the solution for `n` to the equation: :math:`n * (n - 1) / 2 = N`
-    (N: num of angles, n: num of dim)
-
-    Args:
-        n_angles (int): The number of angles.
-        raise_err (bool): Raise an exception if invalid number of angles.
-
-    Returns:
-        n_dim (int): The corresponding number of dimensions.
-
-    Raises:
-        ValueError: if `raise_err == True` and the number of angles is invalid!
-
-    See Also:
-        fc.num.num_angles_from_dim()
-    """
-    n_dim = ((1 + np.sqrt(1 + 8 * n_angles)) / 2)
-    # alternatives: numpy.modf, math.modf
-    int_part, dec_part = divmod(n_dim, 1)
-    if not np.isclose(dec_part, 0.0) and raise_err:
-        raise ValueError('cannot get the dimension from the number of angles')
-    return int(np.ceil(n_dim))
-
-
-# ======================================================================
 def angles2linear(
         angles,
         n_dim=None,
@@ -4167,12 +4458,16 @@ def angles2linear(
         linear (np.ndarray): The rotation matrix as defined by the angles.
 
     See Also:
-        fc.num.num_angles_from_dim(),
-        fc.num.num_dim_from_angles(),
+        fc.num.num_size_to_tria(),
+        fc.num.num_tria_to_size(),
         itertools.combinations
     """
     if n_dim is None:
-        n_dim = num_dim_from_angles(len(angles))
+        # this is the number of cartesian orthogonal planes of rotations
+        # defining: N the number of dimensions and n the number of angles
+        # this is given by solving: N = n! / 2! / (n - 2)!
+        # the equation simplifies to: N = n * (n - 1) / 2
+        n_dim = num_tria_to_square_size(len(angles))
     if not axes_list:
         axes_list = list(itertools.combinations(range(n_dim), 2))
     lin_mat = np.eye(n_dim).astype(np.double)
@@ -4604,6 +4899,84 @@ def realigning(
     lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
     lin_mat, offset = prepare_affine(arr.shape, lin_mat, com, origin)
     return lin_mat, offset
+
+
+# ======================================================================
+def rotation_3d_from_vector(
+        normal,
+        angle=None):
+    """
+    Compute the rotation matrix of a given angle around a specified vector.
+
+    Args:
+        normal (Iterable|np.ndarray): The vector around which to rotate.
+            If Iterable or np.ndarray must have a length of 3.
+            If its norm is 0, the identity matrix is returned.
+        angle (int|float|None): The angle of rotation in deg.
+            If None, the angle is inferred from the norm of the normal vector.
+
+    Returns:
+        rot_matrix (np.ndarray): The rotation matrix.
+
+    Examples:
+        >>> rot_matrix = rotation_3d_from_vector([1, 0, 0])
+        >>> np.round(rot_matrix, 6)
+        array([[ 1.,  0.,  0.],
+               [ 0.,  0., -1.],
+               [ 0.,  1.,  0.]])
+    """
+    rot_matrix = np.eye(3)
+    norm = np.linalg.norm(normal)
+    if norm:
+        normal = np.array(normal) / norm
+        angle = np.arcsin(norm) if angle is None else np.deg2rad(angle)
+        signs = np.array([-1., 1., -1.])
+        v_matrix = to_self_adjoint_matrix(normal[::-1] * signs, skew=True)
+        w_matrix = np.outer(normal, normal)
+        rot_matrix = \
+            rot_matrix * np.cos(angle) + v_matrix * np.sin(angle) + \
+            w_matrix * (1 - np.cos(angle))
+    return rot_matrix
+
+
+# ======================================================================
+def rotation_3d_from_vectors(
+        vector1,
+        vector2):
+    """
+    Compute the rotation matrix required to move one vector onto one other.
+
+    Given two vectors :math:`\\vec{v}_1` and :math:`\\vec{v}_2` computes the
+    rotation matrix :math:`R` such that: :math:`\\vec{v}_2 = R \\vec{v}_1`.
+
+    Args:
+        vector1 (Iterable|np.ndarray): The first vector.
+            If Iterable or np.ndarray must have a length of 3.
+        vector2 (Iterable|np.ndarray): The second vector.
+            If Iterable or np.ndarray must have a length of 3.
+
+    Returns:
+        rot_matrix (np.ndarray): The rotation matrix.
+
+    Examples:
+        >>> vector1 = np.array([0, 1, 0])
+        >>> vector2 = np.array([0, 0, 1])
+        >>> rot_matrix12 = rotation_3d_from_vectors(vector1, vector2)
+        >>> np.round(rot_matrix12, 6)
+        array([[ 1.,  0.,  0.],
+               [ 0.,  0., -1.],
+               [ 0.,  1.,  0.]])
+        >>> np.all(np.isclose(vector2, np.dot(rot_matrix12, vector1)))
+        True
+        >>> normal21 = np.cross(normalize(vector2), normalize(vector1))
+        >>> rot_matrix21 = rotation_3d_from_vectors(vector2, vector1)
+        >>> np.all(np.isclose(vector1, np.dot(rot_matrix21, vector2)))
+        True
+        >>> np.all(np.isclose(np.eye(3), np.dot(rot_matrix12, rot_matrix21)))
+        True
+    """
+    normal = np.cross(normalize(vector1), normalize(vector2))
+    return rotation_3d_from_vector(normal)
 
 
 # ======================================================================
