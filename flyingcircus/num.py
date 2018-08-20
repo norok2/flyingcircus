@@ -15,6 +15,7 @@ import warnings  # Warning control
 import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
 import itertools  # Functions creating iterators for efficient looping
 import random  # Generate pseudo-random numbers
+import string  # Common string operations
 
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
@@ -930,7 +931,7 @@ def square_size_to_num_tria(
     See Also:
         fc.num.num_tria_to_square_size()
     """
-    assert(square_size > 0)
+    assert (square_size > 0)
     return square_size * (square_size + (1 if has_diag else -1)) // 2
 
 
@@ -1512,6 +1513,176 @@ def idftn(arr):
 
 
 # ======================================================================
+def ogrid2mgrid(ogrid):
+    """
+    Convert a sparse grid to a dense grid.
+
+    A sparse grid is obtained from `np.ogrid[]`, while a
+    dense grid is obtained from `np.mgrid[]`.
+
+    Args:
+        ogrid (Iterable[np.ndarray]): The sparse grid.
+            This should be equivalent to the result of `np.ogrid[]`.
+            Specifically, each array has the same number of dims, and has
+            singlets in all but one dimension.
+
+    Returns:
+        mgrid (np.ndarray): The dense grid.
+            This should be equivalent to the result of `np.mgrid[]`.
+            Specifically, the first dim has size equal to the total number
+            of dims minus one.
+
+    Examples:
+        >>> shape = (2, 3, 4)
+        >>> grid = tuple(slice(0, dim) for dim in shape)
+        >>> ogrid = np.ogrid[grid]
+        >>> print(ogrid)
+        [array([[[0]],
+        <BLANKLINE>
+               [[1]]]), array([[[0],
+                [1],
+                [2]]]), array([[[0, 1, 2, 3]]])]
+        >>> mgrid = np.mgrid[grid]
+        >>> print(mgrid)
+        [[[[0 0 0 0]
+           [0 0 0 0]
+           [0 0 0 0]]
+        <BLANKLINE>
+          [[1 1 1 1]
+           [1 1 1 1]
+           [1 1 1 1]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]
+        <BLANKLINE>
+          [[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]
+        <BLANKLINE>
+          [[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]]]
+        >>> print(ogrid2mgrid(ogrid))
+        [[[[0 0 0 0]
+           [0 0 0 0]
+           [0 0 0 0]]
+        <BLANKLINE>
+          [[1 1 1 1]
+           [1 1 1 1]
+           [1 1 1 1]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]
+        <BLANKLINE>
+          [[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]
+        <BLANKLINE>
+          [[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]]]
+        >>> np.all(np.mgrid[grid] == ogrid2mgrid(ogrid))
+        True
+    """
+    mgrid = np.zeros(
+        (len(ogrid),) + tuple(max([d for d in x.shape]) for x in ogrid),
+        dtype=ogrid[0].dtype)
+    for i, x in enumerate(ogrid):
+        mgrid[i, ...] = x
+    return mgrid
+
+
+# ======================================================================
+def mgrid2ogrid(mgrid):
+    """
+    Convert a dense grid to a sparse grid.
+
+    A sparse grid is obtained from `np.ogrid[]`, while a
+    dense grid is obtained from `np.mgrid[]`.
+
+    Args:
+        mgrid (np.ndarray): The dense grid.
+            This should be equivalent to the result of `np.mgrid[]`.
+            Specifically, the first dim has size equal to the total number
+            of dims minus one.
+
+    Returns:
+        ogrid (list[np.ndarray]): The sparse grid.
+            This should be equivalent to the result of `np.ogrid[]`.
+            Specifically, each array has the same number of dims, and has
+            singlets in all but one dimension.
+
+    Examples:
+        >>> shape = (2, 3, 4)
+        >>> grid = tuple(slice(0, dim) for dim in shape)
+        >>> ogrid = np.ogrid[grid]
+        >>> print(ogrid)
+        [array([[[0]],
+        <BLANKLINE>
+               [[1]]]), array([[[0],
+                [1],
+                [2]]]), array([[[0, 1, 2, 3]]])]
+        >>> mgrid = np.mgrid[grid]
+        >>> print(mgrid)
+        [[[[0 0 0 0]
+           [0 0 0 0]
+           [0 0 0 0]]
+        <BLANKLINE>
+          [[1 1 1 1]
+           [1 1 1 1]
+           [1 1 1 1]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]
+        <BLANKLINE>
+          [[0 0 0 0]
+           [1 1 1 1]
+           [2 2 2 2]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]
+        <BLANKLINE>
+          [[0 1 2 3]
+           [0 1 2 3]
+           [0 1 2 3]]]]
+        >>> print(mgrid2ogrid(mgrid))
+        (array([[[0]],
+        <BLANKLINE>
+               [[1]]]), array([[[0],
+                [1],
+                [2]]]), array([[[0, 1, 2, 3]]]))
+        >>> all(np.all(x == y)
+        ...     for x, y in zip(np.ogrid[grid], mgrid2ogrid(np.mgrid[grid])))
+        True
+    """
+    ogrid = tuple(
+        mgrid[i][
+            tuple(
+                slice(None) if j == i else slice(0, 1)
+                for j, d in enumerate(mgrid.shape[1:]))]
+        for i in range(mgrid.shape[0]))
+    return ogrid
+
+
+# ======================================================================
 def coord(
         shape,
         position=0.5,
@@ -1566,13 +1737,24 @@ def grid_coord(
         position (float|Iterable[float]): Relative position of the origin.
             Values are in the [0, 1] interval.
         is_relative (bool): Interpret origin as relative.
-        dense (bool): Determine the shape of the mesh-grid arrays.
+        dense (bool): Determine the type (dense or sparse) of the mesh-grid.
         use_int (bool): Force interger values for the coordinates.
 
     Returns:
-        coord (list[np.ndarray]): mesh-grid ndarrays.
-            The shape is identical if dense is True, otherwise only one
-            dimension is larger than 1.
+        xx (list[np.ndarray]|np.ndarray): Sparse or dense mesh-grid.
+            If dense is True, the result is dense (like `np.mgrid[]`).
+            Specifically, the result is an `np.ndarray` where the first dim
+            has size equal to the total number of dims minus one.
+            Otherwise, the result is sparse (like `np.ogrid[]`).
+            Specifically, the result is a list of `np.ndarray` each array
+            has the same number of dims, and has singlets in all but one
+            dimension.
+
+
+    Returns:
+        ogrid (tuple[np.ndarray]): The sparse grid.
+            This should be equivalent to the result of `np.ogrid[]`.
+
 
     Examples:
         >>> grid_coord((4, 4))
@@ -1622,8 +1804,91 @@ def grid_coord(
                [1.]]), array([[0., 1., 2.]])]
     """
     position = coord(shape, position, is_relative, use_int)
-    grid = [slice(-x0, dim - x0) for x0, dim in zip(position, shape)]
+    grid = tuple(slice(-x0, dim - x0) for x0, dim in zip(position, shape))
     return np.ogrid[grid] if not dense else np.mgrid[grid]
+
+
+# ======================================================================
+def grid_transform(
+        xx,
+        linear,
+        shift=None,
+        is_dense=None):
+    """
+    Apply a linear or affine transform to a mesh-grid.
+
+    The affine transform is implemented as a linear transformation followed by
+    a translation (of a given shift).
+
+    Args:
+        xx (Iterable[np.ndarray]|np.ndarray): Sparse or dense mesh-grid.
+            If dense is True, the result is dense (like `np.mgrid[]`).
+            Specifically, the result is an `np.ndarray` where the first dim
+            has size equal to the total number of dims minus one.
+            Otherwise, the result is sparse (like `np.ogrid[]`).
+            Specifically, the result is a list of `np.ndarray` each array
+            has the same number of dims, and has singlets in all but one
+            dimension.
+        linear (Iterable|np.ndarray): The linear transformation.
+            This must be a `n` by `n` matrix where `n` is the number of dims.
+        shift (Iterable|np.ndarray): The shift vector in px.
+            This must be a `n` sized array.
+        is_dense (bool|None): The type (dense or sparse) of the mesh-grid.
+            If bool, this is explicitly specified.
+            If None, this is inferred from `xx`.
+
+    Returns:
+        xx (np.ndarray): The transformed mesh-grid (dense).
+            Specifically, the result is an `np.ndarray` where the first dim
+            has size equal to the total number of dims minus one.
+
+    Examples:
+        >>> shape = (2, 3)
+        >>> grid = tuple(slice(0, dim) for dim in shape)
+        >>> xx = np.ogrid[grid]
+        >>> linear = [[0, 2], [2, 1]]
+        >>> shift = [10, 20]
+        >>> xx
+        [array([[0],
+               [1]]), array([[0, 1, 2]])]
+        >>> ogrid2mgrid(xx)
+        array([[[0, 0, 0],
+                [1, 1, 1]],
+        <BLANKLINE>
+               [[0, 1, 2],
+                [0, 1, 2]]])
+        >>> grid_transform(xx, linear)
+        array([[[0, 2, 4],
+                [0, 2, 4]],
+        <BLANKLINE>
+               [[0, 1, 2],
+                [2, 3, 4]]])
+        >>> grid_transform(xx, linear, shift)
+        array([[[10, 12, 14],
+                [10, 12, 14]],
+        <BLANKLINE>
+               [[20, 21, 22],
+                [22, 23, 24]]])
+    """
+    n_dim = xx[0].ndim
+    max_dims = len(string.ascii_letters) - 2
+    if n_dim > max_dims:
+        text = 'Maximum number ({}) of dims exceeded.'.format(max_dims)
+        raise ValueError(text)
+    if is_dense is None:
+        is_dense = isinstance(xx, np.ndarray)
+    linear = np.array(linear)
+    assert (linear.shape == (n_dim, n_dim))
+    xx = np.einsum(
+        '{i}{j}, {i}{indexes} -> {j}{indexes}'.format(
+            i=string.ascii_letters[-2], j=string.ascii_letters[-1],
+            indexes=string.ascii_letters[:n_dim]),
+        linear, xx if is_dense else ogrid2mgrid(xx))
+    if shift is not None:
+        shift = np.array(shift)
+        assert (shift.size == xx.shape[0])
+        xx += shift.reshape((-1,) + tuple(1 for x in xx.shape[1:]))
+    return xx
 
 
 # ======================================================================
@@ -4377,20 +4642,27 @@ def multi_resample(
 
 
 # ======================================================================
-def decode_affine(
-        affine):
+def decode_affine(affine):
     """
     Decompose the affine matrix into a linear transformation and a translation.
 
     Args:
-        affine (np.ndarray): The (N+1)-sized affine square matrix.
+        affine (Iterable|np.ndarray): The affine matrix.
+            This must be an `n + 1` by `m + 1` matrix.
 
     Returns:
-        linear (np.ndarray): The N-sized linear square matrix.
-        shift (np.ndarray): The shift along each axis in px.
+        result (tuple): The tuple
+            contains:
+             - linear (np.ndarray): The linear transformation.
+               This must be a `n` by `m` matrix where `n` is the number of
+               dims of the domain and `m` is the number of dims of the
+               co-domain.
+             - shift (np.ndarray): The shift vector in px.
+                This must be a `m` sized array.
     """
-    dims = affine.shape
-    linear = affine[:dims[0] - 1, :dims[1] - 1]
+    affine = np.ndarray(affine)
+    assert (affine.ndim == 2)
+    linear = affine[:affine.shape[0] - 1, :affine.shape[1] - 1]
     shift = affine[:-1, -1]
     return linear, shift
 
@@ -4403,15 +4675,22 @@ def encode_affine(
     Combine a linear transformation and a translation into the affine matrix.
 
     Args:
-        linear (np.ndarray): The N-sized linear square matrix.
-        shift (np.ndarray): The shift along each axis in px.
+        linear (Iterable|np.ndarray): The linear transformation.
+            This must be a `n` by `m` matrix where `n` is the number of
+            dims of the domain and `m` is the number of dims of the co-domain.
+        shift (Iterable|np.ndarray): The shift vector in px.
+            This must be a `m` sized array.
 
     Returns:
-        affine (np.ndarray): The (N+1)-sized affine square matrix.
+        affine (np.ndarray): The affine matrix.
+            This is an `n + 1` by `m + 1` matrix.
     """
-    dims = linear.shape
-    affine = np.eye(dims[0] + 1)
-    affine[:dims[0], :dims[1]] = linear
+    linear = np.array(linear)
+    shift = np.array(shift)
+    assert (linear.ndim == 2)
+    assert (linear.shape[1] == shift.size)
+    affine = np.eye(linear.shape[0] + 1)
+    affine[:linear.shape[0], :linear.shape[1]] = linear
     affine[:-1, -1] = shift
     return affine
 
