@@ -2018,7 +2018,7 @@ def hash_object(
         obj: The input object.
         serializer (callable): The function used to convert the object.
             Must have the following signature:
-            obj_to_bytes(Any) -> bytes
+            serializer(Any) -> bytes
         hash_algorithm (callable): The hashing algorithm.
             This must support the methods provided by `hashlib` module, like
             `md5`, `sha1`, `sha256`, `sha512`.
@@ -3837,7 +3837,7 @@ def auto_pad_width(
         ((3, 6), (3, 6), (3, 6))
     """
 
-    def float_to_int(val, scale):
+    def float2int(val, scale):
         return int(val * scale) if isinstance(val, float) else val
 
     try:
@@ -3852,8 +3852,8 @@ def auto_pad_width(
         for i, (item, dim) in enumerate(zip(pad_width, shape)):
             lower, upper = item
             pad_width[i] = (
-                float_to_int(lower, dim if not combine else combined),
-                float_to_int(upper, dim if not combine else combined))
+                float2int(lower, dim if not combine else combined),
+                float2int(upper, dim if not combine else combined))
         pad_width = tuple(pad_width)
     return pad_width
 
