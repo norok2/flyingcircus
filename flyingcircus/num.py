@@ -885,6 +885,72 @@ def normalize(
 
 
 # ======================================================================
+def vectors2direction(
+        vector1,
+        vector2,
+        normalized=True):
+    """
+    Compute the vector direction from one vector to one other.
+
+    Args:
+        vector1 (Iterable[int|float]): The first vector.
+        vector2 (Iterable[int|float]): The second vector.
+        normalized (bool): Normalize the result.
+            If True, the vector is normalized.
+
+    Returns:
+        direction (np.ndarray): The vector direction.
+
+    Examples:
+        >>> vectors2direction([3, 2], [6, 6])
+        array([0.6, 0.8])
+        >>> vectors2direction([1, 2, 3, 4], [5, 6, 7, 8])
+        array([0.5, 0.5, 0.5, 0.5])
+    """
+    direction = np.array(vector2).ravel() - np.array(vector1).ravel()
+    if normalized:
+        direction = normalize(direction)
+    return direction
+
+
+# ======================================================================
+def distances2displacements(
+        distances,
+        origin=0.5,
+        offset=0.0):
+    """
+    Compute the displacements from the distances.
+
+    Args:
+        distances (int|float|Iterable[int|float]): The distances.
+        origin (int|float): The origin of the displacements.
+            This is relative to the total length of the distances.
+            If `origin == 0.0` the first displacement is equal to `offset`.
+            If `origin == 1.0` the last displacement is equal to `offset`.
+        offset (int|float)
+
+    Returns:
+        displacements (np.ndarray): The displacements.
+
+    Examples:
+        >>> distances2displacements([1, 1, 1, 1, 1, 1])
+        array([-3., -2., -1.,  0.,  1.,  2.,  3.])
+        >>> distances2displacements([1, 2, 3])
+        array([-3., -2.,  0.,  3.])
+        >>> distances2displacements([1, 2, 3], origin=0.)
+        array([0., 1., 3., 6.])
+        >>> distances2displacements([1, 2, 3], origin=1.)
+        array([-6., -5., -3.,  0.])
+        >>> distances2displacements([1, 2, 3], origin=1., offset=6)
+        array([0., 1., 3., 6.])
+        >>> distances2displacements(1)
+        array([-0.5,  0.5])
+    """
+    distances = (0,) + tuple(util.auto_repeat(distances, 1))
+    return np.cumsum(distances) - np.sum(distances) * origin + offset
+
+
+# ======================================================================
 def square_size_to_num_tria(
         square_size,
         has_diag=False):
@@ -1692,14 +1758,23 @@ def coord(
     Calculate the coordinate in a given shape for a specified position.
 
     Args:
-        shape (Iterable[int]): The shape of the mask in px.
-        position (float|Iterable[float]): Relative position of the origin.
-            Values are in the [0, 1] interval.
-        is_relative (bool): Interpret origin as relative.
-        use_int (bool): Force interger values for the coordinates.
+        shape (int|Iterable[int]): The shape of the container in px.
+        position (float|Iterable[float]): The position of the coordinate.
+            Values are relative to the lowest edge.
+            The values interpretation depend on `is_relative`.
+        is_relative (bool|callable): Interpret position as relative.
+            If False, `position` is interpreted as absolute (in px).
+            Otherwise, they are interpreted as relative, i.e. each value of
+            `position` is referenced to some other value.
+            If True, values of `shape` are used as the reference.
+            If callable, the reference is computed from `shape` which is
+            passed as the first (and only) parameter using the function.
+            The signature must be: is_relative(Iterable) -> int|float|Iterable.
+            Internally, uses `flyingcircus.num.scale()`.
+        use_int (bool): Force integer values for the coordinates.
 
     Returns:
-        position (list): The coordinate in the shape.
+        xx (list): The coordinates of the position.
 
     Examples:
         >>> coord((5, 5))
@@ -1709,17 +1784,21 @@ def coord(
         >>> coord((5, 5), 3, False)
         (3, 3)
     """
-    position = util.auto_repeat(position, len(shape), check=True)
+    xx = util.auto_repeat(position, len(shape), check=True)
     if is_relative:
+        refs = util.auto_repeat(is_relative(shape), len(shape), check=True) \
+            if callable(is_relative) else shape
         if use_int:
-            position = tuple(
-                int(scale(x, (0, dim))) for x, dim in zip(position, shape))
+            xx = tuple(
+                int(scale(x, (0, d))) for x, d in zip(xx, refs))
         else:
-            position = tuple(
-                scale(x, (0, dim - 1)) for x, dim in zip(position, shape))
-    elif any([not isinstance(x, int) for x in position]) and use_int:
-        raise TypeError('Absolute origin must be integer.')
-    return position
+            xx = tuple(
+                scale(x, (0, d - 1)) for x, d in zip(xx, refs))
+    elif any([not isinstance(x, int) for x in xx]) and use_int:
+        text = 'The value of `position` must be integer ' \
+               'if `is_relative == False` and `use_int == True`.'
+        raise TypeError(text)
+    return xx
 
 
 # ======================================================================
@@ -1733,12 +1812,13 @@ def grid_coord(
     Calculate the generic x_i coordinates for N-dim operations.
 
     Args:
-        shape (Iterable[int]): The shape of the mask in px.
+        shape (int|Iterable[int]): The shape of the container in px.
         position (float|Iterable[float]): Relative position of the origin.
             Values are in the [0, 1] interval.
-        is_relative (bool): Interpret origin as relative.
+        is_relative (bool|callable): Interpret origin as relative.
+            See `flyingcircus.num.coord()` for more info.
         dense (bool): Determine the type (dense or sparse) of the mesh-grid.
-        use_int (bool): Force interger values for the coordinates.
+        use_int (bool): Force integer values for the coordinates.
 
     Returns:
         xx (list[np.ndarray]|np.ndarray): Sparse or dense mesh-grid.
@@ -1803,8 +1883,8 @@ def grid_coord(
         [array([[0.],
                [1.]]), array([[0., 1., 2.]])]
     """
-    position = coord(shape, position, is_relative, use_int)
-    grid = tuple(slice(-x0, dim - x0) for x0, dim in zip(position, shape))
+    xx0 = coord(shape, position, is_relative, use_int)
+    grid = tuple(slice(-x0, dim - x0) for x0, dim in zip(xx0, shape))
     return np.ogrid[grid] if not dense else np.mgrid[grid]
 
 
@@ -1896,6 +1976,8 @@ def rel2abs(shape, size=0.5):
     """
     Calculate the absolute size from a relative size for a given shape.
 
+    This is a simple version of `fc.num.scale()` and/or `fc.num.coord()`.
+
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
         size (float|tuple[float]): Relative position (to the lowest edge).
@@ -1918,6 +2000,11 @@ def rel2abs(shape, size=0.5):
         >>> shape = (100, 100, 100, 100, 100)
         >>> abs2rel(shape, rel2abs(shape, (0.0, 0.25, 0.5, 0.75, 1.0)))
         (0.0, 0.25, 0.5, 0.75, 1.0)
+
+    See Also:
+        - fc.num.abs2rel()
+        - fc.num.coord()
+        - fc.util.scale()
     """
     size = fc.util.auto_repeat(size, len(shape), check=True)
     return tuple((s - 1.0) * p for p, s in zip(size, shape))
@@ -1927,6 +2014,8 @@ def rel2abs(shape, size=0.5):
 def abs2rel(shape, position=0):
     """
     Calculate the relative size from an absolute size for a given shape.
+
+    This is a simple version of `fc.num.scale()`.
 
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
@@ -1950,6 +2039,11 @@ def abs2rel(shape, position=0):
         >>> shape = (100, 100, 100, 100, 100)
         >>> abs2rel(shape, rel2abs(shape, (0, 25, 50, 75, 100)))
         (0.0, 25.0, 50.0, 75.0, 100.0)
+
+    See Also:
+        - fc.num.rel2abs()
+        - fc.num.coord()
+        - fc.num.scale()
     """
     position = fc.util.auto_repeat(position, len(shape), check=True)
     return tuple(p / (s - 1.0) for p, s in zip(position, shape))
@@ -1975,7 +2069,7 @@ def laplace_kernel(
             Otherwise, the Iterable length must match the length of shape.
 
     Returns:
-        kk_2 (np.ndarray): The resulting kernel array.
+        kk2 (np.ndarray): The resulting kernel array.
 
     Examples:
         >>> laplace_kernel((3, 3, 3))
@@ -2009,14 +2103,14 @@ def laplace_kernel(
                [[5.55555556, 2.77777778],
                 [2.77777778, 0.        ]]])
     """
-    kk_ = grid_coord(shape)
+    kk = grid_coord(shape)
     if factors and factors != 1:
         factors = util.auto_repeat(factors, len(shape), check=True)
-        kk_ = [k_i / factor for k_i, factor in zip(kk_, factors)]
-    kk_2 = np.zeros(shape)
-    for k_i, dim in zip(kk_, shape):
-        kk_2 += k_i ** 2
-    return kk_2
+        kk = [k_i / factor for k_i, factor in zip(kk, factors)]
+    kk2 = np.zeros(shape)
+    for k_i, dim in zip(kk, shape):
+        kk2 += k_i ** 2
+    return kk2
 
 
 # ======================================================================
@@ -2084,10 +2178,10 @@ def gradient_kernels(
                [ 0.        ,  0.        ]]), array([[-0.33333333,  0.        ],
                [-0.33333333,  0.        ]]))
     """
-    kk_ = grid_coord(shape)
+    kk = grid_coord(shape)
     if factors and factors != 1:
         factors = util.auto_repeat(factors, len(shape), check=True)
-        kk_ = [k_i / factor for k_i, factor in zip(kk_, factors)]
+        kk = [k_i / factor for k_i, factor in zip(kk, factors)]
     if dims is None:
         dims = range(len(shape))
     else:
@@ -2096,7 +2190,7 @@ def gradient_kernels(
         dims = tuple(dim % len(shape) for dim in dims)
     kks = tuple(
         np.broadcast_to(k_i, shape)
-        for i, (k_i, dim) in enumerate(zip(kk_, shape))
+        for i, (k_i, dim) in enumerate(zip(kk, shape))
         if i in dims)
     return kks
 
@@ -2171,10 +2265,10 @@ def exp_gradient_kernels(
  array([[1.5+0.8660254j, 0. +0.j       ],
                [1.5+0.8660254j, 0. +0.j       ]]))
     """
-    kk_ = grid_coord(shape)
+    kk = grid_coord(shape)
     if factors and factors != 1:
         factors = util.auto_repeat(factors, len(shape), check=True)
-        kk_ = [k_i / factor for k_i, factor in zip(kk_, factors)]
+        kk = [k_i / factor for k_i, factor in zip(kk, factors)]
     if dims is None:
         dims = range(len(shape))
     else:
@@ -2183,7 +2277,7 @@ def exp_gradient_kernels(
         dims = tuple(dim % len(shape) for dim in dims)
     kks = tuple(
         np.broadcast_to((1.0 - np.exp(2j * np.pi * k_i)), shape)
-        for i, (k_i, dim) in enumerate(zip(kk_, shape))
+        for i, (k_i, dim) in enumerate(zip(kk, shape))
         if i in dims)
     return kks
 
@@ -2315,8 +2409,8 @@ def laplacian(
         arr (np.ndarray): The output array.
     """
     arr, mask = padding(arr, pad_width)
-    kk_2 = fftshift(laplace_kernel(arr.shape, arr.shape))
-    arr = ((1j * ft_factor) ** 2) * ifftn(kk_2 * fftn(arr))
+    kk2 = fftshift(laplace_kernel(arr.shape, arr.shape))
+    arr = ((1j * ft_factor) ** 2) * ifftn(kk2 * fftn(arr))
     return arr[mask]
 
 
@@ -2341,9 +2435,9 @@ def inv_laplacian(
         arr (np.ndarray): The output array.
     """
     arr, mask = padding(arr, pad_width)
-    kk_2 = fftshift(laplace_kernel(arr.shape, arr.shape))
-    kk_2[kk_2 != 0] = 1.0 / kk_2[kk_2 != 0]
-    arr = ((-1j / ft_factor) ** 2) * ifftn(kk_2 * fftn(arr))
+    kk2 = fftshift(laplace_kernel(arr.shape, arr.shape))
+    kk2[kk2 != 0] = 1.0 / kk2[kk2 != 0]
+    arr = ((-1j / ft_factor) ** 2) * ifftn(kk2 * fftn(arr))
     return arr[mask]
 
 
@@ -2882,8 +2976,6 @@ def gaussian_nd(
     """
     if not n_dim:
         n_dim = util.combine_iter_len((shape, sigmas, position))
-        if n_dim == 0:
-            n_dim = 1
 
     shape = util.auto_repeat(shape, n_dim)
     sigmas = util.auto_repeat(sigmas, n_dim)
@@ -4814,7 +4906,7 @@ def prepare_affine(
     if shift is None:
         shift = 0
     if origin is None:
-        origin = np.array(rel2abs(shape, (0.5,) * ndim))
+        origin = np.array(coord(shape, (0.5,) * ndim, use_int=False))
     offset = origin - np.dot(lin_mat, origin + shift)
     return lin_mat, offset
 
