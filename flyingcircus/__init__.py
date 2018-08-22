@@ -311,6 +311,7 @@ def report(
 
 # ======================================================================
 def pkg_paths(
+        current_filepath=__file__,
         name=INFO['name'],
         author=INFO['author'],
         version=INFO['version']):
@@ -318,6 +319,7 @@ def pkg_paths(
     Generate application directories.
 
     Args:
+        current_filepath (str): The current filepath.
         name (str): Application name.
         author (str): Application author.
         version (str): Application version.
@@ -334,7 +336,8 @@ def pkg_paths(
         ['base', 'cache', 'config', 'data', 'log', 'resources']
     """
     dirpaths = dict((
-        ('base', os.path.dirname(__file__)),  # todo: fix for pyinstaller
+        # todo: fix for pyinstaller
+        ('base', os.path.dirname(current_filepath)),
         ('resources', pkg_resources.resource_filename('resources', '.')),
         ('config', appdirs.user_config_dir(name, author, version)),
         ('cache', appdirs.user_cache_dir(name, author, version)),
@@ -348,7 +351,7 @@ def pkg_paths(
 
 
 # ======================================================================
-PATH = pkg_paths()
+PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
 
 # ======================================================================
 elapsed()
