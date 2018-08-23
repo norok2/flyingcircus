@@ -997,18 +997,20 @@ def is_prime(num):
 
 # ======================================================================
 def primes_in_range(
-        stop,
-        start=2):
+        first,
+        second=None):
     """
     Calculate the prime numbers in the range.
 
     Args:
-        stop (int): The final value of the range.
-            This value is excluded.
-            If stop < start the values are switched.
-        start (int): The initial value of the range.
-            This value is included.
-            If start > stop the values are switched.
+        first (int): The first value of the range.
+            If `second == None` this is the `stop` value, and is not included.
+            Otherwise, this is the start value and can be included
+            (if it is a prime number).
+            If `first < second` the sequence is yielded backwards.
+        second (int|None): The second value of the range.
+            If None, the start value is 2.
+            If `first < second` the sequence is yielded backwards.
 
     Yields:
         num (int): The next prime number.
@@ -1021,26 +1023,33 @@ def primes_in_range(
         >>> list(primes_in_range(1000, 1050))
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049]
         >>> list(primes_in_range(1050, 1000))
-        [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049]
+        [1049, 1039, 1033, 1031, 1021, 1019, 1013, 1009]
     """
-    if start > stop:
-        start, stop = stop, start
+    if second is None:
+        start, stop = 2, first
+    else:
+        start, stop = first, second
+    step = 2 if start < stop else -2
     if start % 2 == 0:
         if start == 2:
             yield start
-        start += 1
-    for num in range(start, stop, 2):
+        start += step // 2
+    for num in range(start, stop, step):
         if is_prime(num):
             yield num
 
 
 # ======================================================================
-def get_primes(num=2):
+def get_primes(
+        max_count=-1,
+        num=2):
     """
     Calculate prime numbers.
 
     Args:
-        num (int): The initial value
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        num (int): The initial value.
 
     Yields:
         num (int): The next prime number.
@@ -1048,27 +1057,160 @@ def get_primes(num=2):
     Examples:
         >>> n = 15
         >>> primes = get_primes()
-        >>> [next(primes) for i in range(n)]  # first n prime numbers
+        >>> [next(primes) for i in range(n)]
         [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
-        >>> n = 10
-        >>> primes = get_primes(101)
-        >>> [next(primes) for i in range(n)]  # first n primes larger than 1000
+        >>> [x for x in get_primes(n)]
+        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+        >>> [x for x in get_primes(10, 101)]
         [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
-        >>> n = 10
-        >>> primes = get_primes(1000)
-        >>> [next(primes) for i in range(n)]  # first n primes larger than 1000
+        >>> [x for x in get_primes(10, 1000)]
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
     """
+    i = 0
     while num <= 2:
         if is_prime(num):
             yield num
+            i += 1
         num += 1
     if num % 2 == 0:
         num += 1
-    while True:
+    while i != max_count:
         if is_prime(num):
             yield num
+            i += 1
         num += 2
+
+
+# ======================================================================
+def get_fibonacci(
+        max_count=-1,
+        first=0,
+        second=1):
+    """
+    Generate the first Fibonacci-like numbers.
+
+    The next number is computed by adding the last two.
+
+    This is useful for generating a sequence of Fibonacci numbers.
+    To generate a specific Fibonacci number, use `fc.util.fibonacci()`.
+
+    Args:
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        first (int): The first number of the sequence.
+        second (int): The second number of the sequence.
+
+    Yields:
+        value (int): The next Fibonacci number.
+
+    Examples:
+        >>> [x for x in get_fibonacci(16)]
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+        >>> [x for x in get_fibonacci(16, 0, 2)]
+        [0, 2, 2, 4, 6, 10, 16, 26, 42, 68, 110, 178, 288, 466, 754, 1220]
+        >>> [x for x in get_fibonacci(16, 3, 1)]
+        [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
+
+    """
+    i = 0
+    while i != max_count:
+        yield first
+        first, second = second, first + second
+        i += 1
+
+
+# ======================================================================
+def get_gen_fibonacci(
+        max_count=-1,
+        values=(0, 1),
+        weights=1):
+    """
+    Generate the first generalized Fibonacci-like numbers.
+
+    The next number is computed as a linear combination of the last values
+    multiplied by their respective weights.
+
+    These can be used to compute n-step Fibonacci, Lucas numbers,
+    Pell numbers, Perrin numbers, etc.
+
+    Args:
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        values (int|Iterable[int]): The initial numbers of the sequence.
+            If int, the value is repeated for the number of `weights`, and
+            `weights` must be an iterable.
+        weights (int|Iterable[int]): The weights for the linear combination.
+            If int, the value is repeated for the number of `values`, and
+            `values` must be an iterable.
+
+    Yields:
+        value (int): The next number of the sequence.
+
+    Examples:
+        >>> [x for x in get_gen_fibonacci(16)]
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+        >>> [x for x in get_gen_fibonacci(16, (1, 1, 1))]
+        [1, 1, 1, 3, 5, 9, 17, 31, 57, 105, 193, 355, 653, 1201, 2209, 4063]
+        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1))]
+        [1, 0, 1, 2, 3, 6, 11, 20, 37, 68, 125, 230, 423, 778, 1431, 2632]
+        >>> [x for x in get_gen_fibonacci(13, (0, 1), 2)]
+        [0, 1, 2, 6, 16, 44, 120, 328, 896, 2448, 6688, 18272, 49920]
+        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1), (1, 2, 1))]
+        [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
+    """
+    num = combine_iter_len((values, weights))
+    values = auto_repeat(values, num, check=True)
+    weights = auto_repeat(weights, num, check=True)
+    i = 0
+    while i != max_count:
+        yield values[0]
+        values = values[1:] + (sum(w * x for w, x in zip(weights, values)),)
+        i += 1
+
+
+# ======================================================================
+def fibonacci(
+        num,
+        first=0,
+        second=1):
+    """
+    Generate the n-th Fibonacci number.
+
+    This is useful for generating a specific Fibonacci number.
+    For generating a sequence of Fibonacci numbers, use
+    `fc.util.get_fibonaccis()`.
+
+    Args:
+        num (int): The ordinal to generate.
+            Starts counting from 0.
+            If `num < 0`, the first number is returned.
+        first (int): The first number of the sequence.
+        second (int): The second number of the sequence.
+
+    Returns:
+        value (int): The Fibonacci number.
+
+    Examples:
+        >>> fibonacci(10)
+        55
+        >>> fibonacci(100)
+        354224848179261915075
+        >>> fibonacci(200)
+        280571172992510140037611932413038677189525
+        >>> fibonacci(300)
+        222232244629420445529739893461909967206666939096499764990979600
+        >>> fibonacci(0)
+        0
+        >>> fibonacci(1)
+        1
+        >>> fibonacci(15, 0, 2)
+        1220
+        >>> fibonacci(15, 3, 1)
+        1741
+    """
+    for _ in range(num):
+        first, second = second, first + second
+    return first
 
 
 # ======================================================================
@@ -1116,7 +1258,7 @@ def factorize(num):
 
 
 # ======================================================================
-def factorize2(num):
+def factorize_as_dict(num):
     """
     Find all factors of a number and collect them in an ordered dict.
 
@@ -1127,11 +1269,11 @@ def factorize2(num):
         factors (collections.OrderedDict): The factors of the number.
 
     Examples:
-        >>> factorize2(100)
+        >>> factorize_as_dict(100)
         OrderedDict([(2, 2), (5, 2)])
-        >>> factorize2(1234567890)
+        >>> factorize_as_dict(1234567890)
         OrderedDict([(2, 1), (3, 2), (5, 1), (3607, 1), (3803, 1)])
-        >>> factorize2(65536)
+        >>> factorize_as_dict(65536)
         OrderedDict([(2, 16)])
     """
     factors = factorize(num)
@@ -1139,7 +1281,7 @@ def factorize2(num):
 
 
 # ======================================================================
-def factorize3(
+def factorize_as_str(
         num,
         exp_sep='^',
         fact_sep=' * '):
@@ -1155,11 +1297,11 @@ def factorize3(
         text (str): The factors of the number.
 
     Examples:
-        >>> factorize3(100)
+        >>> factorize_as_str(100)
         '2^2 * 5^2'
-        >>> factorize3(1234567890)
+        >>> factorize_as_str(1234567890)
         '2 * 3^2 * 5 * 3607 * 3803'
-        >>> factorize3(65536)
+        >>> factorize_as_str(65536)
         '2^16'
     """
     factors = factorize(num)
