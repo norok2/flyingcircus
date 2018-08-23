@@ -914,6 +914,30 @@ def vectors2direction(
 
 
 # ======================================================================
+def pairwise_distances(
+        items,
+        distance=lambda x, y: p_norm(y - x, 2)):
+    """
+    Compute the pair-wise distances.
+
+    Assumes that the distance function is symmetric.
+
+    Args:
+        items (Iterable): The input items.
+        distance (callable): The distance function.
+            Must have the following signature: distance(Any, Any) -> Any
+
+    Returns:
+        distances (tuple): The computed distances.
+
+    Examples:
+        >>> pairwise_distances((1, 2, 3, 4, 5))
+        (1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 1.0, 2.0, 1.0)
+    """
+    return tuple(distance(x, y) for x, y in itertools.combinations(items, 2))
+
+
+# ======================================================================
 def distances2displacements(
         distances,
         origin=0.5,
@@ -5291,22 +5315,54 @@ def rotation_3d_from_vector(
 
     Examples:
         >>> rot_matrix = rotation_3d_from_vector([1, 0, 0])
-        >>> np.round(rot_matrix, 6)
+        >>> np.round(rot_matrix, 3)
         array([[ 1.,  0.,  0.],
                [ 0.,  0., -1.],
                [ 0.,  1.,  0.]])
+        >>> rot_matrix = rotation_3d_from_vector([1, 1, 0])
+        >>> np.round(rot_matrix, 3)
+        array([[ 0.955,  0.045,  0.293],
+               [ 0.045,  0.955, -0.293],
+               [-0.293,  0.293,  0.91 ]])
+        >>> rot_matrix = rotation_3d_from_vector([1, 1, 0], 90)
+        >>> np.round(rot_matrix, 3)
+        array([[ 0.5  ,  0.5  ,  0.707],
+               [ 0.5  ,  0.5  , -0.707],
+               [-0.707,  0.707,  0.   ]])
+        >>> rot_matrix = rotation_3d_from_vector([0, 1, 0], 30)
+        >>> np.round(rot_matrix, 3)
+        array([[ 0.866,  0.   ,  0.5  ],
+               [ 0.   ,  1.   ,  0.   ],
+               [-0.5  ,  0.   ,  0.866]])
+        >>> rot_matrix = rotation_3d_from_vector([1, 0, 0], 0.0)
+        >>> np.round(rot_matrix, 3)
+        array([[1., 0., 0.],
+               [0., 1., 0.],
+               [0., 0., 1.]])
+        >>> rot_matrix = rotation_3d_from_vector([0, 0, 0], 90.0)
+        >>> np.round(rot_matrix, 3)
+        array([[1., 0., 0.],
+               [0., 1., 0.],
+               [0., 0., 1.]])
+        >>> rot_matrix = rotation_3d_from_vector([0, 0, 0], 0.0)
+        >>> np.round(rot_matrix, 3)
+        array([[1., 0., 0.],
+               [0., 1., 0.],
+               [0., 0., 1.]])
     """
     rot_matrix = np.eye(3)
     norm = np.linalg.norm(normal)
     if norm:
         normal = np.array(normal) / norm
-        angle = np.arcsin(norm) if angle is None else np.deg2rad(angle)
-        signs = np.array([-1., 1., -1.])
-        v_matrix = to_self_adjoint_matrix(normal[::-1] * signs, skew=True)
-        w_matrix = np.outer(normal, normal)
-        rot_matrix = \
-            rot_matrix * np.cos(angle) + v_matrix * np.sin(angle) + \
-            w_matrix * (1 - np.cos(angle))
+        angle = np.arcsin((norm % 1.0) if norm > 1.0 else norm) \
+            if angle is None else np.deg2rad(angle)
+        if angle != 0.0:
+            signs = np.array([-1., 1., -1.])
+            v_matrix = to_self_adjoint_matrix(normal[::-1] * signs, skew=True)
+            w_matrix = np.outer(normal, normal)
+            rot_matrix = \
+                rot_matrix * np.cos(angle) + v_matrix * np.sin(angle) + \
+                w_matrix * (1 - np.cos(angle))
     return rot_matrix
 
 
@@ -5371,6 +5427,42 @@ def rand_mask(
     mask = np.zeros_like(arr).astype(np.bool).ravel()
     mask[random.sample(range(arr.size), int(arr.size * density))] = True
     return mask.reshape(shape)
+
+
+# ======================================================================
+def fibonacci_sphere(num):
+    """
+    Generate the Fibonacci sphere.
+
+    These are points uniformly distributed on the surface of a sphere
+    of radius 1.
+    This is obtained by placing the points in a Fibonacci spiral.
+
+    Args:
+        num (int): The number of points to generate.
+
+    Returns:
+        arr (np.ndarray[float]): The coordinates of the points on the sphere.
+            The array has shape `(3, num)`.
+
+    Examples:
+        >>> np.round(fibonacci_sphere(6), 3)
+        array([[ 0.553, -0.639,  0.086,  0.6  , -0.853,  0.466],
+               [-0.833, -0.5  , -0.167,  0.167,  0.5  ,  0.833],
+               [ 0.   ,  0.585, -0.982,  0.783, -0.151, -0.297]])
+        >>> np.round(fibonacci_sphere(8), 2)
+        array([[ 0.48, -0.58,  0.08,  0.6 , -0.98,  0.78, -0.2 , -0.22],
+               [-0.88, -0.62, -0.38, -0.12,  0.12,  0.38,  0.62,  0.88],
+               [ 0.  ,  0.53, -0.92,  0.79, -0.17, -0.5 ,  0.75, -0.43]])
+    """
+    arr = np.zeros((3, num))
+    offset = 2.0 / num
+    increment = np.pi * (3.0 - np.sqrt(5.0))
+    i = np.arange(num)
+    arr[0] = i * offset - 1 + offset / 2.0
+    arr[1] = np.cos(i * increment) * np.sqrt(1 - arr[0] ** 2)
+    arr[2] = np.sin(i * increment) * np.sqrt(1 - arr[0] ** 2)
+    return arr
 
 
 # ======================================================================
