@@ -942,15 +942,154 @@ def isqrt(num):
 
 
 # ======================================================================
+def get_pascal_numbers(
+        num,
+        full=True):
+    """
+    Generate the numbers of a given row of Pascal's triangle.
+
+    These are the numbers in the `num`-th row (order) of the Pascal's triangle.
+    If only a specific binomial coefficient is required, use
+    `scipy.special.comb(exact=True)`.
+
+    Args:
+        num (int): The row index of the Pascal's triangle.
+            Indexing start from 0.
+        full (bool): Compute all numbers of the row.
+            If True, all numbers are yielded.
+            Otherwise, it only yields non-repeated numbers (exploiting the
+            fact that they are palindromes).
+
+    Yields:
+        value (int): The next Pascal number of
+
+    Examples:
+        >>> list(get_pascal_numbers(12))
+        [1, 12, 66, 220, 495, 792, 924, 792, 495, 220, 66, 12, 1]
+        >>> list(get_pascal_numbers(13))
+        [1, 13, 78, 286, 715, 1287, 1716, 1716, 1287, 715, 286, 78, 13, 1]
+        >>> list(get_pascal_numbers(12, False))
+        [1, 12, 66, 220, 495, 792, 924]
+        >>> list(get_pascal_numbers(13, False))
+        [1, 13, 78, 286, 715, 1287, 1716]
+        >>> num = 10
+        >>> for n in range(num):
+        ...     print(list(get_pascal_numbers(n)))
+        [1]
+        [1, 1]
+        [1, 2, 1]
+        [1, 3, 3, 1]
+        [1, 4, 6, 4, 1]
+        [1, 5, 10, 10, 5, 1]
+        [1, 6, 15, 20, 15, 6, 1]
+        [1, 7, 21, 35, 35, 21, 7, 1]
+        [1, 8, 28, 56, 70, 56, 28, 8, 1]
+        [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
+
+    See Also:
+        - fc.util.pascal_triangle_range()
+        - scipy.special.comb()
+        - scipy.special.binom()
+        - https://en.wikipedia.org/wiki/Binomial_coefficient
+        - https://en.wikipedia.org/wiki/Pascal%27s_triangle
+    """
+    value = 1
+    stop = (num + 1) if full else (num // 2 + 1)
+    for i in range(stop):
+        yield value
+        value = value * (num - i) // (i + 1)
+
+
+# ======================================================================
+def pascal_triangle_range(
+        first,
+        second=None,
+        step=None,
+        container=tuple):
+    """
+    Generate the Pascal's triangle rows in a given range.
+
+    See `get_pascal_numbers()` for generating any given row of the triangle.
+
+    Args:
+        first (int): The first value of the range.
+            If `second == None` this is the `stop` value, and is not included.
+            Otherwise, this is the start value and can be included
+            (if it is a prime number).
+            If `first < second` the sequence is yielded backwards.
+        second (int|None): The second value of the range.
+            If None, the start value is 2.
+            If `first < second` the sequence is yielded backwards.
+        step (int): The step of the rows range.
+            If the sequence is yielded backward, the step should be negative,
+            otherwise an empty sequence is yielded.
+        container (callable): The row container.
+
+    Yields:
+        row (Iterable[int]): The rows of the Pascal's triangle
+
+    Examples:
+        >>> tuple(pascal_triangle_range(5))
+        ((1,), (1, 1), (1, 2, 1), (1, 3, 3, 1), (1, 4, 6, 4, 1))
+        >>> tuple(pascal_triangle_range(5, 7))
+        ((1, 5, 10, 10, 5, 1), (1, 6, 15, 20, 15, 6, 1))
+        >>> tuple(pascal_triangle_range(7, 9))
+        ((1, 7, 21, 35, 35, 21, 7, 1), (1, 8, 28, 56, 70, 56, 28, 8, 1))
+        >>> tuple(pascal_triangle_range(5, 2))
+        ((1, 5, 10, 10, 5, 1), (1, 4, 6, 4, 1), (1, 3, 3, 1))
+        >>> tuple(pascal_triangle_range(0, 7, 2))
+        ((1,), (1, 2, 1), (1, 4, 6, 4, 1), (1, 6, 15, 20, 15, 6, 1))
+        >>> tuple(pascal_triangle_range(0, 6, 2))
+        ((1,), (1, 2, 1), (1, 4, 6, 4, 1))
+        >>> tuple(pascal_triangle_range(7, 1, -2))
+        ((1, 7, 21, 35, 35, 21, 7, 1), (1, 5, 10, 10, 5, 1), (1, 3, 3, 1))
+        >>> tuple(pascal_triangle_range(7, 1, 2))  # empty range!
+        ()
+        >>> list(pascal_triangle_range(3))
+        [(1,), (1, 1), (1, 2, 1)]
+        >>> list(pascal_triangle_range(5, container=list))
+        [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1]]
+        >>> for row in pascal_triangle_range(10):
+        ...    print(row)
+        (1,)
+        (1, 1)
+        (1, 2, 1)
+        (1, 3, 3, 1)
+        (1, 4, 6, 4, 1)
+        (1, 5, 10, 10, 5, 1)
+        (1, 6, 15, 20, 15, 6, 1)
+        (1, 7, 21, 35, 35, 21, 7, 1)
+        (1, 8, 28, 56, 70, 56, 28, 8, 1)
+        (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
+
+    See Also:
+        - fc.util.get_pascal_numbers()
+        - scipy.special.comb()
+        - scipy.special.binom()
+        - https://en.wikipedia.org/wiki/Binomial_coefficient
+        - https://en.wikipedia.org/wiki/Pascal%27s_triangle
+    """
+    if second is None:
+        start, stop = 0, first
+    else:
+        start, stop = first, second
+    if not step:
+        step = 1 if start < stop else -1
+    for i in range(start, stop, step):
+        yield container(get_pascal_numbers(i))
+
+
+# ======================================================================
 def is_prime(num):
     """
-    Determine if num is a prime number.
+    Determine if number is prime.
 
     A prime number is only divisible by 1 and itself.
     0 and 1 are considered special cases; in this implementations they are
     considered primes.
 
-    It is implemented by directly testing for possible factors.
+    It is implemented by directly testing for possible factors
+    (i.e. the trial division algorithm, excluding multiples of 2 and 3).
 
     Args:
         num (int): The number to check for primality.
@@ -980,6 +1119,10 @@ def is_prime(num):
         True
 
     See Also:
+        - fc.util.is_prime()
+        - fc.util.primes_in_range()
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Trial_division
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
     # : fastest implementation (skip both 2 and 3 multiples!)
@@ -996,7 +1139,7 @@ def is_prime(num):
 
 
 # ======================================================================
-def primes_in_range(
+def primes_range(
         first,
         second=None):
     """
@@ -1016,14 +1159,23 @@ def primes_in_range(
         num (int): The next prime number.
 
     Examples:
-        >>> list(primes_in_range(50))
+        >>> list(primes_range(50))
         [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
-        >>> list(primes_in_range(101, 150))
+        >>> list(primes_range(51, 100))
+        [53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
+        >>> list(primes_range(101, 150))
         [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
-        >>> list(primes_in_range(1000, 1050))
+        >>> list(primes_range(151, 200))
+        [151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199]
+        >>> list(primes_range(1000, 1050))
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049]
-        >>> list(primes_in_range(1050, 1000))
+        >>> list(primes_range(1050, 1000))
         [1049, 1039, 1033, 1031, 1021, 1019, 1013, 1009]
+
+    See Also:
+        - fc.util.is_prime()
+        - fc.util.get_primes()
+        - https://en.wikipedia.org/wiki/Prime_number
     """
     if second is None:
         start, stop = 2, first
@@ -1065,6 +1217,11 @@ def get_primes(
         [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
         >>> [x for x in get_primes(10, 1000)]
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
+
+    See Also:
+        - fc.util.is_prime()
+        - fc.util.primes_in_range()
+        - https://en.wikipedia.org/wiki/Prime_number
     """
     i = 0
     while num <= 2:
@@ -1111,6 +1268,10 @@ def get_fibonacci(
         >>> [x for x in get_fibonacci(16, 3, 1)]
         [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
 
+    See Also:
+        - fc.util.get_gen_fibonacci()
+        - fc.util.fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     i = 0
     while i != max_count:
@@ -1157,6 +1318,11 @@ def get_gen_fibonacci(
         [0, 1, 2, 6, 16, 44, 120, 328, 896, 2448, 6688, 18272, 49920]
         >>> [x for x in get_gen_fibonacci(16, (1, 0, 1), (1, 2, 1))]
         [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
+
+    See Also:
+        - fc.util.get_fibonacci()
+        - fc.util.fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     num = combine_iter_len((values, weights))
     values = auto_repeat(values, num, check=True)
@@ -1207,6 +1373,11 @@ def fibonacci(
         1220
         >>> fibonacci(15, 3, 1)
         1741
+
+    See Also:
+        - fc.util.get_fibonacci()
+        - fc.util.get_gen_fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     for _ in range(num):
         first, second = second, first + second
