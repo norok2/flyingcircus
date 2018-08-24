@@ -174,6 +174,7 @@ def is_prime_optimized(num):
             return False
     return True
 
+
 # ======================================================================
 def interval_size(interval):
     """
@@ -192,6 +193,145 @@ def interval_size(interval):
         1
     """
     return interval[1] - interval[0]
+
+
+# ======================================================================
+def binomial_coeff(
+        n,
+        k):
+    """
+    Compute the binomial coefficient.
+
+    DEPRECATED! (by `scipy.special.comb(exact=True)`)
+
+    This is similar to `scipy.special.binom()` and identical to
+    `scipy.special.comb(exact=True)` except that the `scipy` version
+    is faster.
+
+    If all binomial coefficient for a given `n` are required, then
+    `fc.util.get_pascal_numbers()` is computationally more efficient.
+
+    Args:
+        n (int): The major index of the binomial coefficient.
+        k (int): The minor index of the binomial coefficient.
+
+    Returns:
+        value (int): The binomial coefficient.
+            If `k > n` returns 0.
+
+    Examples:
+        >>> binomial_coeff(10, 5)
+        252
+        >>> binomial_coeff(50, 25)
+        126410606437752
+        >>> num = 10
+        >>> for n in range(num):
+        ...     print([binomial_coeff(n, k) for k in range(n + 1)])
+        [1]
+        [1, 1]
+        [1, 2, 1]
+        [1, 3, 3, 1]
+        [1, 4, 6, 4, 1]
+        [1, 5, 10, 10, 5, 1]
+        [1, 6, 15, 20, 15, 6, 1]
+        [1, 7, 21, 35, 35, 21, 7, 1]
+        [1, 8, 28, 56, 70, 56, 28, 8, 1]
+        [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
+        >>> binomial_coeff(0, 0)
+        1
+        >>> binomial_coeff(0, 1)
+        Traceback (most recent call last):
+            ....
+        ValueError: Invalid values `n=0` `k=1` (0 <= k <= n)
+        >>> binomial_coeff(1, 0)
+        1
+        >>> binomial_coeff(1, 1)
+        1
+        >>> binomial_coeff(1, 2)
+        Traceback (most recent call last):
+            ....
+        ValueError: Invalid values `n=1` `k=2` (0 <= k <= n)
+        >>> from scipy.special import binom
+        >>> num = 15
+        >>> all(binomial_coeff(n, k) == int(binom(n, k))
+        ...     for n in range(num) for k in range(n + 1))
+        True
+
+    See Also:
+        - fc.util.get_pascal_numbers()
+        - fc.util.pascal_triangle()
+        - https://en.wikipedia.org/wiki/Binomial_coefficient
+        - https://en.wikipedia.org/wiki/Pascal%27s_triangle
+    """
+    if not 0 <= k <= n:
+        text = 'Invalid values `n={}` `k={}` (0 <= k <= n)'.format(n, k)
+        raise ValueError(text)
+    value = 1
+    for i in range(n + 1):
+        if i == k or i == n - k:
+            break
+        value = value * (n - i) // (i + 1)
+    return value
+
+
+# ======================================================================
+def is_prime_pascal(num):
+    """
+    Determine if number is prime.
+
+    WARNING! DO NOT USE THIS ALGORITHM AS IT IS EXTREMELY INEFFICIENT!
+
+    A prime number is only divisible by 1 and itself.
+    0 and 1 are considered special cases; in this implementations they are
+    considered primes.
+
+    It is implemented by using the Pascal triangle primality test.
+    This is known to be extremely inefficient.
+
+    Args:
+        num (int): The number to check for primality.
+            Only works for numbers larger than 1.
+
+    Returns:
+        is_divisible (bool): The result of the primality.
+
+    Examples:
+        >>> is_prime_pascal(100)
+        False
+        >>> is_prime_pascal(101)
+        True
+        >>> is_prime_pascal(-100)
+        False
+        >>> is_prime_pascal(-101)
+        True
+        >>> is_prime_pascal(2 ** 17)
+        False
+        >>> is_prime_pascal(17 * 19)
+        False
+        >>> is_prime_pascal(2 ** 17 - 1)
+        True
+        >>> is_prime_pascal(0)
+        True
+        >>> is_prime_pascal(1)
+        True
+
+    See Also:
+        - fc.util.is_prime()
+        - fc.util.primes_in_range()
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/AKS_primality_test
+    """
+    num = abs(num)
+    if (num % 2 == 0 and num > 2) or (num % 3 == 0 and num > 3):
+        return False
+    elif num == 2 or num == 3:
+        return True
+    elif all(
+            n % num == 0 for n in fc.util.get_pascal_numbers(num, full=False)
+            if n > 1):
+        return True
+    else:
+        return False
 
 
 # ======================================================================
@@ -404,6 +544,7 @@ def accumulate(
 # ======================================================================
 def transparent_compression(func):
     """WIP"""
+
     def _wrapped():
         from importlib import import_module
 
@@ -550,7 +691,7 @@ def ssim_map(
     # determine whether to use the simplified expression
     if all(aa) == 1 and 2 * cc[2] == cc[1]:
         ssim_arr = ((2 * mu1_mu2 + cc[0]) * (2 * sg12 + cc[1])) / (
-            (mu1_mu1 + mu2_mu2 + cc[0]) * (sg1_sg1 + sg2_sg2 + cc[1]))
+                (mu1_mu1 + mu2_mu2 + cc[0]) * (sg1_sg1 + sg2_sg2 + cc[1]))
     else:
         sg1 = np.sqrt(np.abs(sg1_sg1))
         sg2 = np.sqrt(np.abs(sg2_sg2))
