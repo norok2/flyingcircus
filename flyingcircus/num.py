@@ -1093,7 +1093,7 @@ def num_tria_to_square_size(
     See Also:
         fc.num.square_size_to_num_tria()
     """
-    square_size = ((np.sqrt(1 + 8 * num_tria) + (-1 if has_diag else 1)) / 2)
+    square_size = (((1 + 8 * num_tria) ** 0.5 + (-1 if has_diag else 1)) / 2)
     # alternatives to `divmod()`: numpy.modf(), math.modf()
     int_part, dec_part = divmod(square_size, 1)
     if not np.isclose(dec_part, 0.0) and raise_err:
@@ -2555,7 +2555,7 @@ def auto_bin(
     if method == 'auto':
         num = max(auto_bin(arr, 'fd', dim), auto_bin(arr, 'sturges', dim))
     elif method == 'sqrt':
-        num = int(np.ceil(np.sqrt(arr.size)))
+        num = int(np.ceil((arr.size) ** 0.5))
     elif method == 'sturges':
         num = int(np.ceil(1 + np.log2(arr.size)))
     elif method == 'rice':
@@ -5430,11 +5430,11 @@ def rand_mask(
 
 
 # ======================================================================
-def fibonacci_sphere(num):
+def fibonacci_disk(num):
     """
-    Generate the Fibonacci sphere.
+    Generate the Fibonacci disc.
 
-    These are points uniformly distributed on the surface of a sphere
+    There points are (weakly) uniformly distributed on the surface of a disc
     of radius 1.
     This is obtained by placing the points in a Fibonacci spiral.
 
@@ -5442,26 +5442,57 @@ def fibonacci_sphere(num):
         num (int): The number of points to generate.
 
     Returns:
-        arr (np.ndarray[float]): The coordinates of the points on the sphere.
+        arr (np.ndarray[float]): The coordinates of the points.
+            The array has shape `(2, num)`.
+
+    Examples:
+        >>> np.round(fibonacci_disk(6), 3)
+        array([[ 0.105, -0.448,  0.62 , -0.397, -0.168,  0.772],
+               [-0.269,  0.221,  0.18 , -0.653,  0.849, -0.567]])
+        >>> np.round(fibonacci_disk(8), 2)
+        array([[ 0.09, -0.39,  0.54, -0.34, -0.15,  0.67, -0.9 ,  0.64],
+               [-0.23,  0.19,  0.16, -0.57,  0.74, -0.49, -0.1 ,  0.73]])
+    """
+    arr = np.empty((2, num))
+    i = np.arange(num, dtype=float) + 0.5
+    arr[0] = np.cos(np.pi * (1 + 5 ** 0.5) * i)
+    arr[1] = np.sin(np.pi * (1 + 5 ** 0.5) * i)
+    return arr * np.sqrt(i / num)
+
+
+# ======================================================================
+def fibonacci_sphere(num):
+    """
+    Generate the Fibonacci sphere.
+
+    These points are (weakly) uniformly distributed on the surface of a sphere
+    of radius 1.
+    This is obtained by placing the points in a Fibonacci spiral.
+
+    Args:
+        num (int): The number of points to generate.
+
+    Returns:
+        arr (np.ndarray[float]): The coordinates of the points.
             The array has shape `(3, num)`.
 
     Examples:
         >>> np.round(fibonacci_sphere(6), 3)
-        array([[ 0.553, -0.639,  0.086,  0.6  , -0.853,  0.466],
-               [-0.833, -0.5  , -0.167,  0.167,  0.5  ,  0.833],
+        array([[-0.833, -0.5  , -0.167,  0.167,  0.5  ,  0.833],
+               [ 0.553, -0.639,  0.086,  0.6  , -0.853,  0.466],
                [ 0.   ,  0.585, -0.982,  0.783, -0.151, -0.297]])
         >>> np.round(fibonacci_sphere(8), 2)
-        array([[ 0.48, -0.58,  0.08,  0.6 , -0.98,  0.78, -0.2 , -0.22],
-               [-0.88, -0.62, -0.38, -0.12,  0.12,  0.38,  0.62,  0.88],
+        array([[-0.88, -0.62, -0.38, -0.12,  0.12,  0.38,  0.62,  0.88],
+               [ 0.48, -0.58,  0.08,  0.6 , -0.98,  0.78, -0.2 , -0.22],
                [ 0.  ,  0.53, -0.92,  0.79, -0.17, -0.5 ,  0.75, -0.43]])
     """
-    arr = np.zeros((3, num))
-    offset = 2.0 / num
-    increment = np.pi * (3.0 - np.sqrt(5.0))
-    i = np.arange(num)
-    arr[0] = i * offset - 1 + offset / 2.0
-    arr[1] = np.cos(i * increment) * np.sqrt(1 - arr[0] ** 2)
-    arr[2] = np.sin(i * increment) * np.sqrt(1 - arr[0] ** 2)
+    arr = np.empty((3, num))
+    increment = np.pi * (3.0 - (5.0 ** 0.5))
+    i = np.arange(num, dtype=float)
+    arr[0] = i * (2.0 / num) + (1.0 / num - 1.0)
+    arr[1] = np.cos(i * increment)
+    arr[2] = np.sin(i * increment)
+    arr[1:] *= np.sqrt(1 - arr[0] ** 2)
     return arr
 
 
@@ -5535,7 +5566,7 @@ def euclid_dist(
         array([-1.41421356, -2.82842712, -4.24264069, -5.65685425, -7.07106781,
                -8.48528137])
     """
-    arr = (arr2 - arr1) / np.sqrt(2.0)
+    arr = (arr2 - arr1) / (2.0) ** 0.5
     if unsigned:
         arr = np.abs(arr)
     return arr
