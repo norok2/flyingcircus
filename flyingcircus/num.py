@@ -5498,18 +5498,18 @@ def fibonacci_sphere(num):
 
 
 # ======================================================================
-def angles_in_ellipsis(
+def angles_in_ellipse(
         num,
         a=1,
         b=1,
         offset=0.0):
     """
-    Generate the angles of (almost) equi-spaced (arc) points on an ellipsis.
+    Generate the angles of (almost) equi-spaced (arc) points on an ellipse.
 
     Args:
         num (int): The number of points / angles.
-        a (int|float): The 1st-dimension semi-axis of the ellipsis.
-        b (int|float): The 2nd-dimension semi-axis of the ellipsis.
+        a (int|float): The 1st-dimension semi-axis of the ellipse.
+        b (int|float): The 2nd-dimension semi-axis of the ellipse.
         offset (int|float): The angle offset in rad.
 
     Returns:
@@ -5519,26 +5519,26 @@ def angles_in_ellipsis(
          >>> n = 8
          >>> a, b = 10, 20
          >>> e = (1.0 - a ** 2.0 / b ** 2.0) ** 0.5
-         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> phis = angles_in_ellipse(n, a, b)
          >>> arcs = sp.special.ellipeinc(phis, e)
          >>> np.round(np.diff(arcs), 3)
          array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
-         >>> phis = angles_in_ellipsis(n, a, b, np.deg2rad(10.0))
+         >>> phis = angles_in_ellipse(n, a, b, np.deg2rad(10.0))
          >>> arcs = sp.special.ellipeinc(phis, e)
          >>> np.round(np.diff(arcs), 3)
          array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
-         >>> phis = angles_in_ellipsis(64, a, b)
+         >>> phis = angles_in_ellipse(64, a, b)
          >>> arc_diffs = np.diff(sp.special.ellipeinc(phis, e))
          >>> np.round(np.mean(arc_diffs), 4), np.round(np.std(arc_diffs), 4)
          (0.0707, 0.0)
          >>> a, b = 20, 10
-         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> phis = angles_in_ellipse(n, a, b)
          >>> e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
          >>> arcs = sp.special.ellipeinc(phis + (np.pi / 2.0), e)
          >>> np.round(np.diff(arcs), 3)
          array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
          >>> a, b = 10, 10
-         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> phis = angles_in_ellipse(n, a, b)
          >>> e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
          >>> arcs = sp.special.ellipeinc(phis + (np.pi / 2.0), e)
          >>> np.round(np.diff(arcs), 3)
