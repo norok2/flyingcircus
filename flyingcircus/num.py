@@ -36,6 +36,7 @@ import scipy as sp  # SciPy (signal and image processing library)
 # import scipy.stats  # SciPy: Statistical functions
 import scipy.signal  # SciPy: Signal processing
 import scipy.ndimage  # SciPy: ND-image Manipulation
+import scipy.special  # SciPy: Special functions
 
 from numpy.fft import fftshift, ifftshift
 from scipy.fftpack import fftn, ifftn
@@ -5494,6 +5495,86 @@ def fibonacci_sphere(num):
     arr[2] = np.sin(i * increment)
     arr[1:] *= np.sqrt(1 - arr[0] ** 2)
     return arr
+
+
+# ======================================================================
+def angles_in_ellipsis(
+        num,
+        a=1,
+        b=1,
+        offset=0.0,
+        base_precision=1e-4):
+    """
+    Generate the angles of (almost) equi-spaced (arc) points on an ellipsis.
+
+    Args:
+        num (int): The number of points / angles.
+        a (int|float): The 1st-dimension semi-axis of the ellipsis.
+        b (int|float): The 2nd-dimension semi-axis of the ellipsis.
+        offset (int|float): The angle offset in rad.
+        base_precision (float): The base precision of the integration.
+            The actual precision of the integration is given by:
+            `base_precision / num`.
+
+    Returns:
+        angles (np.ndarray): The angles of the equi-spaced points in rad.
+
+    Examples:
+         >>> n = 8
+         >>> a, b = 10, 20
+         >>> e = (1.0 - a ** 2.0 / b ** 2.0) ** 0.5
+         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> arcs = sp.special.ellipeinc(phis, e)
+         >>> np.round(np.diff(arcs), 3)
+         array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
+         >>> phis = angles_in_ellipsis(n, a, b, np.deg2rad(10.0))
+         >>> arcs = sp.special.ellipeinc(phis, e)
+         >>> np.round(np.diff(arcs), 3)
+         array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
+         >>> phis = angles_in_ellipsis(100, a, b)
+         >>> arc_diffs = np.diff(sp.special.ellipeinc(phis, e))
+         >>> np.round(np.mean(arc_diffs), 4), np.round(np.std(arc_diffs), 4)
+         (0.0453, 0.0)
+         >>> a, b = 20, 10
+         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
+         >>> arcs = sp.special.ellipeinc(phis + (np.pi / 2.0), e)
+         >>> np.round(np.diff(arcs), 3)
+         array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
+    """
+    assert(num > 0)
+    if a < b:
+        a, b = b, a
+        rot_offset = 0.0
+    else:
+        rot_offset = np.pi / 2.0
+    x = np.arange(0, 2 * np.pi, base_precision / num) + offset
+    if a == b:
+        angles = 2 * np.pi * np.arange(num) / num
+    else:
+        e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
+        tot_size = sp.special.ellipeinc(2.0 * np.pi, e)
+        arc_size = tot_size / num
+        arcs = np.arange(num) * arc_size + sp.special.ellipeinc(offset, e)
+        l = sp.special.ellipeinc(x, e)
+        angles = np.full(num, rot_offset)
+        i = 0
+        min_i = i_found = 0
+        d_i = x.size // num
+        for j, arc in enumerate(arcs):
+            # search the `l` array in chunks
+            for k in range(x.size // d_i + 1):
+                min_i = i + d_i * k
+                max_i = i + d_i * (k + 1)
+                try:
+                    i_found = np.where(l[min_i:max_i] >= arc)[0][0]
+                except IndexError:
+                    pass
+                else:
+                    break
+            i = min_i + i_found
+            angles[j] += x[i]
+    return angles
 
 
 # ======================================================================
