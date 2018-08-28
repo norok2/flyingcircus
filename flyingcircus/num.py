@@ -30,7 +30,7 @@ import scipy as sp  # SciPy (signal and image processing library)
 
 # :: External Imports Submodules
 # import matplotlib.pyplot as plt  # Matplotlib's pyplot: MATLAB-like syntax
-# import scipy.optimize  # SciPy: Optimization Algorithms
+import scipy.optimize  # SciPy: Optimization Algorithms
 # import scipy.integrate  # SciPy: Integrations facilities
 # import scipy.constants  # SciPy: Mathematal and Physical Constants
 # import scipy.stats  # SciPy: Statistical functions
@@ -5502,8 +5502,7 @@ def angles_in_ellipsis(
         num,
         a=1,
         b=1,
-        offset=0.0,
-        base_precision=1e-4):
+        offset=0.0):
     """
     Generate the angles of (almost) equi-spaced (arc) points on an ellipsis.
 
@@ -5512,9 +5511,6 @@ def angles_in_ellipsis(
         a (int|float): The 1st-dimension semi-axis of the ellipsis.
         b (int|float): The 2nd-dimension semi-axis of the ellipsis.
         offset (int|float): The angle offset in rad.
-        base_precision (float): The base precision of the integration.
-            The actual precision of the integration is given by:
-            `base_precision / num`.
 
     Returns:
         angles (np.ndarray): The angles of the equi-spaced points in rad.
@@ -5554,33 +5550,16 @@ def angles_in_ellipsis(
         rot_offset = 0.0
     else:
         rot_offset = np.pi / 2.0
-    x = np.arange(0, 2 * np.pi, base_precision / num) + offset
-    if a == b:
-        angles = 2 * np.pi * np.arange(num) / num + offset
-    else:
+    angles = 2 * np.pi * np.arange(num) / num
+    if a != b:
         e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
         tot_size = sp.special.ellipeinc(2.0 * np.pi, e)
         arc_size = tot_size / num
         arcs = np.arange(num) * arc_size + sp.special.ellipeinc(offset, e)
-        l = sp.special.ellipeinc(x, e)
-        angles = np.full(num, rot_offset)
-        i = 0
-        min_i = i_found = 0
-        d_i = x.size // num
-        for j, arc in enumerate(arcs):
-            # search the `l` array in chunks
-            for k in range(x.size // d_i + 1):
-                min_i = i + d_i * k
-                max_i = i + d_i * (k + 1)
-                try:
-                    i_found = np.where(l[min_i:max_i] >= arc)[0][0]
-                except IndexError:
-                    pass
-                else:
-                    break
-            i = min_i + i_found
-            angles[j] += x[i]
-    return angles
+        res = sp.optimize.root(
+            lambda x: (sp.special.ellipeinc(x, e) - arcs), angles)
+        angles = res.x
+    return angles + rot_offset
 
 
 # ======================================================================
