@@ -5531,16 +5531,22 @@ def angles_in_ellipsis(
          >>> arcs = sp.special.ellipeinc(phis, e)
          >>> np.round(np.diff(arcs), 3)
          array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
-         >>> phis = angles_in_ellipsis(100, a, b)
+         >>> phis = angles_in_ellipsis(64, a, b)
          >>> arc_diffs = np.diff(sp.special.ellipeinc(phis, e))
          >>> np.round(np.mean(arc_diffs), 4), np.round(np.std(arc_diffs), 4)
-         (0.0453, 0.0)
+         (0.0707, 0.0)
          >>> a, b = 20, 10
          >>> phis = angles_in_ellipsis(n, a, b)
          >>> e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
          >>> arcs = sp.special.ellipeinc(phis + (np.pi / 2.0), e)
          >>> np.round(np.diff(arcs), 3)
          array([0.566, 0.566, 0.566, 0.566, 0.566, 0.566, 0.566])
+         >>> a, b = 10, 10
+         >>> phis = angles_in_ellipsis(n, a, b)
+         >>> e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
+         >>> arcs = sp.special.ellipeinc(phis + (np.pi / 2.0), e)
+         >>> np.round(np.diff(arcs), 3)
+         array([0.785, 0.785, 0.785, 0.785, 0.785, 0.785, 0.785])
     """
     assert(num > 0)
     if a < b:
@@ -5550,7 +5556,7 @@ def angles_in_ellipsis(
         rot_offset = np.pi / 2.0
     x = np.arange(0, 2 * np.pi, base_precision / num) + offset
     if a == b:
-        angles = 2 * np.pi * np.arange(num) / num
+        angles = 2 * np.pi * np.arange(num) / num + offset
     else:
         e = (1.0 - b ** 2.0 / a ** 2.0) ** 0.5
         tot_size = sp.special.ellipeinc(2.0 * np.pi, e)
