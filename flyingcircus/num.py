@@ -1182,10 +1182,16 @@ def to_self_adjoint_matrix(
                 old_numbers[:min(num_tria, old_numbers.size)]
         else:
             raise ValueError('invalid size of the input')
-    rows, cols = np.triu_indices(square_size, 0 if has_diag else 1)
+    # rows, cols = np.triu_indices(square_size, 0 if has_diag else 1)
     result = np.zeros((square_size, square_size), dtype=numbers.dtype)
-    result[cols, rows] = (-1 * numbers.conj() if skew else numbers.conj())
-    result[rows, cols] = numbers
+    i = np.arange(square_size)
+    mask = (i[:, None] <= i) if has_diag else (i[:, None] < i)
+    del i
+    result.T[mask] = (-1 * numbers.conj() if skew else numbers.conj())
+    result[mask] = numbers
+    del mask
+    # result[cols, rows] = (-1 * numbers.conj() if skew else numbers.conj())
+    # result[rows, cols] = numbers
     if has_diag and force and np.any(np.iscomplex(np.diagonal(result))):
         rows, cols = np.diag_indices_from(result)
         result[rows, cols] = np.real(result[rows, cols])
