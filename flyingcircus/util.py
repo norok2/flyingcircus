@@ -987,9 +987,9 @@ def get_pascal_numbers(
         [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
 
     See Also:
-        - fc.util.pascal_triangle_range()
-        - scipy.special.comb()
-        - scipy.special.binom()
+        - flyingcircus.util.pascal_triangle_range()
+        - sp.special.comb()
+        - sp.special.binom()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
@@ -1013,16 +1013,20 @@ def pascal_triangle_range(
 
     Args:
         first (int): The first value of the range.
+            Must be non-negative.
             If `second == None` this is the `stop` value, and is not included.
-            Otherwise, this is the start value and can be included
-            (if it is a prime number).
+            Otherwise, this is the start value and is included.
             If `first < second` the sequence is yielded backwards.
         second (int|None): The second value of the range.
-            If None, the start value is 2.
+            If None, the start value is 0.
+            Otherwise, this is the stop value and is not included.
+            Must be non-negative.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
             If the sequence is yielded backward, the step should be negative,
             otherwise an empty sequence is yielded.
+            If None, this is computed automatically based on `first` and
+            `second`, such that a non-empty sequence is avoided, if possible.
         container (callable): The row container.
 
     Yields:
@@ -1063,9 +1067,9 @@ def pascal_triangle_range(
         (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
 
     See Also:
-        - fc.util.get_pascal_numbers()
-        - scipy.special.comb()
-        - scipy.special.binom()
+        - flyingcircus.util.get_pascal_numbers()
+        - sp.special.comb()
+        - sp.special.binom()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
@@ -1119,8 +1123,8 @@ def is_prime(num):
         True
 
     See Also:
-        - fc.util.is_prime()
-        - fc.util.primes_in_range()
+        - flyingcircus.util.is_prime()
+        - flyingcircus.util.primes_in_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Trial_division
         - https://en.wikipedia.org/wiki/AKS_primality_test
@@ -1173,8 +1177,8 @@ def primes_range(
         [1049, 1039, 1033, 1031, 1021, 1019, 1013, 1009]
 
     See Also:
-        - fc.util.is_prime()
-        - fc.util.get_primes()
+        - flyingcircus.util.is_prime()
+        - flyingcircus.util.get_primes()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     if second is None:
@@ -1219,8 +1223,8 @@ def get_primes(
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
 
     See Also:
-        - fc.util.is_prime()
-        - fc.util.primes_in_range()
+        - flyingcircus.util.is_prime()
+        - flyingcircus.util.primes_in_range()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     i = 0
@@ -1249,7 +1253,7 @@ def get_fibonacci(
     The next number is computed by adding the last two.
 
     This is useful for generating a sequence of Fibonacci numbers.
-    To generate a specific Fibonacci number, use `fc.util.fibonacci()`.
+    To generate a specific Fibonacci number, use `flyingcircus.util.fibonacci()`.
 
     Args:
         max_count (int): The maximum number of values to yield.
@@ -1269,8 +1273,8 @@ def get_fibonacci(
         [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
 
     See Also:
-        - fc.util.get_gen_fibonacci()
-        - fc.util.fibonacci()
+        - flyingcircus.util.get_gen_fibonacci()
+        - flyingcircus.util.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     i = 0
@@ -1320,8 +1324,8 @@ def get_gen_fibonacci(
         [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
 
     See Also:
-        - fc.util.get_fibonacci()
-        - fc.util.fibonacci()
+        - flyingcircus.util.get_fibonacci()
+        - flyingcircus.util.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     num = combine_iter_len((values, weights))
@@ -1344,7 +1348,7 @@ def fibonacci(
 
     This is useful for generating a specific Fibonacci number.
     For generating a sequence of Fibonacci numbers, use
-    `fc.util.get_fibonaccis()`.
+    `flyingcircus.util.get_fibonacci()`.
 
     Args:
         num (int): The ordinal to generate.
@@ -1375,8 +1379,8 @@ def fibonacci(
         1741
 
     See Also:
-        - fc.util.get_fibonacci()
-        - fc.util.get_gen_fibonacci()
+        - flyingcircus.util.get_fibonacci()
+        - flyingcircus.util.get_gen_fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     for _ in range(num):
@@ -4101,74 +4105,6 @@ def is_same_sign(items):
         False
     """
     return all(item >= 0 for item in items) or all(item < 0 for item in items)
-
-
-# ======================================================================
-def auto_pad_width(
-        pad_width,
-        shape,
-        combine=None):
-    """
-    Ensure pad_width value(s) to be consisting of integer.
-
-    Args:
-        pad_width (float|int|Iterable[float|int]): Size of the padding to use.
-            This is useful for mitigating border effects.
-            If Iterable, a value for each dim must be specified.
-            If not Iterable, all dims will have the same value.
-            If int, it is interpreted as absolute size.
-            If float, it is interpreted as relative to corresponding dim size.
-        shape (Iterable[int]): The shape to associate to `pad_width`.
-        combine (callable|None): The function for combining shape values.
-            If None, uses the corresponding dim from the shape.
-
-    Returns:
-        pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
-            If input `pad_width` is not Iterable, result is not Iterable.
-
-    See Also:
-        np.pad
-
-    Examples:
-        >>> shape = (10, 20, 30)
-        >>> auto_pad_width(0.1, shape)
-        ((1, 1), (2, 2), (3, 3))
-        >>> auto_pad_width(0.1, shape, max)
-        ((3, 3), (3, 3), (3, 3))
-        >>> shape = (10, 20, 30)
-        >>> auto_pad_width(((0.1, 0.5),), shape)
-        ((1, 5), (2, 10), (3, 15))
-        >>> auto_pad_width(((2, 3),), shape)
-        ((2, 3), (2, 3), (2, 3))
-        >>> auto_pad_width(((2, 3), (1, 2)), shape)
-        Traceback (most recent call last):
-            ....
-        AssertionError
-        >>> auto_pad_width(((0.1, 0.2),), shape, min)
-        ((1, 2), (1, 2), (1, 2))
-        >>> auto_pad_width(((0.1, 0.2),), shape, max)
-        ((3, 6), (3, 6), (3, 6))
-    """
-
-    def float2int(val, scale):
-        return int(val * scale) if isinstance(val, float) else val
-
-    try:
-        iter(pad_width)
-    except TypeError:
-        pad_width = ((pad_width,) * 2,)
-    finally:
-        combined = combine(shape) if combine else None
-        pad_width = list(
-            pad_width if len(pad_width) > 1 else pad_width * len(shape))
-        assert (len(pad_width) == len(shape))
-        for i, (item, dim) in enumerate(zip(pad_width, shape)):
-            lower, upper = item
-            pad_width[i] = (
-                float2int(lower, dim if not combine else combined),
-                float2int(upper, dim if not combine else combined))
-        pad_width = tuple(pad_width)
-    return pad_width
 
 
 # ======================================================================

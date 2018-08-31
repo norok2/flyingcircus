@@ -20,10 +20,19 @@ import shlex  # Simple lexical analysis
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
+import flyingcircus as fc
+import flyingcircus.util
+import flyingcircus.num
 
 # :: External Imports Submodules
 import scipy.optimize  # SciPy: Optimization Algorithms
 import scipy.signal  # SciPy: Signal Processing
+
+from flyingcircus import INFO, PATH
+from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
+from flyingcircus import elapsed, report
+from flyingcircus import msg, dbg
+from flyingcircus import HAS_JIT, jit
 
 
 # ======================================================================
@@ -209,7 +218,7 @@ def binomial_coeff(
     is faster.
 
     If all binomial coefficient for a given `n` are required, then
-    `fc.util.get_pascal_numbers()` is computationally more efficient.
+    `flyingcircus.util.get_pascal_numbers()` is computationally more efficient.
 
     Args:
         n (int): The major index of the binomial coefficient.
@@ -258,8 +267,8 @@ def binomial_coeff(
         True
 
     See Also:
-        - fc.util.get_pascal_numbers()
-        - fc.util.pascal_triangle()
+        - flyingcircus.util.get_pascal_numbers()
+        - flyingcircus.util.pascal_triangle()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
@@ -316,8 +325,8 @@ def is_prime_pascal(num):
         True
 
     See Also:
-        - fc.util.is_prime()
-        - fc.util.primes_in_range()
+        - flyingcircus.util.is_prime()
+        - flyingcircus.util.primes_in_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
@@ -403,7 +412,7 @@ def slice_array(
 
     Args:
         arr (np.ndarray): The input N-dim array
-        axis (int): The slicing axis
+        axis (int): The slicing axis.
         index (int): The slicing index.
             If None, mid-value is taken.
 
@@ -496,13 +505,10 @@ def sequence(
         >>> list(sequence(10, 20, 15))
         [10]
     """
-    from pymrt.utils import guess_decimals
-
-
     if step is None:
         step = 1 if stop > start else -1
     if precision is None:
-        precision = guess_decimals(step)
+        precision = fc.util.guess_decimals(step)
     for i in range(int(round(stop - start, precision + 1) / step) + 1):
         item = start + i * step
         if precision:
@@ -545,7 +551,7 @@ def accumulate(
 def transparent_compression(func):
     """WIP"""
 
-    def _wrapped():
+    def _wrapped(fp):
         from importlib import import_module
 
 
@@ -677,8 +683,8 @@ def ssim_map(
             min(np.min(arr1), np.min(arr2)), max(np.max(arr1), np.max(arr2)))
     interval_size = np.ptp(arr_interval)
     ndim = arr1.ndim
-    arr_filter = fc.util.gaussian_nd(filter_sizes, sigmas, 0.5, ndim, True)
-    convolve = scipy.signal.fftconvolve
+    arr_filter = fc.num.gaussian_nd(filter_sizes, sigmas, 0.5, ndim, True)
+    convolve = sp.signal.fftconvolve
     mu1 = convolve(arr1, arr_filter, 'same')
     mu2 = convolve(arr2, arr_filter, 'same')
     mu1_mu1 = mu1 ** 2
@@ -704,189 +710,6 @@ def ssim_map(
     ssim = np.mean(ssim_arr)
     return ssim_arr, ssim
 
-
-'''
-# ======================================================================
-def calc_averages(
-       filepath_list,
-       out_dirpath,
-       threshold=0.05,
-       rephasing=True,
-       registration=False,
-       limit_num=None,
-       force=False,
-       verbose=D_VERB_LVL):
-   """
-   Calculate the average of MR complex images.
-
-   TODO: clean up code / fix documentation
-
-   Parameters
-   ==========
-   """
-   def _compute_regmat(par):
-       """Multiprocessing-friendly version of 'compute_affine_fsl()'."""
-       return compute_affine_fsl(*par)
-
-   tmp_dirpath = os.path.join(out_dirpath, 'tmp')
-   if not os.path.exists(tmp_dirpath):
-       os.makedirs(tmp_dirpath)
-   # sort by scan number
-   get_num = lambda filepath: parse_filename(filepath)['num']
-   filepath_list.sort(key=get_num)
-   # generate output name
-   sum_num, sum_avg = 0, 0
-   for filepath in filepath_list:
-       info = parse_filename(filepath)
-       base, params = parse_series_name(info['name'])
-       sum_num += info['num']
-       if PARAM_ID['avg'] in params:
-           sum_avg += params[PARAM_ID['avg']]
-       else:
-           sum_avg += 1
-   params[PARAM_ID['avg']] = sum_avg // 2
-   name = to_series_name(base, params)
-   new_info = {
-       'num': sum_num,
-       'name': name,
-       'img_type': TYPE_ID['temp'],
-       'te_val': info['te_val']}
-   out_filename = to_filename(new_info)
-   out_tmp_filepath = os.path.join(out_dirpath, out_filename)
-   out_mag_filepath = change_img_type(out_tmp_filepath, TYPE_ID['mag'])
-   out_phs_filepath = change_img_type(out_tmp_filepath, TYPE_ID['phs'])
-   out_filepath_list = [out_tmp_filepath, out_mag_filepath, out_phs_filepath]
-   # perform calculation
-  if fc.util.check_redo(filepath_list, out_filepath_list, force) and 
-  sum_avg > 1:
-       # stack multiple images together
-       # assume every other file is a phase image, starting with magnitude
-       img_tuple_list = []
-       mag_filepath = phs_filepath = None
-       for filepath in filepath_list:
-           if verbose > VERB_LVL['none']:
-               print('Source:\t{}'.format(os.path.basename(filepath)))
-           img_type = parse_filename(filepath)['img_type']
-           if img_type == TYPE_ID['mag'] or not mag_filepath:
-               mag_filepath = filepath
-           elif img_type == TYPE_ID['phs'] or not phs_filepath:
-               phs_filepath = filepath
-           else:
-               raise RuntimeWarning('Filepath list not valid for averaging.')
-           if mag_filepath and phs_filepath:
-               img_tuple_list.append([mag_filepath, phs_filepath])
-               mag_filepath = phs_filepath = None
-
-#        # register images
-#        regmat_filepath_list = [
-#            os.path.join(
-#            tmp_dirpath,
-#            mrt.input_output.del_ext(os.path.basename(img_tuple[0])) +
-#            fc.util.add_extsep(mrt.utils.EXT['txt']))
-#            for img_tuple in img_tuple_list]
-#        iter_param_list = [
-#            (img_tuple[0], img_tuple_list[0][0], regmat)
-#            for img_tuple, regmat in
-#            zip(img_tuple_list, regmat_filepath_list)]
-#        pool = multiprocessing.Pool(multiprocessing.cpu_count())
-#        pool.map(_compute_regmat, iter_param_list)
-#        reg_filepath_list = []
-#        for idx, img_tuple in enumerate(img_tuple_list):
-#            regmat = regmat_filepath_list[idx]
-#            for filepath in img_tuple:
-#                out_filepath = os.path.join(
-#                    tmp_dirpath, os.path.basename(filepath))
-#                apply_affine_fsl(
-#                    filepath, img_tuple_list[0][0], out_filepath, regmat)
-#                reg_filepath_list.append(out_filepath)
-#        # combine all registered images together
-#        img_tuple_list = []
-#        for filepath in reg_filepath_list:
-#            if img_type == TYPE_ID['mag'] or not mag_filepath:
-#                mag_filepath = filepath
-#            elif img_type == TYPE_ID['phs'] or not phs_filepath:
-#                phs_filepath = filepath
-#            else:
-#               raise RuntimeWarning('Filepath list not valid for averaging.')
-#            if mag_filepath and phs_filepath:
-#                img_tuple_list.append([mag_filepath, phs_filepath])
-#                mag_filepath = phs_filepath = None
-
-       # create complex images and disregard inappropriate
-       img_list = []
-       avg_power = 0.0
-       num = 0
-       shape = None
-       for img_tuple in img_tuple_list:
-           mag_filepath, phs_filepath = img_tuple
-           img_mag_nii = nib.load(mag_filepath)
-           img_mag = img_mag_nii.get_data()
-           img_phs_nii = nib.load(mag_filepath)
-           img_phs = img_phs_nii.get_data()
-           affine_nii = img_mag_nii.get_affine()
-           if not shape:
-               shape = img_mag.shape
-           if avg_power:
-               rel_power = np.abs(avg_power - np.sum(img_mag)) / avg_power
-           if (not avg_power or rel_power < threshold) \
-                   and shape == img_mag.shape:
-               img_list.append(fc.num.polar2complex(img_mag, img_phs))
-               num += 1
-               avg_power = (avg_power * (num - 1) + np.sum(img_mag)) / num
-       out_mag_filepath = change_param_val(
-           out_mag_filepath, PARAM_ID['avg'], num)
-
-       # k-space constant phase correction
-       img0 = img_list[0]
-       ft_img0 = np.fft.fftshift(np.fft.fftn(img0))
-       k0_max = np.unravel_index(np.argmax(ft_img0), ft_img0.shape)
-       for idx, img in enumerate(img_list):
-           ft_img = np.fft.fftshift(np.fft.fftn(img))
-           k_max = np.unravel_index(np.argmax(ft_img), ft_img.shape)
-           dephs = np.angle(ft_img0[k0_max] / ft_img[k_max])
-           img = np.fft.ifftn(np.fft.ifftshift(ft_img * np.exp(1j * dephs)))
-           img_list[idx] = img
-
-       img = fc.util.ndstack(img_list, -1)
-       img = np.mean(img, -1)
-       mrt.input_output.save(out_mag_filepath, np.abs(img), affine_nii)
-#        mrt.input_output.save(out_phs_filepath, np.angle(img), affine_nii)
-
-#        fixed = np.abs(img_list[0])
-#        for idx, img in enumerate(img_list):
-#            affine = fc.util.affine_registration(np.abs(img), fixed, 'rigid')
-#            img_list[idx] = fc.util.apply_affine(img_list[idx], affine)
-#        mrt.input_output.save(out_filepath, np.abs(img), affine_nii)
-#        print(img.shape, img.nbytes / 1024 / 1024)  # DEBUG
-#        # calculate the Fourier transform
-#        for img in img_list:
-#            fft_list.append(np.fft.fftshift(np.fft.fftn(img)))
-#        fixed = np.abs(img[:, :, :, 0])
-#        fc.util.sample2d(fixed, -1)
-#        tmp = tmp * np.exp(1j*0.5)
-#        moving = sp.ndimage.shift(fixed, [1.0, 5.0, 0.0])
-#        fc.util.sample2d(moving, -1)
-
-#        print(linear, shift)
-#        moved = sp.ndimage.affine_transform(moving, linear, offset=-shift)
-#        fc.util.sample2d(moved, -1)
-#        mrt.input_output.save(out_filepath, moving, affine)
-#        mrt.input_output.save(mag_filepath, fixed, affine)
-#        mrt.input_output.save(phs_filepath, moved-fixed, affine)
-#        for idx in range(len(img_list)):
-#            tmp_img = img[:, :, :, idx]
-#            tmp_fft = fft[:, :, :, idx]
-#            fc.util.sample2d(np.real(tmp_fft), -1)
-#            fc.util.sample2d(np.imag(tmp_fft), -1)
-#            fc.util.sample2d(np.abs(img[:, :, :, idx]), -1)
-#            fc.util.sample2d(np.angle(img[:, :, :, idx]), -1)
-
-       # calculate output
-       if verbose > VERB_LVL['none']:
-           print('Target:\t{}'.format(os.path.basename(out_mag_filepath)))
-           print('Target:\t{}'.format(os.path.basename(out_phs_filepath)))
-   return mag_filepath, phs_filepath
-'''
 
 # ======================================================================
 if __name__ == '__main__':

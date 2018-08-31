@@ -39,7 +39,7 @@ import scipy.ndimage  # SciPy: ND-image Manipulation
 import scipy.special  # SciPy: Special functions
 
 from numpy.fft import fftshift, ifftshift
-from scipy.fftpack import fftn, ifftn
+from numpy.fft import fftn, ifftn
 
 # :: Local Imports
 import flyingcircus as fc
@@ -666,13 +666,30 @@ def mdot(*arrs):
         *arrs (*Iterable[ndarray]): The input arrays.
 
     Returns:
-        arr (np.ndarray): The result of the tensor product.
+        arr (np.ndarray|None): The result of the dot product.
+            None is returned if *args magic is invalid.
 
     Examples:
-        >>>
+        >>> arrs = [i + np.arange(4).reshape((2, 2)) for i in range(6)]
+        >>> mdot(arrs[0], arrs[1], arrs[2])
+        array([[ 22,  29],
+               [ 86, 113]])
+        >>> mdot(*arrs[:3])
+        array([[ 22,  29],
+               [ 86, 113]])
+        >>> mdot(*arrs)
+        array([[ 32303,  37608],
+               [126003, 146696]])
+        >>> mdot(*arrs[::-1])
+        array([[ 51152,  94155],
+               [ 69456, 127847]])
+        >>> print(mdot(*[]))
+        None
+
+    See Also:
+        - flyingcircus.num.ndot()
     """
-    # todo: complete docs
-    arr = arrs[0]
+    arr = arrs[0] if arrs else None
     for item in arrs[1:]:
         arr = np.dot(arr, item)
     return arr
@@ -681,49 +698,63 @@ def mdot(*arrs):
 # ======================================================================
 def ndot(
         arr,
-        dim=-1,
-        start=None,
-        stop=None,
-        step=None):
+        axis=-1,
+        slicing=slice(None)):
     """
     Cumulative application of `numpy.dot` operation over a given axis.
 
     Args:
         arr (np.ndarray): The input array.
-        dim (int): The dimension along which to operate.
-        start (int|None): The initial index for the dimension.
-            If None, uses the minimum or maximum value depending on the
-            value of
-            `step`: if `step` is positive use minimum, otherwise maximum.
-        stop (int|None): The final index for the dimension.
-            If None, uses the minimum or maximum value depending on the
-            value of
-            `step`: if `step` is positive use maximum, otherwise minimum.
-        step (int|None): The step for the dimension.
-            If None, uses unity step.
+        axis (int): The axis along which to operate.
+        slicing (slice): The slicing along the operating axis.
 
     Returns:
-        prod (np.ndarray): The result of the tensor product.
+        prod (np.ndarray): The result of the dot product.
+            If `slicing` is empty, an empty array is returned, with length 0
+            in the `axis` dimension and the other dimensions are preserved.
 
     Examples:
-        >>>
+        >>> arr = np.array(
+        ...     [i + np.arange(4).reshape((2, 2)) for i in range(6)])
+        >>> ndot(arr, 0)
+        array([[ 32303,  37608],
+               [126003, 146696]])
+        >>> ndot(arr, 0, slice(None, 3))
+        array([[ 22,  29],
+               [ 86, 113]])
+        >>> ndot(arr, 0, slice(3))
+        array([[ 22,  29],
+               [ 86, 113]])
+        >>> ndot(arr, 0, slice(0, 3))
+        array([[ 22,  29],
+               [ 86, 113]])
+        >>> ndot(arr, 0, slice(None, None, 10))
+        array([[0, 1],
+               [2, 3]])
+        >>> ndot(arr, 0, slice(20))
+        array([[ 32303,  37608],
+               [126003, 146696]])
+        >>> ndot(arr, 0, slice(None, None, -1))
+        array([[ 51152,  94155],
+               [ 69456, 127847]])
+        >>> ndot(arr, 0, slice(0, 1, -1))
+        array([], shape=(0, 2, 2), dtype=int64)
+
+    See Also:
+        - flyingcircus.num.mdot()
     """
-    # todo: complete docs
-    if dim < 0:
-        dim += arr.ndim
-    if step is None:
-        step = 1
-        if start is not None and stop is not None and start > stop:
-            step = -1
-    if start is None:
-        start = 0 if step > 0 else arr.shape[dim] - 1
-    if stop is None:
-        stop = arr.shape[dim] if step > 0 else -1
-    prod = arr[
-        [slice(None) if j != dim else start for j in range(arr.ndim)]]
-    for i in range(start, stop, step)[1:]:
-        indexes = [slice(None) if j != dim else i for j in range(arr.ndim)]
-        prod = np.dot(prod, arr[indexes])
+
+    def _indexes(d):
+        return
+
+    if axis < 0:
+        axis += arr.ndim
+    mask = tuple(
+        slice(None) if j != axis else slicing for j in range(arr.ndim))
+    s_dim = arr[mask].shape[axis]
+    prod = arr[mask][0] if s_dim else arr[mask]
+    for i in range(0, s_dim)[1:]:
+        prod = np.dot(prod, arr[mask][i])
     return prod
 
 
@@ -1020,7 +1051,7 @@ def square_size_to_num_tria(
         True
 
     See Also:
-        fc.num.num_tria_to_square_size()
+        - flyingcircus.num.num_tria_to_square_size()
     """
     assert (square_size > 0)
     return square_size * (square_size + (1 if has_diag else -1)) // 2
@@ -1092,7 +1123,7 @@ def num_tria_to_square_size(
         ValueError: invalid number of triangular indices
 
     See Also:
-        fc.num.square_size_to_num_tria()
+        - flyingcircus.num.square_size_to_num_tria()
     """
     square_size = (((1 + 8 * num_tria) ** 0.5 + (-1 if has_diag else 1)) / 2)
     # alternatives to `divmod()`: numpy.modf(), math.modf()
@@ -1546,7 +1577,7 @@ def ravel_clean(
         array([0., 1.])
 
     See Also:
-        util.subst
+        - flyingcircus.util.subst()
     """
     arr = arr.ravel()
     for val in removes:
@@ -2007,7 +2038,8 @@ def rel2abs(shape, size=0.5):
     """
     Calculate the absolute size from a relative size for a given shape.
 
-    This is a simple version of `fc.num.scale()` and/or `fc.num.coord()`.
+    This is a simple version of `flyingcircus.num.scale()` and/or
+    `flyingcircus.num.coord()`.
 
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
@@ -2033,9 +2065,9 @@ def rel2abs(shape, size=0.5):
         (0.0, 0.25, 0.5, 0.75, 1.0)
 
     See Also:
-        - fc.num.abs2rel()
-        - fc.num.coord()
-        - fc.util.scale()
+        - flyingcircus.num.abs2rel()
+        - flyingcircus.num.coord()
+        - flyingcircus.util.scale()
     """
     size = fc.util.auto_repeat(size, len(shape), check=True)
     return tuple((s - 1.0) * p for p, s in zip(size, shape))
@@ -2046,7 +2078,7 @@ def abs2rel(shape, position=0):
     """
     Calculate the relative size from an absolute size for a given shape.
 
-    This is a simple version of `fc.num.scale()`.
+    This is a simple version of `flyingcircus.num.scale()`.
 
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
@@ -2072,9 +2104,9 @@ def abs2rel(shape, position=0):
         (0.0, 25.0, 50.0, 75.0, 100.0)
 
     See Also:
-        - fc.num.rel2abs()
-        - fc.num.coord()
-        - fc.num.scale()
+        - flyingcircus.num.rel2abs()
+        - flyingcircus.num.coord()
+        - flyingcircus.num.scale()
     """
     position = fc.util.auto_repeat(position, len(shape), check=True)
     return tuple(p / (s - 1.0) for p, s in zip(position, shape))
@@ -2242,8 +2274,9 @@ def exp_gradient_kernels(
 
     Args:
         shape (Iterable[int]): The size of the array.
-        dims (int|Iterable[int]): The direction of the gradient.
+        dims (int|Iterable[int]|None): The direction of the gradient.
             Values must be between `len(shape)` and `-len(shape)`.
+            If None, all dimensions are computed.
         factors (int|float|Iterable[int|float]): The size conversion factors.
             If int or float, the same conversion factor is applied to all dims.
             Otherwise, the Iterable length must match the length of shape.
@@ -2314,6 +2347,75 @@ def exp_gradient_kernels(
 
 
 # ======================================================================
+def auto_pad_width(
+        pad_width,
+        shape,
+        combine=None):
+    """
+    Ensure pad_width value(s) to be consisting of integer.
+
+    Args:
+        pad_width (float|int|Iterable[float|int]): Size of the padding to use.
+            This is useful for mitigating border effects.
+            If Iterable, a value for each dim must be specified.
+            If not Iterable, all dims will have the same value.
+            If int, it is interpreted as absolute size.
+            If float, it is interpreted as relative to corresponding dim size.
+        shape (Iterable[int]): The shape to associate to `pad_width`.
+        combine (callable|None): The function for combining shape values.
+            If None, uses the corresponding dim from the shape.
+
+    Returns:
+        pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
+            If input `pad_width` is not Iterable, result is not Iterable.
+
+    See Also:
+        - np.pad()
+        - flyingcircus.num.padding()
+
+    Examples:
+        >>> shape = (10, 20, 30)
+        >>> auto_pad_width(0.1, shape)
+        ((1, 1), (2, 2), (3, 3))
+        >>> auto_pad_width(0.1, shape, max)
+        ((3, 3), (3, 3), (3, 3))
+        >>> shape = (10, 20, 30)
+        >>> auto_pad_width(((0.1, 0.5),), shape)
+        ((1, 5), (2, 10), (3, 15))
+        >>> auto_pad_width(((2, 3),), shape)
+        ((2, 3), (2, 3), (2, 3))
+        >>> auto_pad_width(((2, 3), (1, 2)), shape)
+        Traceback (most recent call last):
+            ....
+        AssertionError
+        >>> auto_pad_width(((0.1, 0.2),), shape, min)
+        ((1, 2), (1, 2), (1, 2))
+        >>> auto_pad_width(((0.1, 0.2),), shape, max)
+        ((3, 6), (3, 6), (3, 6))
+    """
+
+    def float2int(val, factor):
+        return int(val * factor) if isinstance(val, float) else val
+
+    try:
+        iter(pad_width)
+    except TypeError:
+        pad_width = ((pad_width,) * 2,)
+    finally:
+        combined = combine(shape) if combine else None
+        pad_width = list(
+            pad_width if len(pad_width) > 1 else pad_width * len(shape))
+        assert (len(pad_width) == len(shape))
+        for i, (item, dim) in enumerate(zip(pad_width, shape)):
+            lower, upper = item
+            pad_width[i] = (
+                float2int(lower, dim if not combine else combined),
+                float2int(upper, dim if not combine else combined))
+        pad_width = tuple(pad_width)
+    return pad_width
+
+
+# ======================================================================
 def padding(
         arr,
         pad_width=0,
@@ -2327,7 +2429,7 @@ def padding(
     Args:
         arr (np.ndarray): The input array.
         pad_width (int|float): Size of the padding to use.
-            See `fc.util.auto_pad_width()` for more details.
+            See `flyingcircus.util.auto_pad_width()` for more details.
         pad_mode (str): The padding mode.
             See `np.pad()` for more details.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters.
@@ -2338,11 +2440,15 @@ def padding(
             contains:
              - arr (np.ndarray): The padded array.
              - mask (tuple(slice)): The mask delimiting the input array.
+
+    See Also:
+        - flyingcircus.num.auto_pad_width()
+        - flyingcircus.num.reframe()
     """
     pad_kws = dict(pad_kws) if pad_kws else {}
     if pad_width:
         shape = arr.shape
-        pad_width = util.auto_pad_width(pad_width, shape)
+        pad_width = auto_pad_width(pad_width, shape)
         # mask = (slice(borders, -borders),) * arr.ndim
         mask = tuple(slice(lower, -upper) for (lower, upper) in pad_width)
         arr = np.pad(arr, pad_width, pad_mode, **pad_kws)
@@ -2360,6 +2466,8 @@ def gradients(
     """
     Apply the gradient operator (in the Fourier domain).
 
+    A more accurate gradient operator is provided by `np.gradient()`.
+
     Args:
         arr (np.ndarray): The input array.
         dims (int|Iterable[int]): The direction of the gradient.
@@ -2375,7 +2483,7 @@ def gradients(
         arrs (np.ndarray): The output array.
 
     See Also:
-        gradient_kernels()
+        - flyingcircus.num.gradient_kernels()
     """
     arr, mask = padding(arr, pad_width)
     arrs = tuple(
@@ -2395,8 +2503,9 @@ def exp_gradients(
 
     Args:
         arr (np.ndarray): The input array.
-        dims (int|Iterable[int]): The direction of the gradient.
+        dims (int|Iterable[int]|None): The direction of the gradient.
             Values must be between `len(shape)` and `-len(shape)`.
+            If None, all dimensions are computed.
         ft_factor (float): The Fourier factor for the gradient operator.
             Should be either 1 or 2π, depending on DFT implementation.
         pad_width (float|int): Size of the border to use.
@@ -2408,7 +2517,7 @@ def exp_gradients(
         arrs (np.ndarray): The output array.
 
     See Also:
-        exp_gradient_kernels()
+        - flyingcircus.num.exp_gradient_kernels()
     """
     arr, mask = padding(arr, pad_width)
     arrs = tuple(
@@ -3072,8 +3181,8 @@ def moving_average(
     The moving average will be applied to the flattened array.
     Unless specified otherwise, the size of the array will be reduced by
     len(weights) - 1
-    This is equivalent to passing `mode='valid'` to `scipy.signal.convolve`.
-    Please refer to `scipy.signal.convolve` for more options.
+    This is equivalent to passing `mode='valid'` to `scipy.signal.convolve()`.
+    Please refer to `scipy.signal.convolve()` for more options.
 
     Args:
         arr (np.ndarray): The input array.
@@ -3083,7 +3192,7 @@ def moving_average(
             The size of the weights array len(weights) must be such that
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
-        **kws (dict): Keyword arguments passed to `scipy.signal.convolve`.
+        **kws (dict): Keyword arguments passed to `scipy.signal.convolve()`.
 
     Returns:
         arr (np.ndarray): The output array.
@@ -3993,7 +4102,10 @@ def avg(
         array([13.33333333, 15.        , 15.33333333, 16.33333333])
 
     See Also:
-        var(), std()
+        - flyingcircus.num.var()
+        - flyingcircus.num.std()
+        - np.std()
+        - np.var()
     """
     arr = np.array(arr)
     if np.issubdtype(arr.dtype, np.dtype(int).type):
@@ -4062,7 +4174,11 @@ def var(
             Its shape depends on the value of axis.
 
     See Also:
-        avg(), std()
+        - flyingcircus.num.avg()
+        - flyingcircus.num.std()
+        - np.mean()
+        - np.average()
+        - np.std()
 
     Examples:
         >>> arr = np.array([0, 0, 1, 0])
@@ -4141,7 +4257,11 @@ def std(
         True
 
     See Also:
-        avg(), var()
+        - flyingcircus.num.avg()
+        - flyingcircus.num.std()
+        - np.mean()
+        - np.average()
+        - np.std()
     """
     return np.sqrt(
         var(arr, axis=axis, dtype=dtype, out=out, keepdims=keepdims,
@@ -4194,7 +4314,12 @@ def gavg(
         True
 
     See Also:
-        avg()
+        - scipy.stats.gmean()
+        - flyingcircus.num.avg()
+        - flyingcircus.num.std()
+        - np.mean()
+        - np.average()
+        - np.std()
     """
     return np.exp(
         avg(np.log(np.abs(arr)), axis=axis, dtype=dtype, out=out,
@@ -4302,7 +4427,7 @@ def apply_mask(
         mask (np.ndarray|None): The mask array.
             If np.ndarray, the shape of `arr` and `mask` must be identical,
             broadcastable through `np.broadcast_to()`, or unsqueezable using
-            `fc.num.unsqueeze()`.
+            `flyingcircus.num.unsqueeze()`.
             If None, no masking is performed.
         borders (int|float|tuple[int|float]|None): The border size(s).
             If None, the border is not modified.
@@ -4317,7 +4442,7 @@ def apply_mask(
             calculations.
         background (int|float): The value used for masked-out pixels.
         do_unsqueeze (bool): Unsqueeze mask to input.
-            If True, use `fc.num.unsqueeze()` on mask.
+            If True, use `flyingcircus.num.unsqueeze()` on mask.
             Only effective when `arr` and `mask` shapes do not match and
             are not already broadcastable.
             Otherwise, shapes must match or be broadcastable.
@@ -4331,7 +4456,7 @@ def apply_mask(
         ValueError: If the mask and array shapes are not compatible.
 
     See Also:
-        frame()
+        - flyingcircus.num.frame()
     """
     if mask is not None:
         mask = mask.astype(bool)
@@ -4386,7 +4511,8 @@ def frame(
         result (np.ndarray): The result array with added borders.
 
     See Also:
-        reframe()
+        - flyingcircus.num.reframe()
+        - flyingcircus.num.padding()
     """
     borders = fc.util.auto_repeat(borders, arr.ndim)
     if any(borders) < 0:
@@ -4444,7 +4570,8 @@ def reframe(
         ValueError: output shape cannot be smaller than the input shape.
 
     See Also:
-        frame()
+        - flyingcircus.num.frame()
+        - flyingcircus.num.padding()
 
     Examples:
         >>> arr = np.ones((2, 3))
@@ -4621,7 +4748,7 @@ def zoom(
             Values smaller than 1 decrease `arr` size along the axis.
         window (int|Iterable[int]|None): Uniform pre-filter window size.
             This is the size of the window for the uniform filter using
-            `sp.ndimage.uniform_filter()`.
+            `scipy.ndimage.uniform_filter()`.
             If Iterable, its size must match the number of dims of `arr`.
             If int, uses an isotropic window with the specified size.
             If None, the window is calculated automatically from the `zoom`
@@ -4633,9 +4760,6 @@ def zoom(
 
     Returns:
         result (np.ndarray): The output array.
-
-    See Also:
-        geometry.zoom
     """
     factors, shape = zoom_prepare(factors, arr.shape, extra_dim, fill_dim)
     if window is None:
@@ -4663,10 +4787,10 @@ def resample(
         new_shape (Iterable[int|None]): New dimensions of the array.
         aspect (callable|Iterable[callable]|None): Zoom shape manipulation.
             Useful for obtaining specific aspect ratio effects.
-            This is passed to `fc.num.shape2zoom()`.
+            This is passed to `flyingcircus.num.shape2zoom()`.
         window (int|Iterable[int]|None): Uniform pre-filter window size.
             This is the size of the window for the uniform filter using
-            `sp.ndimage.uniform_filter()`.
+            `scipy.ndimage.uniform_filter()`.
             If Iterable, its size must match the number of dims of `arr`.
             If int, uses an isotropic window with the specified size.
             If None, the window is calculated automatically from `new_shape`.
@@ -4679,7 +4803,7 @@ def resample(
         arr (np.ndarray): The output array.
 
     See Also:
-        geometry.zoom
+        - flyingcircus.num.zoom()
     """
     factors = shape2zoom(arr.shape, new_shape, aspect)
     factors, shape = zoom_prepare(
@@ -4712,7 +4836,7 @@ def multi_resample(
         lossless (bool): allow for lossy resampling.
         window (int|Iterable[int]|None): Uniform pre-filter window size.
             This is the size of the window for the uniform filter using
-            `sp.ndimage.uniform_filter()`.
+            `scipy.ndimage.uniform_filter()`.
             If Iterable, its size must match the number of dims of `arr`.
             If int, uses an isotropic window with the specified size.
             If None, the window is calculated automatically from `new_shape`.
@@ -4860,9 +4984,9 @@ def angles2linear(
         linear (np.ndarray): The rotation matrix as defined by the angles.
 
     See Also:
-        fc.num.num_size_to_tria(),
-        fc.num.num_tria_to_size(),
-        itertools.combinations
+        - flyingcircus.num.num_size_to_tria(),
+        - flyingcircus.num.num_tria_to_size(),
+        - itertools.combinations()
     """
     if n_dim is None:
         # this is the number of cartesian orthogonal planes of rotations
@@ -4931,7 +5055,7 @@ def prepare_affine(
              - offset (np.ndarray): The offset along each axis in px.
 
     See Also:
-        scipy.ndimage.affine_transform()
+        - scipy.ndimage.affine_transform()
     """
     ndim = len(shape)
     if shift is None:
@@ -4970,10 +5094,10 @@ def weighted_center(
         center (np.ndarray): The coordinates of the weighed center.
 
     See Also:
-        fc.num.tensor_of_inertia(),
-        fc.num.rotatio_axes(),
-        fc.num.auto_rotation(),
-        fc.num.realigning()
+        - flyingcircus.num.tensor_of_inertia()
+        - flyingcircus.num.rotatio_axes()
+        - flyingcircus.num.auto_rotation()
+        - flyingcircus.num.realigning()
     """
     # numpy.double to improve the accuracy of the norm and the weighted center
     arr = arr.astype(np.double)
@@ -5020,10 +5144,10 @@ def weighted_covariance(
         cov (np.ndarray): The covariance weight matrix from the origin.
 
     See Also:
-        fc.num.tensor_of_inertia,
-        fc.num.rotation_axes,
-        fc.num.auto_rotation,
-        fc.num.realigning
+        - flyingcircus.num.tensor_of_inertia
+        - flyingcircus.num.rotation_axes
+        - flyingcircus.num.auto_rotation
+        - flyingcircus.num.realigning
     """
     # numpy.double to improve the accuracy of the norm and the weighted center
     arr = arr.astype(np.double)
@@ -5076,10 +5200,10 @@ def tensor_of_inertia(
         inertia (np.ndarray): The tensor of inertia from the origin.
 
     See Also:
-        fc.num.weighted_covariance(),
-        fc.num.rotation_axes(),
-        fc.num.auto_rotation(),
-        fc.num.realigning()
+        - flyingcircus.num.weighted_covariance()
+        - flyingcircus.num.rotation_axes()
+        - flyingcircus.num.auto_rotation()
+        - flyingcircus.num.realigning()
     """
     cov = weighted_covariance(arr, labels, index, origin)
     inertia = np.eye(arr.ndim) * np.trace(cov) - cov
@@ -5116,10 +5240,10 @@ def rotation_axes(
         axes (list[np.ndarray]): The principal axes of rotation.
 
     See Also:
-        fc.num.weighted_covariance(),
-        fc.num.tensor_of_inertia(),
-        fc.num.auto_rotation(),
-        fc.num.realigning()
+        - flyingcircus.num.weighted_covariance()
+        - flyingcircus.num.tensor_of_inertia()
+        - flyingcircus.num.auto_rotation()
+        f- c.num.realigning()
     """
     # calculate the tensor of inertia with respect to the weighted center
     inertia = tensor_of_inertia(arr, labels, index, None).astype(np.double)
@@ -5191,15 +5315,15 @@ def auto_rotation(
         offset (np.ndarray): The offset for the translation.
 
     See Also:
-        scipy.ndimage.center_of_mass(),
-        scipy.ndimage.affine_transform(),
-        fc.num.weighted_covariance(),
-        fc.num.tensor_of_inertia(),
-        fc.num.rotation_axes(),
-        fc.num.angles2linear(),
-        fc.num.linear2angles(),
-        fc.num.auto_rotation(),
-        fc.num.realigning()
+        - scipy.ndimage.center_of_mass()
+        - scipy.ndimage.affine_transform()
+        - flyingcircus.num.weighted_covariance()
+        - flyingcircus.num.tensor_of_inertia()
+        - flyingcircus.num.rotation_axes()
+        - flyingcircus.num.angles2linear()
+        - flyingcircus.num.linear2angles()
+        - flyingcircus.num.auto_rotation()
+        - flyingcircus.num.realigning()
     """
     lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
     lin_mat, offset = prepare_affine(arr.shape, lin_mat, origin=origin)
@@ -5238,15 +5362,15 @@ def auto_shifting(
         offset (np.ndarray): The offset for the translation.
 
     See Also:
-        scipy.ndimage.center_of_mass(),
-        scipy.ndimage.affine_transform(),
-        fc.num.weighted_covariance(),
-        fc.num.tensor_of_inertia(),
-        fc.num.rotation_axes(),
-        fc.num.angles2linear(),
-        fc.num.linear2angles(),
-        fc.num.auto_rotation(),
-        fc.num.realigning()
+        - scipy.ndimage.center_of_mass()
+        - scipy.ndimage.affine_transform()
+        - flyingcircus.num.weighted_covariance()
+        - flyingcircus.num.tensor_of_inertia()
+        - flyingcircus.num.rotation_axes()
+        - flyingcircus.num.angles2linear()
+        - flyingcircus.num.linear2angles()
+        - flyingcircus.num.auto_rotation()
+        - flyingcircus.num.realigning()
     """
     lin_mat = np.eye(arr.ndim)
     com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
@@ -5287,15 +5411,15 @@ def realigning(
         offset (np.ndarray): The offset for the translation.
 
     See Also:
-        scipy.ndimage.center_of_mass(),
-        scipy.ndimage.affine_transform(),
-        fc.num.weighted_covariance(),
-        fc.num.tensor_of_inertia(),
-        fc.num.rotation_axes(),
-        fc.num.angles2linear(),
-        fc.num.linear2angles(),
-        fc.num.auto_rotation(),
-        fc.num.auto_shift()
+        - scipy.ndimage.center_of_mass()
+        - scipy.ndimage.affine_transform()
+        - flyingcircus.num.weighted_covariance()
+        - flyingcircus.num.tensor_of_inertia()
+        - flyingcircus.num.rotation_axes()
+        - flyingcircus.num.angles2linear()
+        - flyingcircus.num.linear2angles()
+        - flyingcircus.num.auto_rotation()
+        - flyingcircus.num.auto_shift()
     """
     com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
     lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
@@ -5550,7 +5674,7 @@ def angles_in_ellipse(
          >>> np.round(np.diff(arcs), 3)
          array([0.785, 0.785, 0.785, 0.785, 0.785, 0.785, 0.785])
     """
-    assert(num > 0)
+    assert (num > 0)
     if a < b:
         a, b = b, a
         rot_offset = 0.0
