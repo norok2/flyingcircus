@@ -1241,6 +1241,7 @@ def is_in_range(
         arr (np.ndarray): The input array.
         interval (tuple[int|float]): The range of values to check.
             A 2-tuple with format (min, max) is expected.
+        include_extrema (bool): Include extrema in the interval checks.
 
     Returns:
         in_range (bool): The result of the comparison.

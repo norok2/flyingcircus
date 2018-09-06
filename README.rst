@@ -52,7 +52,7 @@ The package ``utils`` contains a number of generic functions like
    list of list of tuples to flat list).
 -  ``uniques()``: extract unique items from an iterable while
    keeping the order of appearance.
--  ``grouping``: generates a tuple of grouped items.
+-  ``grouping()``: generates a tuple of grouped items.
 
 etc.
 
@@ -64,7 +64,7 @@ working on or generating ``numpy.ndarray`` inputs, like:
    samples between signed start and stop endpoints.
 -  ``unsqueeze()``: add singletons to the shape of an array to
    broadcast-match a given shape.
--  ``subst()``: substitute all occurrences of a value in an array.
+-  ``subst()``: conveniently substitute all occurrences of a value in an array.
 
 etc.
 
