@@ -944,7 +944,8 @@ def isqrt(num):
 # ======================================================================
 def get_pascal_numbers(
         num,
-        full=True):
+        full=True,
+        cached=False):
     """
     Generate the numbers of a given row of Pascal's triangle.
 
@@ -959,9 +960,14 @@ def get_pascal_numbers(
             If True, all numbers are yielded.
             Otherwise, it only yields non-repeated numbers (exploiting the
             fact that they are palindromes).
+        cached (bool): Cache the non-repeated numbers.
+            If True and `full == True`, the non-repeated numbers are cached
+            (thus allocating some additional temporary memory).
+            Otherwise, if False or `full == False` this has no effect,
+            i.e. the numbers are computed directly.
 
     Yields:
-        value (int): The next Pascal number of
+        value (int): The next Pascal number of a given row.
 
     Examples:
         >>> list(get_pascal_numbers(12))
@@ -994,10 +1000,19 @@ def get_pascal_numbers(
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
     value = 1
-    stop = (num + 1) if full else (num // 2 + 1)
-    for i in range(stop):
-        yield value
-        value = value * (num - i) // (i + 1)
+    stop = (num + 1) if full and not cached else (num // 2 + 1)
+    if full and cached:
+        cache = [value * (num - i) // (i + 1) for i in range(stop)]
+        # equivalent to:
+        # cache = [value for value in get_pascal_numbers(num, False, False)]
+        for value in cache:
+            yield value
+        for value in cache[(-1 if num % 2 else -2)::-1]:
+            yield value
+    else:
+        for i in range(stop):
+            yield value
+            value = value * (num - i) // (i + 1)
 
 
 # ======================================================================
@@ -1030,7 +1045,7 @@ def pascal_triangle_range(
         container (callable): The row container.
 
     Yields:
-        row (Iterable[int]): The rows of the Pascal's triangle
+        row (Iterable[int]): The rows of the Pascal's triangle.
 
     Examples:
         >>> tuple(pascal_triangle_range(5))
@@ -1253,7 +1268,8 @@ def get_fibonacci(
     The next number is computed by adding the last two.
 
     This is useful for generating a sequence of Fibonacci numbers.
-    To generate a specific Fibonacci number, use `flyingcircus.util.fibonacci()`.
+    To generate a specific Fibonacci number,
+    use `flyingcircus.util.fibonacci()`.
 
     Args:
         max_count (int): The maximum number of values to yield.
