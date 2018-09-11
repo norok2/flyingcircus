@@ -1816,8 +1816,8 @@ def num_align(
     where `func` is a rounding function, as determined by `mode`.
 
     Args:
-        num (int): The input number.
-        align (int|str): The number to align to.
+        num (int|float): The input number.
+        align (int|float|str|None): The number to align to.
             If int, then calculate a multiple of `align` close to `num`.
             If str, possible options are:
              - 'powX' (where X >= 2 must be an int): calculate a power of X
