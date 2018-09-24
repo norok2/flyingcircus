@@ -4954,7 +4954,7 @@ def angles2linear(
     Calculate the linear transformation relative to the specified rotations.
 
     Args:
-        angles (tuple[float]): The angles to be used for rotation.
+        angles (Iterable[float]): The angles to be used for rotation.
         n_dim (int|None): The number of dimensions to consider.
             The number of angles and `n_dim` should satisfy the relation:
             `n_angles = n_dim * (n_dim - 1) / 2`.
@@ -4963,11 +4963,11 @@ def angles2linear(
             If `len(angles)` is larger than expected, the exceeding `angles`
             are ignored.
             If None, n_dim is computed from `len(angles)`.
-        axes_list (tuple[tuple[int]]|None): The axes of the rotation plane.
+        axes_list (Iterable[Iterable[int]]|None): The axes of rotation planes.
             If not None, for each rotation angle a pair of axes
-            (i.e. a 2-tuple of int) must be specified to define the associated
-            plane of rotation.
-            The number of 2-tuples should match the number of of angles
+            (i.e. a size-2 iterable of int) must be specified to define the
+            associated plane of rotation.
+            The number of size-2 iterables should match the number of angles
             `len(angles) == len(axes_list)`.
             If `len(angles) < len(axes_list)` or `len(angles) > len(axes_list)`
             the unspecified rotations are not performed.
@@ -4988,6 +4988,21 @@ def angles2linear(
         - flyingcircus.num.num_size_to_tria(),
         - flyingcircus.num.num_tria_to_size(),
         - itertools.combinations()
+
+    Examples:
+        >>> np.round(angles2linear([90.0]), 6)
+        array([[ 0., -1.],
+               [ 1.,  0.]])
+        >>> np.round(angles2linear([-30.0]), 3)
+        array([[ 0.866,  0.5  ],
+               [-0.5  ,  0.866]])
+        >>> np.round(angles2linear([30.0]), 3)
+        array([[ 0.866, -0.5  ],
+               [ 0.5  ,  0.866]])
+        >>> np.round(angles2linear([30.0, 0.0, -30.0]), 3)
+        array([[ 0.866, -0.433, -0.25 ],
+               [ 0.5  ,  0.75 ,  0.433],
+               [ 0.   , -0.5  ,  0.866]])
     """
     if n_dim is None:
         # this is the number of cartesian orthogonal planes of rotations
@@ -5020,10 +5035,34 @@ def angles2linear(
 # ======================================================================
 def linear2angles(
         linear,
-        use_degree=True,
-        atol=None):
-    # todo: implement the inverse of angles2linear
-    raise NotImplementedError
+        use_degree=True):
+    """
+    Compute the rotation angles compatible with the proposed linear.
+
+    The decomposition is not unique.
+
+    Args:
+        linear (np.ndarray): The rotation matrix.
+        use_degree (bool): Interpret angles as expressed in degree.
+            Otherwise, use radians.
+
+    Returns:
+        angles (tuple[float]): The angles generating the rotation matrix.
+            Units are degree if `use_degre == True` else they are radians.
+
+    Examples:
+        >>> angles = [30.0, 0.0, -30.0]
+        >>> linear = angles2linear(angles)
+        >>> linear2angles(linear)
+
+    """
+    assert (linear.shape[0] == linear.shape[1] and linear.ndim == 2)
+    n_dim = linear.shape[0]
+    n_angles = square_size_to_num_tria(n_dim)
+    axes_list = list(itertools.combinations(range(n_dim), 2))
+    if use_degree:
+        angles = tuple(np.rad2deg(angles))
+    return angles
 
 
 # ======================================================================
@@ -5244,7 +5283,7 @@ def rotation_axes(
         - flyingcircus.num.weighted_covariance()
         - flyingcircus.num.tensor_of_inertia()
         - flyingcircus.num.auto_rotation()
-        f- c.num.realigning()
+        - fc.num.realigning()
     """
     # calculate the tensor of inertia with respect to the weighted center
     inertia = tensor_of_inertia(arr, labels, index, None).astype(np.double)
