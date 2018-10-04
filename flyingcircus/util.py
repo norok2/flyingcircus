@@ -91,6 +91,7 @@ _STRUCT_TYPES = (
 )
 
 # : data type format conversion for `struct`
+# ... same as: dict(zip(_STRUCT_TYPES, _STRUCT_TYPES))
 DTYPE_STR = {s: s for s in _STRUCT_TYPES}
 # : define how to interpreted Python types
 DTYPE_STR.update({
@@ -680,7 +681,7 @@ def random_unique_combinations_k(items, k, pseudo=False):
 
     Examples:
         >>> import string
-        >>> max_lens = [i for i in range(2, 10)]
+        >>> max_lens = list(range(2, 10))
         >>> items = [string.ascii_lowercase[:max_len] for max_len in max_lens]
         >>> random.seed(0)
         >>> num = 10
@@ -696,7 +697,7 @@ def random_unique_combinations_k(items, k, pseudo=False):
         ('b', 'c', 'd', 'a', 'f', 'd', 'h', 'd')
         ('a', 'c', 'b', 'b', 'a', 'e', 'b', 'g')
         ('a', 'c', 'c', 'b', 'e', 'b', 'f', 'e')
-        >>> max_lens = [i for i in range(2, 4)]
+        >>> max_lens = list(range(2, 4))
         >>> items = [string.ascii_uppercase[:max_len] for max_len in max_lens]
         >>> random.seed(0)
         >>> num = 10
