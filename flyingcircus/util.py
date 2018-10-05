@@ -1994,6 +1994,8 @@ def multi_replace(
     """
     Perform multiple replacements in a string.
 
+    The replaces are concatenated together, therefore the order may matter.
+
     Args:
         text (str): The input string.
         replaces (tuple[tuple[str]]): The listing of the replacements.
@@ -2009,8 +2011,47 @@ def multi_replace(
         'test-test-test-test'
         >>> multi_replace('x-x-', (('-x-', '.test'),))
         'x.test'
+        >>> multi_replace('x-x-', (('x', 'test'), ('te', 'be')))
+        'best-best-'
+        >>> multi_replace('x-x-', (('te', 'be'), ('x-', 'test-')))
+        'test-test-'
     """
     return functools.reduce(lambda s, r: s.replace(*r), replaces, text)
+
+
+# ======================================================================
+def multi_replace_char(
+        text,
+        replaces):
+    """
+    Perform multiple replacements of single characters in a string.
+
+    The replaces are concatenated together, therefore the order may matter.
+
+    Args:
+        text (str): The input string.
+        replaces (tuple[tuple[str]]|dict): The listing of the replacements.
+            Format: ((<old>, <new>), ...) where <old> must be a single char.
+
+    Returns:
+        text (str): The string after the performed replacements.
+
+    Examples:
+        >>> multi_replace_char('X Y', (('X', 'flying'), ('Y', 'circus')))
+        'flying circus'
+        >>> multi_replace_char('X Y', (('Y', 'circus'), ('X', 'flying')))
+        'flying circus'
+        >>> multi_replace_char('x-y-x-y', (('x', 'flying'), ('y', 'circus')))
+        'flying-circus-flying-circus'
+        >>> multi_replace_char('x-y-x-y', (('x', 'flying'), ('g', 'circus')))
+        'flying-y-flying-y'
+        >>> multi_replace_char('x-g-x-g', (('x', 'flying'), ('g', 'circus')))
+        'flying-circus-flying-circus'
+        >>> multi_replace_char('x-x-', (('x-', 'bye'),))
+        'x-x-'
+    """
+    replaces = dict(replaces)
+    return ''.join(replaces.get(k, k) for k in text)
 
 
 # ======================================================================
