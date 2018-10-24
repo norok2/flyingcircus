@@ -313,6 +313,46 @@ def auto_repeat(
 
 
 # ======================================================================
+def is_deep(
+        obj,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Determine if an object is deep, i.e. it can be iterated through.
+
+    Args:
+        obj: The object to test.
+        avoid (tuple): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (bool): If the object is deep or not.
+
+    Examples:
+        >>> is_deep(1)
+        False
+        >>> is_deep(())
+        True
+        >>> is_deep([1, 2, 3])
+        True
+        >>> is_deep('ciao', avoid=None)
+        True
+        >>> is_deep('ciao')
+        False
+    """
+    try:
+        no_expand = avoid and isinstance(obj, avoid)
+        if no_expand or max_depth == 0 or obj == next(iter(obj)):
+            raise TypeError
+    except TypeError:
+        return False
+    except StopIteration:
+        return True
+    else:
+        return True
+
+
+# ======================================================================
 def flatten(
         items,
         avoid=(str, bytes),
@@ -323,8 +363,8 @@ def flatten(
     The maximum depth is limited by Python's recursion limit.
 
     Args:
-        items (Iterable[Iterable]): The input items.
-        avoid (Iterable): Data types that will not be flattened.
+        items (Iterable): The input items.
+        avoid (tuple): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Yields:
@@ -339,26 +379,291 @@ def flatten(
         >>> ll = [ll, ll]
         >>> list(flatten(ll))
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> list(itertools.chain.from_iterable(ll))
+        [[1, 2, 3], [4, 5, 6], [7], [8, 9], [1, 2, 3], [4, 5, 6], [7], [8, 9]]
         >>> list(flatten([1, 2, 3]))
         [1, 2, 3]
         >>> list(flatten(['best', ['function', 'ever']]))
         ['best', 'function', 'ever']
         >>> ll2 = [[(1, 2, 3), (4, 5)], [(1, 2), (3, 4, 5)], ['1, 2', [6, 7]]]
+        >>> list(flatten(ll2))
+        [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, '1, 2', 6, 7]
         >>> list(flatten(ll2, avoid=(tuple, str)))
         [(1, 2, 3), (4, 5), (1, 2), (3, 4, 5), '1, 2', 6, 7]
-        >>> list(flatten([['best', 'func'], 'ever'], avoid=None))
+        >>> list(flatten(ll2, max_depth=1))
+        [(1, 2, 3), (4, 5), (1, 2), (3, 4, 5), '1, 2', [6, 7]]
+        >>> list(flatten(ll2, None))
+        [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, '1', ',', ' ', '2', 6, 7]
+        >>> list(flatten([['best', 'func'], 'ever'], None, 1))
+        ['best', 'func', 'e', 'v', 'e', 'r']
+        >>> list(flatten([['best', 'func'], 'ever'], None))
         ['b', 'e', 's', 't', 'f', 'u', 'n', 'c', 'e', 'v', 'e', 'r']
+        >>> list(flatten(list(range(10))))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> list(flatten(range(10)))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
+    for item in items:
+        if is_deep(item, avoid, max_depth):
+            # yield from flatten(item, avoid, max_depth - 1)
+            for subitem in flatten(item, avoid, max_depth - 1):
+                yield subitem
+        else:
+            yield item
+
+
+# ======================================================================
+def conditional_apply(
+        func,
+        condition=None):
+    """
+    Modify a function so that it is applied only if a condition is satisfied.
+
+    Args:
+        func (callable): A function to apply to an object.
+            Must have the following signature: func(Any) -> Any
+        condition (callable|None): The condition function.
+            If not None, the function `func` is applied to an object only
+            if the condition on the object evaluates to True.
+            Must have the following signature: condition(Any) -> bool
+
+    Returns:
+        result (callable): The conditional function.
+
+    Examples:
+        >>> conditional_apply(str)(1)
+        '1'
+        >>> list(map(conditional_apply(str), range(10)))
+        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+        >>> [conditional_apply(str, lambda x: x > 5)(i) for i in range(10)]
+        [0, 1, 2, 3, 4, 5, '6', '7', '8', '9']
+        >>> list(map(conditional_apply(str, lambda x: x > 5), range(10)))
+        [0, 1, 2, 3, 4, 5, '6', '7', '8', '9']
+        >>> print(conditional_apply(str) == str)
+        True
+    """
+    if callable(condition):
+        return lambda x: func(x) if condition(x) else x
+    else:
+        return func
+
+
+# ======================================================================
+def deep_map(
+        func,
+        items,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Compute a function on each element of a nested structure of iterables.
+
+    The result preserves the nested structure of the input.
+
+    Args:
+        func (callable): The function to apply to the individual item.
+        items (Iterable): The input items.
+        avoid (tuple): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        new_items (Iterable): The mapped items.
+
+    Examples:
+        >>> items = [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> print(deep_map(str, items))
+        ['1', '2', ['3', '4', '5'], '2', ('3', ['4', '5'])]
+        >>> print(deep_map(float, items))
+        [1.0, 2.0, [3.0, 4.0, 5.0], 2.0, (3.0, [4.0, 5.0])]
+        >>> print(deep_map(lambda x: x, items))
+        [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+
+    """
+    # : alternate implementation
+    # if is_deep(items, avoid, max_depth):
+    #     return type(items)(
+    #         deep_map(func, item, avoid, max_depth - 1) for item in items)
+    # else:
+    #     return func(items)
+
+    # : alternate implementation
+    # return type(items)(
+    #     deep_map(func, item, avoid, max_depth - 1)
+    #     if is_deep(item, avoid, max_depth) else func(item)
+    #     for item in items)
+
+    new_items = []
+    for item in items:
+        if is_deep(item, avoid, max_depth):
+            new_items.append(
+                deep_map(func, item, avoid, max_depth - 1))
+        else:
+            new_items.append(func(item))
+    return type(items)(new_items)
+
+
+# ======================================================================
+def deep_filter(
+        func,
+        items,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Filter the elements from a nested structure of iterables.
+
+    The result preserves the nested structure of the input.
+
+    Args:
+        func (callable): The condition function to include the individual item.
+            Must have the following signature: func(Any) -> bool
+        items (Iterable): The input items.
+        avoid (tuple): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        new_items (Iterable): The filtered items.
+
+    Examples:
+        >>> items = [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> print(deep_filter(lambda x: x > 1, items))
+        [2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> print(deep_filter(lambda x: x > 2, items))
+        [[3, 4, 5], (3, [4, 5])]
+        >>> print(deep_filter(lambda _: True, items))
+        [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+    """
+    # : alternate implementation
+    # if is_deep(items, avoid, max_depth):
+    #     return type(items)(
+    #         deep_filter(func, item, avoid, max_depth - 1)
+    #         for item in items
+    #         if is_deep(item, avoid, max_depth) or func(item))
+    # else:
+    #     return items
+
+    # : alternate implementation
+    # return type(items)(
+    #     deep_filter(func, item, avoid, max_depth - 1)
+    #     if is_deep(item, avoid, max_depth) else item
+    #     for item in items if is_deep(item, avoid, max_depth) or func(item))
+
+    new_items = []
+    for item in items:
+        if is_deep(item, avoid, max_depth):
+            new_items.append(
+                deep_filter(func, item, avoid, max_depth - 1))
+        else:
+            if func(item):
+                new_items.append(item)
+    return type(items)(new_items)
+
+
+# ======================================================================
+def deep_filter_map(
+        items,
+        func=None,
+        map_condition=None,
+        filter_condition=None,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+
+    The behavior of this function can be obtained by combining the following:
+     - flyingcircus.util.conditional_apply()
+     - flyingcircus.util.deep_map()
+     - flyingcircus.util.deep_filter()
+
+    In particular:
+
+    deep_filter_map(
+        items, func, map_condition, filter_condition, avoid, max_depth)
+
+    is equivalent to:
+
+    deep_map(
+        conditional_apply(func, map_condition),
+        deep_filter(filter_condition, items, avoid, max_depth),
+        avoid, max_depth)
+
+    If some of the parameters of `deep_filter_map()` can be set to None, the
+    equivalent expression can be simplified.
+    However, if the call to `deep_filter_map()` would require both
+    `deep_map()` and `deep_filter()`, then `deep_filter_map()` is generally
+    much more performing.
+
+    Args:
+        items (Iterable): The input items.
+        func (callable): The function to apply to the individual item.
+        map_condition (callable|None): The map condition function.
+            Only items matching the condition are mapped.
+            Must have the following signature: map_condition(Any) -> bool
+        filter_condition (callable|None): The filter condition function.
+            Only items matching the condition are included.
+            Must have the following signature: filter_condition(Any) -> bool
+        avoid (tuple): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        new_items (Iterable): The mapped and filtered items.
+
+    Examples:
+        >>> items = [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> print(
+        ...     deep_filter_map(items, str, lambda x: x > 2, lambda x: x > 1))
+        [2, ['3', '4', '5'], 2, ('3', ['4', '5'])]
+        >>> print(deep_map(
+        ...     conditional_apply(str, lambda x: x > 2),
+        ...     deep_filter(lambda x: x > 1, items)))
+        [2, ['3', '4', '5'], 2, ('3', ['4', '5'])]
+        >>> print(deep_filter_map(items, str, None, lambda x: x > 1))
+        ['2', ['3', '4', '5'], '2', ('3', ['4', '5'])]
+        >>> print(deep_filter_map(items, str, lambda x: x > 2, None))
+        [1, 2, ['3', '4', '5'], 2, ('3', ['4', '5'])]
+        >>> print(deep_filter_map(items, None, None, lambda x: x > 1))
+        [2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> deep_filter_map(items, str, None, None)
+        ['1', '2', ['3', '4', '5'], '2', ('3', ['4', '5'])]
+        >>> print(
+        ...     deep_filter_map(items, str, lambda x: x > 2, lambda x: x > 1)
+        ...     == deep_map(conditional_apply(str, lambda x: x > 2),
+        ...         deep_filter(lambda x: x > 1, items)))
+        True
+        >>> print(
+        ...    deep_filter_map(items, str, None, lambda x: x > 1)
+        ...    == deep_map(str, deep_filter(lambda x: x > 1, items)))
+        True
+        >>> print(
+        ...    deep_filter_map(items, str, lambda x: x > 2, None)
+        ...    == deep_map(conditional_apply(str, lambda x: x > 2), items))
+        True
+        >>> print(
+        ...    deep_filter_map(items, None, None, lambda x: x > 1)
+        ...    == deep_filter(lambda x: x > 1, items))
+        True
+        >>> print(
+        ...    deep_filter_map(items, str, None, None)
+        ...    == deep_map(str, items))
+        True
+    """
+    if func is None:
+        def func(x): return x
+    if map_condition is None:
+        def map_condition(_): return True
+    if filter_condition is None:
+        def filter_condition(_): return True
+    new_items = []
     for item in items:
         try:
             no_expand = avoid and isinstance(item, avoid)
             if no_expand or max_depth == 0 or item == next(iter(item)):
                 raise TypeError
         except TypeError:
-            yield item
+            if filter_condition(item):
+                new_items.append(func(item) if map_condition(item) else item)
         else:
-            for i in flatten(item, avoid, max_depth - 1):
-                yield i
+            new_items.append(
+                deep_filter_map(
+                    item, func, map_condition, filter_condition, avoid, max_depth - 1))
+    return type(items)(new_items)
 
 
 # ======================================================================
