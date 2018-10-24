@@ -1230,6 +1230,77 @@ def to_self_adjoint_matrix(
 
 
 # ======================================================================
+def valid_interval(interval):
+    """
+    Sanitize an interval to be in the standard (min, max) format.
+
+    It will also ensure consistent types.
+
+    Args:
+        interval (Iterable[int|float]|int|float|complex): The input interval.
+            If Iterable, must have length of 2.
+            If int or float, the other interval bound is assumed to be 0.
+            If complex, must be purely imaginary, and a symmetric interval is
+            generated: `(-x, x)` with `x = abs(imag(interval))`.
+
+    Returns:
+        interval (tuple[int|float]): The output interval.
+            Has the format: (min, max)
+
+    Examples:
+        >>> print(valid_interval((0, 1)))
+        (0, 1)
+        >>> print(valid_interval((1, 0)))
+        (0, 1)
+        >>> print(valid_interval(10))
+        (0, 10)
+        >>> print(valid_interval(10.0))
+        (0.0, 10.0)
+        >>> print(valid_interval(-1))
+        (-1, 0)
+        >>> print(valid_interval(1j))
+        (-1.0, 1.0)
+        >>> print(valid_interval(-1j))
+        (-1, 1)
+        >>> print(valid_interval(0j))
+        (-0.0, 0.0)
+        >>> print(valid_interval(-0j))
+        (0, 0)
+        >>> print(valid_interval(-5.0))
+        (-5.0, 0.0)
+        >>> print(valid_interval([5, -6.0]))
+        (-6.0, 5.0)
+        >>> print(valid_interval([1, 2, 3]))
+        Traceback (most recent call last):
+            ....
+        AssertionError
+        >>> print(valid_interval(['x', 2]))
+        Traceback (most recent call last):
+            ....
+        AssertionError
+    """
+    if isinstance(interval, (int, float)):
+        if interval < 0:
+            interval = (interval, type(interval)(0))
+        else:  # if bounds >= 0:
+            interval = (type(interval)(0), interval)
+    elif isinstance(interval, complex):
+        interval = interval.imag
+        if interval > 0:
+            interval = (-interval, interval)
+        else:
+            interval = (int(interval), -int(interval))
+    else:
+        assert (len(interval) == 2)
+        assert (all(isinstance(x, (int, float)) for x in interval))
+        if interval[0] > interval[1]:
+            interval = interval[::-1]
+        if any(isinstance(x, float) for x in interval):
+            interval = tuple(float(x) for x in interval)
+    return tuple(interval)
+
+
+# ======================================================================
 def is_in_range(
         arr,
         interval,
@@ -1248,6 +1319,7 @@ def is_in_range(
             True if all values of the array are within the interval.
             False otherwise.
     """
+    interval = valid_interval(interval)
     if include_extrema:
         in_range = np.min(arr) >= interval[0] and np.max(arr) <= interval[1]
     else:
@@ -1293,13 +1365,13 @@ def scale(
         array([ 0.,  5., 10., 15., 20., 25.])
     """
     if in_interval:
-        in_min, in_max = sorted(in_interval)
+        in_min, in_max = valid_interval(in_interval)
     elif isinstance(val, np.ndarray):
         in_min, in_max = minmax(val)
     else:
         in_min, in_max = (0, 1)
     if out_interval:
-        out_min, out_max = sorted(out_interval)
+        out_min, out_max = valid_interval(out_interval)
     else:
         out_min, out_max = (0, 1)
     return (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min
@@ -1341,6 +1413,44 @@ def combine_interval(
     else:
         new_interval = (-np.inf, np.inf)
     return new_interval
+
+
+# ======================================================================
+def scaled_randomizer(
+        val,
+        interval=0.1j,
+        fallback_interval=1j):
+    """
+    Add a random variation to a number proportional to the number itself.
+
+    If the number is 0, uses a random number in the fallback interval.
+
+    Args:
+        val (int|float): The value to randomize.
+        interval (Iterable[int|float]|int|float|complex): The scaled interval.
+            Specifies the scaling interval of the random variation as relative
+            to the value itself.
+            This is passed to `flyingcircus.num.valid_interval()`.
+        fallback_interval (Iterable[int|float]|int|float|complex): An interval.
+            Specifies the fallback interval of the random variation in
+            absolute terms.
+            This is only used if the value is 0 or if `interval` is None.
+            This is passed to `flyingcircus.num.valid_interval()`.
+    Returns:
+        result (int|float): The randomized value.
+
+    Examples:
+        >>> random.seed(0)
+        >>> print([round(scaled_randomizer(x), 3) for x in range(10)])
+        [0.689, 1.052, 1.968, 2.855, 4.009, 4.905, 6.341, 6.725, 7.963, 9.15]
+    """
+    rand_val = random.random()
+    interval = valid_interval(interval)
+    fallback_interval = valid_interval(fallback_interval)
+    if val:
+        return val * (1 + scale(rand_val, interval, (0, 1)))
+    else:
+        return val + scale(rand_val, fallback_interval, (0, 1))
 
 
 # ======================================================================
