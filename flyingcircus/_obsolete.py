@@ -250,7 +250,7 @@ def binomial_coeff(
         1
         >>> binomial_coeff(0, 1)
         Traceback (most recent call last):
-            ....
+            ...
         ValueError: Invalid values `n=0` `k=1` (0 <= k <= n)
         >>> binomial_coeff(1, 0)
         1
@@ -258,7 +258,7 @@ def binomial_coeff(
         1
         >>> binomial_coeff(1, 2)
         Traceback (most recent call last):
-            ....
+            ...
         ValueError: Invalid values `n=1` `k=2` (0 <= k <= n)
         >>> from scipy.special import binom
         >>> num = 15
