@@ -274,7 +274,8 @@ def auto_repeat(
 
     Args:
         obj: The object to operate with.
-        n (int): The length of the output object.
+        n (int|Iterable[int]): The length(s) of the output object.
+            If Iterable, multiple nested tuples will be generated.
         force (bool): Force the repetition, even if the object is Iterable.
         check (bool): Ensure that the object has length n.
 
@@ -299,16 +300,46 @@ def auto_repeat(
         Traceback (most recent call last):
             ...
         AssertionError
+        >>> auto_repeat(1, (3, 2))
+        ((1, 1), (1, 1), (1, 1))
+        >>> auto_repeat(1, (2, 3))
+        ((1, 1, 1), (1, 1, 1))
+        >>> auto_repeat([1], (3, 1), False, True)
+        ([1], [1], [1])
+        >>> auto_repeat([1], (3, 1), True, True)
+        (([1],), ([1],), ([1],))
+        >>> auto_repeat([1], (3, 1), False, False)
+        ([1], [1], [1])
+        >>> auto_repeat([1], (3, 1), True, False)
+        (([1],), ([1],), ([1],))
+        >>> auto_repeat([1], (3, 3), False, False)
+        ([1], [1], [1])
+        >>> auto_repeat([1], (3, 3), True, False)
+        (([1], [1], [1]), ([1], [1], [1]), ([1], [1], [1]))
+        >>> auto_repeat([1], (3, 3), True, True)
+        (([1], [1], [1]), ([1], [1], [1]), ([1], [1], [1]))
+        >>> auto_repeat([1], (3, 3), False, True)
+        Traceback (most recent call last):
+            ...
+        AssertionError
     """
     try:
         iter(obj)
     except TypeError:
         force = True
     finally:
-        if force:
-            obj = (obj,) * n
-    if check:
-        assert (len(obj) == n)
+        if isinstance(n, int):
+            if force:
+                obj = (obj,) * n
+            if check:
+                assert (len(obj) == n)
+        else:
+            obj = auto_repeat(obj, n[-1], force, check)
+            for i in n[-2::-1]:
+                obj = auto_repeat(obj, i, True, check)
+                if check:
+                    assert (len(obj) == i)
+
     return obj
 
 
@@ -321,7 +352,7 @@ def is_deep(
     Determine if an object is deep, i.e. it can be iterated through.
 
     Args:
-        obj: The object to test.
+        obj (Any): The object to test.
         avoid (tuple): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
@@ -350,6 +381,58 @@ def is_deep(
         return True
     else:
         return True
+
+
+# ======================================================================
+def nesting_level(
+        obj,
+        deep=True,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Compute the nesting level of nested iterables.
+
+    Args:
+        obj (Any): The object to test.
+        deep (bool): Evaluate all item.
+            If True, all elements within `obj` are evaluated.
+            If False, only the first element of each deep object is evaluated.
+            An object is considered deep using `is_deep()`.
+        avoid (tuple): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (int): The nesting level.
+
+    Examples:
+        >>> nesting_level([])
+        1
+        >>> nesting_level([], True)
+        1
+        >>> nesting_level([[]], False)
+        2
+        >>> nesting_level(
+        ...     [[(1, 2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], True)
+        3
+        >>> nesting_level(
+        ...     [[1, (2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], False)
+        2
+        >>> nesting_level(
+        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], True)
+        22
+        >>> nesting_level(
+        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], False)
+        1
+    """
+    if not is_deep(obj, avoid, max_depth):
+        return 0
+    elif len(obj) == 0:
+        return 1
+    else:
+        next_level = (
+            nesting_level(obj[0], deep)
+            if not deep else max(nesting_level(x, deep) for x in obj))
+        return 1 + next_level
 
 
 # ======================================================================
@@ -662,7 +745,8 @@ def deep_filter_map(
         else:
             new_items.append(
                 deep_filter_map(
-                    item, func, map_condition, filter_condition, avoid, max_depth - 1))
+                    item, func, map_condition, filter_condition, avoid,
+                    max_depth - 1))
     return type(items)(new_items)
 
 
@@ -1118,7 +1202,7 @@ def unique_partitions(
             Each group has exactly `k` elements.
 
     Yields:
-        partitions (tuple[tuple[tuple]]]): The items partitions.
+        partitions (Iterable[Iterable[Iterable]]]): The items partitions.
             More precisely, all partitions of size `num` for each unique
             permutations of `items`.
 
