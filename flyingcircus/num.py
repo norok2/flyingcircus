@@ -16,6 +16,7 @@ import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
 import itertools  # Functions creating iterators for efficient looping
 import random  # Generate pseudo-random numbers
 import string  # Common string operations
+import math  # Mathematical functions
 
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
@@ -164,9 +165,9 @@ def compute_edge_weights(
         weighting (callable): The function for computing the weighting.
             Must have the following signature:
             weighting(np.ndarray, np.ndarray, ...) -> np.ndarray
-        weighting_kws (dict|tuple[tuple]|None): Keyword arguments.
+        weighting_kws (dict|Iterable|None): Keyword arguments.
             These are passed to the function specified in `weighting`.
-            If tuple[tuple], must be convertible to a dictionary.
+            If Iterable, must be convertible to a dictionary.
             If None, no keyword arguments will be passed.
         circular (bool|Iterable[bool]): Specify if circularly connected.
             If Iterable, each axis can be specified separately.
@@ -1025,6 +1026,10 @@ def square_size_to_num_tria(
 
     :math:`N = \\frac{n (n + 1)}{2}`
 
+    Note that is useful also to determine the relationship between
+    the number of rotation angles (i.e. `num_tria`) and
+    the number of dimensions (i.e. `square_size`).
+
     Args:
         square_size (int): The linear size of the square matrix.
         has_diag (bool): Assume that the diagonal is included.
@@ -1089,6 +1094,10 @@ def num_tria_to_square_size(
 
     :math:`n = \\frac{\\sqrt{1 + 8 N} - 1}{2}`
 
+    Note that is useful also to determine the relationship between
+    the number of rotation angles (i.e. `num_tria`) and
+    the number of dimensions (i.e. `square_size`).
+
     Args:
         num_tria (int): The number of triangular indices.
         has_diag (bool): Assume that the diagonal is included.
@@ -1119,7 +1128,7 @@ def num_tria_to_square_size(
         5
         >>> num_tria_to_square_size(8, raise_err=True)
         Traceback (most recent call last):
-            ....
+            ...
         ValueError: invalid number of triangular indices
 
     See Also:
@@ -1237,11 +1246,15 @@ def valid_interval(interval):
     It will also ensure consistent types.
 
     Args:
-        interval (Iterable[int|float]|int|float|complex): The input interval.
+        interval (Any): The input interval.
             If Iterable, must have length of 2.
             If int or float, the other interval bound is assumed to be 0.
             If complex, must be purely imaginary, and a symmetric interval is
-            generated: `(-x, x)` with `x = abs(imag(interval))`.
+            generated: `(-x, x)` with `x = abs(imag(interval))` using
+            extrema of type float if x is non-negative, and of type int
+            if x is negative.
+            If range or slice (or any object supporting the `.start` and
+            `.stop` properties), `.start` is used as min and `.stop` as max.
 
     Returns:
         interval (tuple[int|float]): The output interval.
@@ -1252,6 +1265,10 @@ def valid_interval(interval):
         (0, 1)
         >>> print(valid_interval((1, 0)))
         (0, 1)
+        >>> print(valid_interval((1, 0.0)))
+        (0.0, 1.0)
+        >>> print(valid_interval((1.0, -1)))
+        (-1.0, 1.0)
         >>> print(valid_interval(10))
         (0, 10)
         >>> print(valid_interval(10.0))
@@ -1272,13 +1289,27 @@ def valid_interval(interval):
         (-6.0, 5.0)
         >>> print(valid_interval([1, 2, 3]))
         Traceback (most recent call last):
-            ....
+            ...
         AssertionError
         >>> print(valid_interval(['x', 2]))
         Traceback (most recent call last):
-            ....
+            ...
         AssertionError
+        >>> print(valid_interval(slice(0, 100)))
+        (0, 100)
+        >>> print(valid_interval(range(0, 100)))
+        (0, 100)
+        >>> print(valid_interval(slice(0.0, 10.0)))
+        (0.0, 10.0)
+        >>> print(valid_interval(None))
+        Traceback (most recent call last):
+            ...
+        TypeError: object of type 'NoneType' has no len()
     """
+    try:
+        interval = interval.start, interval.stop
+    except AttributeError:
+        pass
     if isinstance(interval, (int, float)):
         if interval < 0:
             interval = (interval, type(interval)(0))
@@ -1286,7 +1317,7 @@ def valid_interval(interval):
             interval = (type(interval)(0), interval)
     elif isinstance(interval, complex):
         interval = interval.imag
-        if interval > 0:
+        if math.copysign(1.0, interval) >= 0:
             interval = (-interval, interval)
         else:
             interval = (int(interval), -int(interval))
@@ -1310,8 +1341,9 @@ def is_in_range(
 
     Args:
         arr (np.ndarray): The input array.
-        interval (tuple[int|float]): The range of values to check.
-            A 2-tuple with format (min, max) is expected.
+        interval (Any): The range of values to check.
+            See `flyingcircus.num.valid_interval()` for details on the
+            accepted input.
         include_extrema (bool): Include extrema in the interval checks.
 
     Returns:
@@ -1337,11 +1369,15 @@ def scale(
 
     Args:
         val (float|np.ndarray): Value(s) to convert.
-        out_interval (float,float): Interval of the output value(s).
+        out_interval (Any): Interval of the output value(s).
             If None, set to: (0, 1).
-        in_interval (float,float): Interval of the input value(s).
+            See `flyingcircus.num.valid_interval()` for details on the
+            accepted input.
+        in_interval (Any): Interval of the input value(s).
             If None, and val is Iterable, it is calculated as:
             (min(val), max(val)), otherwise set to: (0, 1).
+            See `flyingcircus.num.valid_interval()` for details on the
+            accepted input.
 
     Returns:
         val (float|np.ndarray): The converted value(s).
@@ -1386,15 +1422,19 @@ def combine_interval(
     Combine two intervals with some operation to obtain a new interval.
 
     Args:
-        interval1 (tuple[float]): Interval of first operand
-        interval2 (tuple[float]): Interval of second operand
+        interval1 (Any): Interval of first operand.
+            See `flyingcircus.num.valid_interval()` for details on the
+            accepted input.
+        interval2 (Any): Interval of second operand.
+            See `flyingcircus.num.valid_interval()` for details on the
+            accepted input.
         operation (str): String with operation to perform.
             Supports the following operations:
                 - '+' : addition
                 - '-' : subtraction
 
     Returns:
-        new_interval (tuple[float]): Interval resulting from operation
+        new_interval (tuple): Interval resulting from operation.
 
     Examples:
         >>> combine_interval((-1.0, 1.0), (0, 1), '+')
@@ -1402,8 +1442,9 @@ def combine_interval(
         >>> combine_interval((-1.0, 1.0), (0, 1), '-')
         (-2.0, 1.0)
     """
-    if interval2 is None:
-        interval2 = interval1
+    interval1 = valid_interval(interval1)
+    interval2 = valid_interval(interval2) \
+        if interval2 is not None else interval1
     if operation == '+':
         new_interval = (
             interval1[0] + interval2[0], interval1[1] + interval2[1])
@@ -1451,6 +1492,61 @@ def scaled_randomizer(
         return val * (1 + scale(rand_val, interval, (0, 1)))
     else:
         return val + scale(rand_val, fallback_interval, (0, 1))
+
+
+# =====================================================================
+def auto_random(val=(0.0, 1.0)):
+    """
+    Automatically generate a random value.
+
+    Args:
+        val (Any): The value to auto-randomize.
+            If int, float, complex, str, bytes, no random value is generated.
+            If slice, a random value in the (slice.start, slice.stop) range
+            is generated. If both slice.start and slice.stop are int, the
+            random number is also an int.
+            If iterable, a random element of the iterable is picked up.
+
+    Returns:
+        rand_val (Any): The randomized value.
+
+    Examples:
+        >>> random.seed(0)
+        >>> auto_random(1)
+        1
+        >>> auto_random(slice(0, 100))
+        49
+        >>> round(auto_random(slice(0, 10.0)), 4)
+        7.5795
+        >>> round(auto_random(), 4)
+        0.4206
+        >>> auto_random(['a', 'b', 'c', 'd'])
+        'c'
+        >>> round(auto_random(), 4)
+        0.9655
+        >>> round(auto_random(slice(-100.0, 100)), 4)
+        -2.8145
+        >>> round(auto_random(slice(-100, 100.0)), 4)
+        83.6469
+        >>> round(auto_random(slice(100, 100.0)), 4)
+        100.0
+        >>> auto_random(slice(-100, 100))
+        22
+        >>> auto_random(None) is None
+        True
+    """
+    if isinstance(val, (int, float, complex, str, bytes)) or val is None:
+        return val
+    elif isinstance(val, (slice, range)) or (
+            len(val) == 2 and fc.util.nesting_level(val) == 1):
+        val = valid_interval(val)
+        if all(isinstance(x, int) for x in val):
+            return random.randint(val[0], val[1])
+        else:
+            return scale(random.random(), val, (0, 1))
+    else:
+        # val = list(filter(lambda i: i is not None, val))
+        return val[random.randint(0, len(val) - 1)]
 
 
 # ======================================================================
@@ -1556,7 +1652,7 @@ def sgngeomspace(
         array([10. ,  1. ,  0.1, -0.5, -2. ])
         >>> sgngeomspace(10, -1, 5)
         Traceback (most recent call last):
-            ....
+            ...
         AssertionError
     """
     if not util.is_same_sign((start, stop)):
@@ -1632,7 +1728,7 @@ def subst(
 
     Args:
         arr (np.ndarray): The input array.
-        pairs (tuple[tuple]): The substitution rules.
+        pairs (Iterable): The substitution rules.
             Each rule consist of a value to replace and its replacement.
             Each rule is applied sequentially in the order they appear and
             modify the content of the array immediately.
@@ -2154,7 +2250,7 @@ def rel2abs(shape, size=0.5):
 
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
-        size (float|tuple[float]): Relative position (to the lowest edge).
+        size (float|Iterable[float]): Relative position (to the lowest edge).
             Each element of the tuple should be in the range [0, 1].
 
     Returns:
@@ -2193,7 +2289,7 @@ def abs2rel(shape, position=0):
 
     Args:
         shape (int|Iterable[int]): The shape of the container in px.
-        position (float|tuple[float]): Absolute position inside the shape.
+        position (float|Iterable[float]): Absolute position inside the shape.
             Each element of the tuple should be in the range [0, dim - 1],
             where dim is the corresponding dimension of the shape.
 
@@ -2497,7 +2593,7 @@ def auto_pad_width(
         ((2, 3), (2, 3), (2, 3))
         >>> auto_pad_width(((2, 3), (1, 2)), shape)
         Traceback (most recent call last):
-            ....
+            ...
         AssertionError
         >>> auto_pad_width(((0.1, 0.2),), shape, min)
         ((1, 2), (1, 2), (1, 2))
@@ -3705,7 +3801,7 @@ def complex2polar(z):
         z (complex|np.ndarray): The complex number or array: z = z' + i * z".
 
     Returns:
-        tuple[float]:
+        tuple[float|np.ndarray]:
          - modulus (float|np.ndarray): The modulus R of the complex number.
          - phase (float|np.ndarray): The phase phi of the complex number.
     """
@@ -3722,7 +3818,7 @@ def polar2cartesian(modulus, phase):
         phase (float|np.ndarray): The phase phi of the complex number.
 
     Returns:
-        tuple[float]:
+        tuple[float|np.ndarray]:
          - real (float|np.ndarray): The real part z' of the complex number.
          - imag (float|np.ndarray): The imaginary part z" of the complex
          number.
@@ -3740,9 +3836,9 @@ def cartesian2polar(real, imag):
         imag (float): The imaginary part z" of the complex number.
 
     Returns:
-        tuple[float]:
-         - modulus (float): The modulus R of the complex number.
-         - argument (float): The phase phi of the complex number.
+        tuple[float|np.ndarray]:
+         - modulus (float|np.ndarray): The modulus R of the complex number.
+         - argument (float|np.ndarray): The phase phi of the complex number.
     """
     return np.sqrt(real ** 2 + imag ** 2), np.arctan2(real, imag)
 
@@ -4540,7 +4636,7 @@ def apply_mask(
             broadcastable through `np.broadcast_to()`, or unsqueezable using
             `flyingcircus.num.unsqueeze()`.
             If None, no masking is performed.
-        borders (int|float|tuple[int|float]|None): The border size(s).
+        borders (int|float|Iterable[int|float]|None): The border size(s).
             If None, the border is not modified.
             Otherwise, a border is added to the masked array.
             If int, this is in units of pixels.
@@ -4788,8 +4884,7 @@ def zoom_prepare(
     Prepare the zoom and shape tuples to allow for non-homogeneous shapes.
 
     Args:
-        zoom_factors (float|tuple[float]): The zoom factors for each
-        directions.
+        zoom_factors (float|Iterable[float]): The factors for each direction.
         shape (int|Iterable[int]): The shape of the array to operate with.
         extra_dim (bool): Force extra dimensions in the zoom parameters.
         fill_dim (bool): Dimensions not specified are left untouched.
@@ -5095,8 +5190,8 @@ def angles2linear(
         linear (np.ndarray): The rotation matrix as defined by the angles.
 
     See Also:
-        - flyingcircus.num.num_size_to_tria(),
-        - flyingcircus.num.num_tria_to_size(),
+        - flyingcircus.num.square_size_to_num_tria(),
+        - flyingcircus.num.num_tria_to_square_size(),
         - itertools.combinations()
 
     Examples:
