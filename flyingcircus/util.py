@@ -1802,20 +1802,23 @@ def factorize(num):
     Args:
         num (int): The number to factorize.
 
-    Returns:
-        numbers (list[int]): The factors of the number.
+    Yields:
+        factor (int): The next factor of the number.
+            Factors are yielded in increasing order.
 
     Examples:
-        >>> factorize(100)
+        >>> list(factorize(100))
         [2, 2, 5, 5]
-        >>> factorize(1234567890)
+        >>> list(factorize(1234567890))
         [2, 3, 3, 5, 3607, 3803]
-        >>> factorize(-65536)
+        >>> list(factorize(-65536))
         [-1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-        >>> factorize(0)
+        >>> list(factorize(0))
         [0]
-        >>> factorize(1)
+        >>> list(factorize(1))
         [1]
+        >>> list(factorize(-1))
+        [-1]
         >>> all([n == prod(factorize(n)) for n in range(1000)])
         True
     """
@@ -1823,7 +1826,12 @@ def factorize(num):
     if num == 0:
         text = 'Factorization of `0` is undefined.'
         warnings.warn(text)
-    factors = [] if num > 1 else [-1] if num < 0 else [num]
+
+    if num < 0:
+        yield -1
+    elif num <= 1:
+        yield num
+
     num = abs(num)
 
     primes = get_primes()
@@ -1831,11 +1839,10 @@ def factorize(num):
     while prime * prime <= num:
         while num % prime == 0:
             num //= prime
-            factors.append(prime)
+            yield prime
         prime = next(primes)
     if num > 1:
-        factors.append(num)
-    return factors
+        yield num
 
 
 # ======================================================================
@@ -1857,7 +1864,7 @@ def factorize_as_dict(num):
         >>> factorize_as_dict(65536)
         OrderedDict([(2, 16)])
     """
-    factors = factorize(num)
+    factors = list(factorize(num))
     return collections.OrderedDict(collections.Counter(factors))
 
 
@@ -1885,12 +1892,10 @@ def factorize_as_str(
         >>> factorize_as_str(65536)
         '2^16'
     """
-    factors = factorize(num)
-
     text = ''
     last_factor = 1
     exp = 0
-    for factor in factors:
+    for factor in factorize(num):
         if factor == last_factor:
             exp += 1
         else:
@@ -1952,8 +1957,7 @@ def factorize_k_all(
  (5, 2, 6), (5, 3, 4), (5, 4, 3), (5, 6, 2), (6, 2, 5), (6, 5, 2),\
  (10, 2, 3), (10, 3, 2), (15, 2, 2))
     """
-    factors = factorize(num)
-    factors = tuple(factors) + (1,) * (k - len(factors))
+    factors = tuple(factorize(num)) + (1,) * (k - len(factors))
     factorizations = [
         item
         for subitems in unique_partitions(factors, k)
@@ -2031,7 +2035,7 @@ def factorize_k(
         (12, 10, 6)
     """
     if k > 1:
-        factors = factorize(num)
+        factors = list(factorize(num))
         if len(factors) < k:
             factors.extend([1] * (k - len(factors)))
         groups = None
