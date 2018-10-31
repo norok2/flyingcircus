@@ -771,6 +771,30 @@ def prod(items):
 
 
 # ======================================================================
+def diff(items):
+    """
+    Calculate the pairwise difference of an arbitrary number of items.
+
+    This is similar to `sum`, but uses product instead of addition.
+
+    Args:
+        items (Iterable): The input items.
+
+    Yields:
+        value: The next pairwise difference.
+
+    Examples:
+        >>> list(diff(range(10)))
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    """
+    items = iter(items)
+    last_item = next(items)
+    for i, item in enumerate(items):
+        yield item - last_item
+        last_item = item
+
+
+# ======================================================================
 def uniques(items):
     """
     Get unique items (keeping order of appearance).
