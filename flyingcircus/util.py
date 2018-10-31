@@ -753,7 +753,7 @@ def deep_filter_map(
 # ======================================================================
 def prod(items):
     """
-    Calculate the cumulative product of an arbitrary number of items.
+    Calculate the cumulative product of arbitrary items.
 
     This is similar to `sum`, but uses product instead of addition.
 
@@ -773,9 +773,9 @@ def prod(items):
 # ======================================================================
 def diff(items):
     """
-    Calculate the pairwise difference of an arbitrary number of items.
+    Calculate the pairwise difference of arbitrary items.
 
-    This is similar to `sum`, but uses product instead of addition.
+    This is similar to `div`, but uses subtraction instead of division.
 
     Args:
         items (Iterable): The input items.
@@ -791,6 +791,33 @@ def diff(items):
     last_item = next(items)
     for i, item in enumerate(items):
         yield item - last_item
+        last_item = item
+
+
+# ======================================================================
+def div(items):
+    """
+    Calculate the pairwise division of arbitrary items.
+
+    This is similar to `diff`, but uses division instead of subtraction.
+
+    Args:
+        items (Iterable): The input items.
+
+    Yields:
+        value: The next pairwise difference.
+
+    Examples:
+        >>> items = [2 ** x for x in range(10)]
+        >>> items
+        [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+        >>> list(div(items))
+        [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+    """
+    items = iter(items)
+    last_item = next(items)
+    for i, item in enumerate(items):
+        yield item / last_item
         last_item = item
 
 
@@ -1981,7 +2008,8 @@ def factorize_k_all(
  (5, 2, 6), (5, 3, 4), (5, 4, 3), (5, 6, 2), (6, 2, 5), (6, 5, 2),\
  (10, 2, 3), (10, 3, 2), (15, 2, 2))
     """
-    factors = tuple(factorize(num)) + (1,) * (k - len(factors))
+    factors = tuple(factorize(num))
+    factors += (1,) * (k - len(factors))
     factorizations = [
         item
         for subitems in unique_partitions(factors, k)
@@ -4066,7 +4094,7 @@ def guess_decimals(
     Guess the number of decimals in a given float number.
 
     Args:
-        val ():
+        val (float): The input value.
         n_max (int): Maximum number of guessed decimals.
         base (int): The base used for the number representation.
         fp (int): The floating point maximum precision.
@@ -4087,6 +4115,8 @@ def guess_decimals(
         >>> guess_decimals(0.1)
         1
         >>> guess_decimals(0.01)
+        2
+        >>> guess_decimals(10.01)
         2
         >>> guess_decimals(0.000001)
         6
@@ -4111,6 +4141,7 @@ def guess_decimals(
     """
     offset = 2
     prec = 0
+    fp -= math.ceil(math.log10(abs(val)))
     tol = 10 ** -fp
     x = (val - int(val)) * base
     while base - abs(x) > tol and abs(x % tol) < tol < abs(x) and prec < n_max:
@@ -4239,6 +4270,131 @@ def format_value_error(
         val_str = str(val)
         err_str = str(err)
     return val_str, err_str
+
+
+# ======================================================================
+def guess_numerical_sequence(
+        items,
+        rounding=3):
+    """
+    Guess a compact expression for a numerical sequence.
+
+    Args:
+        items (Iterable[int|float|complex]): The input items.
+        rounding (int|None): The maximum number of decimals to show.
+
+    Returns:
+        result (str): The compact expression.
+            Supported numerical sequences are:
+             - constant sequences: '[val] * len(items)'
+             - linear sequences: 'range(start, stop, step)'
+               Note that both float and complex number will be detected
+               (contrarily to Python's `range()`).
+             - geometric sequences: 'base ** range(start, stop, step)'
+
+
+    Examples:
+        >>> items = [1.0] * 10
+        >>> print(items)
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        >>> print(guess_numerical_sequence(items))
+        [1.0] * 10
+
+        >>> items = list(range(10))
+        >>> print(items)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> print(guess_numerical_sequence(items))
+        range(0, 10, 1)
+
+        >>> items = list(range(5, 25, 2))
+        >>> print(items)
+        [5, 7, 9, 11, 13, 15, 17, 19, 21, 23]
+        >>> print(guess_numerical_sequence(items))
+        range(5, 25, 2)
+
+        >>> items = [x / 1000 for x in range(5, 25, 2)]
+        >>> print(items)
+        [0.005, 0.007, 0.009, 0.011, 0.013, 0.015, 0.017, 0.019, 0.021, 0.023]
+        >>> print(guess_numerical_sequence(items))
+        range(0.005, 0.025, 0.002)
+
+        >>> items = [2 ** x for x in range(5, 25, 2)]
+        >>> print(items)
+        [32, 128, 512, 2048, 8192, 32768, 131072, 524288, 2097152, 8388608]
+        >>> print(guess_numerical_sequence(items))
+        2.0 ** range(5.0, 24.0, 2)
+
+        >>> items = [10 ** x for x in range(8)]
+        >>> print(items)
+        [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000]
+        >>> print(guess_numerical_sequence(items))
+        10.0 ** range(0.0, 8.0, 1)
+
+        >>> items = [3.5 ** x for x in range(5, 13, 2)]
+        >>> print(items)
+        [525.21875, 6433.9296875, 78815.638671875, 965491.5737304688]
+        >>> print(guess_numerical_sequence(items))
+        3.5 ** range(5.0, 12.0, 2)
+
+        >>> items = [4.1 ** x for x in range(4, 11, 3)]
+        >>> print(items)
+        [282.5760999999999, 19475.42738809999, 1342265.9310152389]
+        >>> print(guess_numerical_sequence(items))
+        4.1 ** range(4.0, 11.0, 3)
+
+        >>> items = [4.1 ** (x / 10) for x in range(4, 11, 3)]
+        >>> # 4.1 ** range(0.4, 1.1, 0.3)
+        >>> print(items)
+        [1.7583832685816119, 2.6850272626520213, 4.1]
+        >>> print(guess_numerical_sequence(items))
+        1.527 ** range(1.333, 4.333, 1)
+    """
+    tol = 10 ** -min([guess_decimals(item) for item in items if item])
+    result = None
+    diffs = tuple(diff(items))
+    base = diffs[0]
+    if all(x - base < tol for x in diffs):
+        if base < tol:
+            # : constant sequence
+            result = '[{}] * {}'.format(round(items[0], rounding), len(items))
+        else:
+            # : linear sequence
+            result = 'range({}, {}, {})'.format(
+                round(items[0], rounding), round(items[-1] + base, rounding),
+                round(base, rounding))
+    else:
+        divs = tuple(div(items))
+        base = divs[0]
+        if all(x - base < tol for x in divs):
+            # find optimal base (least number of decimals)
+            bases, firsts, lasts, steps = [], [], [], []
+            i = 0
+            step = 1
+            new_base = 2
+            min_sum_decimals = 4 * 16
+            min_i = 0
+            while new_base >= 2.0:
+                new_base = base ** (1 / step)
+                bases.append(new_base)
+                firsts.append(math.log2(items[0]) / math.log2(new_base))
+                lasts.append(
+                    math.log2(items[-1] * new_base) / math.log2(new_base))
+                steps.append(step)
+                sum_decimals = sum(
+                    [guess_decimals(x) if x else 0
+                     for x in (bases[i], firsts[i], lasts[i], steps[i])])
+                if sum_decimals < min_sum_decimals:
+                    min_sum_decimals = sum_decimals
+                    min_i = i
+                step += 1
+                i += 1
+            # geometrical sequence
+            new_base, first_item, last_item, step = \
+                list(zip(bases, firsts, lasts, steps))[min_i]
+            result = '{} ** range({}, {}, {})'.format(
+                round(new_base, rounding), round(first_item, rounding),
+                round(last_item, rounding), round(step, rounding))
+    return result
 
 
 # ======================================================================
