@@ -353,7 +353,7 @@ def is_deep(
 
     Args:
         obj (Any): The object to test.
-        avoid (tuple): Data types to skip.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -398,7 +398,7 @@ def nesting_level(
             If True, all elements within `obj` are evaluated.
             If False, only the first element of each deep object is evaluated.
             An object is considered deep using `is_deep()`.
-        avoid (tuple): Data types to skip.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -447,7 +447,7 @@ def flatten(
 
     Args:
         items (Iterable): The input items.
-        avoid (tuple): Data types to skip.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Yields:
@@ -544,8 +544,9 @@ def deep_map(
 
     Args:
         func (callable): The function to apply to the individual item.
+            Must have the following signature: func(Any) -> Any.
         items (Iterable): The input items.
-        avoid (tuple): Data types to skip.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -559,7 +560,6 @@ def deep_map(
         [1.0, 2.0, [3.0, 4.0, 5.0], 2.0, (3.0, [4.0, 5.0])]
         >>> print(deep_map(lambda x: x, items))
         [1, 2, [3, 4, 5], 2, (3, [4, 5])]
-
     """
     # : alternate implementation
     # if is_deep(items, avoid, max_depth):
@@ -599,7 +599,7 @@ def deep_filter(
         func (callable): The condition function to include the individual item.
             Must have the following signature: func(Any) -> bool
         items (Iterable): The input items.
-        avoid (tuple): Data types to skip.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -641,48 +641,105 @@ def deep_filter(
 
 
 # ======================================================================
+def deep_convert(
+        container,
+        items,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Convert the containers from a nested structure of iterables.
+
+    Args:
+        container (callable|None): The container to apply.
+            Must have the following signature:
+            container(Iterable) -> container.
+            If None, no conversion is performed.
+        items (Iterable): The input items.
+        avoid (tuple|None): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        new_items (container): The converted nested structure of iterables.
+
+    Examples:
+        >>> items = [1, 2, [3, 4, 5], 2, (3, [4, 5], 'ciao')]
+        >>> deep_convert(list, items)
+        [1, 2, [3, 4, 5], 2, [3, [4, 5], 'ciao']]
+        >>> deep_convert(tuple, items)
+        (1, 2, (3, 4, 5), 2, (3, (4, 5), 'ciao'))
+        >>> deep_convert(tuple, items, avoid=None)
+        (1, 2, (3, 4, 5), 2, (3, (4, 5), ('c', 'i', 'a', 'o')))
+        >>> deep_convert(None, items)
+        [1, 2, [3, 4, 5], 2, (3, [4, 5], 'ciao')]
+    """
+    if container is not None:
+        new_items = []
+        for item in items:
+            if is_deep(item, avoid, max_depth):
+                new_items.append(
+                    deep_convert(container, item, avoid, max_depth - 1))
+            else:
+                new_items.append(item)
+        return container(new_items)
+    else:
+        return items
+
+
+# ======================================================================
 def deep_filter_map(
         items,
         func=None,
         map_condition=None,
         filter_condition=None,
+        container=None,
         avoid=(str, bytes),
         max_depth=-1):
     """
+    Apply conditional mapping, filtering and conversion on nested structures.
 
     The behavior of this function can be obtained by combining the following:
      - flyingcircus.util.conditional_apply()
      - flyingcircus.util.deep_map()
      - flyingcircus.util.deep_filter()
+     - flyingcircus.util.deep_convert()
 
     In particular:
 
     deep_filter_map(
-        items, func, map_condition, filter_condition, avoid, max_depth)
+        items, func, map_condition, filter_condition, container,
+        avoid, max_depth)
 
     is equivalent to:
 
-    deep_map(
-        conditional_apply(func, map_condition),
-        deep_filter(filter_condition, items, avoid, max_depth),
+    deep_convert(
+        container,
+        deep_map(
+            conditional_apply(func, map_condition),
+            deep_filter(filter_condition, items, avoid, max_depth),
+            avoid, max_depth),
         avoid, max_depth)
 
     If some of the parameters of `deep_filter_map()` can be set to None, the
     equivalent expression can be simplified.
-    However, if the call to `deep_filter_map()` would require both
-    `deep_map()` and `deep_filter()`, then `deep_filter_map()` is generally
-    much more performing.
+    However, if the call to `deep_filter_map()` would require at least two of
+    `deep_map()`, `deep_filter()`, `deep_convert()`, then
+    `deep_filter_map()` is generally much more performing.
 
     Args:
         items (Iterable): The input items.
         func (callable): The function to apply to the individual item.
+            Must have the following signature: func(Any) -> Any.
         map_condition (callable|None): The map condition function.
             Only items matching the condition are mapped.
-            Must have the following signature: map_condition(Any) -> bool
+            Must have the following signature: map_condition(Any) -> bool.
         filter_condition (callable|None): The filter condition function.
             Only items matching the condition are included.
-            Must have the following signature: filter_condition(Any) -> bool
-        avoid (tuple): Data types to skip.
+            Must have the following signature: filter_condition(Any) -> bool.
+                container (callable|None): The container to apply.
+            Must have the following signature:
+            container(Iterable) -> container.
+            If None, the original container is retained.
+        avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -705,26 +762,39 @@ def deep_filter_map(
         [2, [3, 4, 5], 2, (3, [4, 5])]
         >>> deep_filter_map(items, str, None, None)
         ['1', '2', ['3', '4', '5'], '2', ('3', ['4', '5'])]
+        >>> deep_filter_map(items, str, None, None, tuple)
+        ('1', '2', ('3', '4', '5'), '2', ('3', ('4', '5')))
+        >>> def c1(x): return x > 1
+        >>> def c2(x): return x > 2
         >>> print(
-        ...     deep_filter_map(items, str, lambda x: x > 2, lambda x: x > 1)
-        ...     == deep_map(conditional_apply(str, lambda x: x > 2),
-        ...         deep_filter(lambda x: x > 1, items)))
+        ...     deep_filter_map(items, str, c2, c1, tuple)
+        ...     == deep_convert(tuple, deep_map(conditional_apply(str, c2),
+        ...         deep_filter(c1, items))))
         True
         >>> print(
-        ...    deep_filter_map(items, str, None, lambda x: x > 1)
-        ...    == deep_map(str, deep_filter(lambda x: x > 1, items)))
+        ...     deep_filter_map(items, str, c2, c1)
+        ...     == deep_map(conditional_apply(str, c2),
+        ...         deep_filter(c1, items)))
         True
         >>> print(
-        ...    deep_filter_map(items, str, lambda x: x > 2, None)
-        ...    == deep_map(conditional_apply(str, lambda x: x > 2), items))
+        ...    deep_filter_map(items, str, None, c1)
+        ...    == deep_map(str, deep_filter(c1, items)))
         True
         >>> print(
-        ...    deep_filter_map(items, None, None, lambda x: x > 1)
-        ...    == deep_filter(lambda x: x > 1, items))
+        ...    deep_filter_map(items, str, c2, None)
+        ...    == deep_map(conditional_apply(str, c2), items))
+        True
+        >>> print(
+        ...    deep_filter_map(items, None, None, c1)
+        ...    == deep_filter(c1, items))
         True
         >>> print(
         ...    deep_filter_map(items, str, None, None)
         ...    == deep_map(str, items))
+        True
+        >>> print(
+        ...    deep_filter_map(items, None, None, None, tuple)
+        ...    == deep_convert(tuple, items))
         True
     """
     if func is None:
@@ -745,9 +815,11 @@ def deep_filter_map(
         else:
             new_items.append(
                 deep_filter_map(
-                    item, func, map_condition, filter_condition, avoid,
-                    max_depth - 1))
-    return type(items)(new_items)
+                    item, func, map_condition, filter_condition, container,
+                    avoid, max_depth - 1))
+    if container is None:
+        container = type(items)
+    return container(new_items)
 
 
 # ======================================================================
