@@ -2735,9 +2735,11 @@ def blocks(
         size=64 * 1024,
         reset_offset=True):
     """
-    Yields the data within a file in blocks of given size.
+    Yields the data within a file in blocks of given (max) size.
 
-    The last block
+    For non-binary file objects, the size of the block may be reduced as a
+    result of multi-byte support in the encoding.
+    The last block may have a smaller size regardless of the opening mode.
 
     Args:
         file_obj (file): The input file.
@@ -2780,7 +2782,7 @@ def blocks_r(
         reset_offset=True,
         encoding=None):
     """
-    Yields the data within a file in reverse-ordered blocks of given size.
+    Yields the data within a file in reverse order blocks of given (max) size.
 
     Note that:
      - the content of the block is NOT reversed.
@@ -2997,6 +2999,15 @@ def readline(
         block_size (int|None): The block size.
             If int, the file is processed in blocks of the specified size.
             If None, the file is processed at once.
+        reset_offset (bool): Reset the file offset.
+            If True, starts reading from the beginning of the file.
+            Otherwise, starts reading from where the file current position is.
+            This is passed to `blocks()` or `blocks_r()` (depending on the
+            value of reverse).
+        encoding (str|None): The encoding for correct block size computation.
+            If `str`, must be a valid string encoding.
+            If None, the default encoding is used.
+            This is passed to `blocks_r()`. Only used when `reverse` is True.
 
     Yields:
         line (str|bytes): The next line.
