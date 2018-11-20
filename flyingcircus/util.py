@@ -46,6 +46,7 @@ from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report
 from flyingcircus import msg, dbg
+from flyingcircus import do_nothing_decorator
 from flyingcircus import HAS_JIT, jit
 
 # ======================================================================

@@ -69,10 +69,40 @@ MY_GREETINGS = r"""
 |_|   |_|\__, |_|_| |_|\__, |\____|_|_|  \___|\__,_|___/
          |___/         |___/
 """
+
+
 # generated with: figlet 'FlyingCircus' -f standard
 
 # :: Causes the greetings to be printed any time the library is loaded.
 # print(MY_GREETINGS)
+
+
+# ======================================================================
+def do_nothing_decorator(*args, **kwargs):
+    """
+    Callable decorator that does nothing.
+
+    Arguments are catched, but ignored.
+    This is very useful to provide proxy for decorators that may not be
+    defined.
+
+    Args:
+        *args: Positional arguments.
+        **kwargs: Keyword arguments.
+
+    Returns:
+        result (callable): The unmodified callable.
+    """
+
+    def wrapper(f):
+        return f
+
+    if len(args) > 0 and not callable(args[0]) or len(kwargs) > 0:
+        return wrapper
+    elif len(args) == 0:
+        return wrapper
+    else:
+        return args[0]
 
 
 # Numba import
@@ -80,10 +110,7 @@ try:
     from numba import jit
 except ImportError:
     HAS_JIT = False
-
-
-    def jit(f):
-        return f
+    jit = do_nothing_decorator
 else:
     HAS_JIT = True
 
