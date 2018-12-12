@@ -15,10 +15,13 @@ import os  # Miscellaneous operating system interfaces
 import io  # Core tools for working with streams
 import sys  # System-specific parameters and functions
 import math  # Mathematical functions
+import time  # Time access and conversions
 import itertools  # Functions creating iterators for efficient looping
 import functools  # Higher-order functions and operations on callable objects
 import collections  # Container datatypes
 import subprocess  # Subprocess management
+import multiprocessing  # Process-based parallelism
+import datetime  # Basic date and time types
 import inspect  # Inspect live objects
 import stat  # Interpreting stat() results
 import shlex  # Simple lexical analysis
@@ -3203,7 +3206,7 @@ def which(args):
 
 # ======================================================================
 def execute(
-        args,
+        command,
         in_pipe=None,
         mode='call',
         timeout=None,
@@ -3215,15 +3218,16 @@ def execute(
     Execute command and retrieve/print output at the end of execution.
 
     Better handles `stdin`, `stdout` and `stderr`, as well as timeout,
-    dry-run and verbosity compared to the many alternatives as provided by
-    (the `subprocess` module, `os.system()`, `os.spawn*()`).
+    dry-run and verbosity compared to the many alternatives
+    (as provided by the `subprocess` module, `os.system()`, `os.spawn*()`).
 
     For some applications the high-level API provided by `subprocess.run()`
     may be more appropriate.
 
     Args:
-        args (str|list[str]): Command to execute as a list of tokens.
-            Optionally can accept a string.
+        command (str|Iterable[str]): The command to execute.
+            If str, must be a shell-compatible invocation.
+            If Iterable, each token must be a separate argument.
         in_pipe (str|None): Input data to be used as stdin of the process.
         mode (str): Set the execution mode (affects the return values).
             Allowed modes:
@@ -3232,7 +3236,6 @@ def execute(
                 Once completed, obtain the return code, stdout, and stderr.
              - 'flush': Call new process and get stdout+stderr immediately.
                 Once completed, obtain the return code.
-                Unfortunately, there is no easy
         timeout (float): Timeout of the process in seconds.
         encoding (str): The encoding to use.
         log (str): The template filename to be used for logs.
@@ -3247,12 +3250,12 @@ def execute(
     """
     ret_code, p_stdout, p_stderr = None, None, None
 
-    args, is_valid = which(args)
+    command, is_valid = which(command)
     if is_valid:
-        msg('{} {}'.format('$$' if dry else '>>', ' '.join(args)),
+        msg('{} {}'.format('$$' if dry else '>>', ' '.join(command)),
             verbose, D_VERB_LVL if dry else VERB_LVL['medium'])
     else:
-        msg('W: `{}` is not in available in $PATH.'.format(args[0]))
+        msg('W: `{}` is not in available in $PATH.'.format(command[0]))
 
     if not dry and is_valid:
         if in_pipe is not None:
@@ -3260,13 +3263,13 @@ def execute(
                 verbose, VERB_LVL['highest'])
 
         proc = subprocess.Popen(
-            args,
+            command,
             stdin=subprocess.PIPE if in_pipe and not mode == 'flush' else None,
             stdout=subprocess.PIPE if mode != 'spawn' else None,
             stderr=subprocess.PIPE if mode == 'call' else subprocess.STDOUT,
             shell=False)
 
-        # handle stdout nd stderr
+        # handle stdout and stderr
         if mode == 'flush' and not in_pipe:
             p_stdout = ''
             while proc.poll() is None:
@@ -3294,7 +3297,7 @@ def execute(
             msg('E: mode `{}` and `in_pipe` not supported.'.format(mode))
 
         if log:
-            name = os.path.basename(args[0])
+            name = os.path.basename(command[0])
             pid = proc.pid
             for stream, source in ((p_stdout, 'out'), (p_stderr, 'err')):
                 if stream:
@@ -3302,6 +3305,80 @@ def execute(
                     with open(log_filepath, 'wb') as fileobj:
                         fileobj.write(stream.encode(encoding))
     return ret_code, p_stdout, p_stderr
+
+
+# ======================================================================
+def parallel_execute(
+        commands,
+        pool_size=None,
+        poll_interval=60,
+        callback=None,
+        callback_args=None,
+        callback_kws=None,
+        verbose=D_VERB_LVL):
+    """
+    Spawn parallel processes and wait until all processes are completed.
+
+    Args:
+        commands (Iterable[str|Iterable[str]): The commands to execute.
+            Each item must be a separate command.
+            If the item is a str, it must be a shell-compatible invocation.
+            If the item is an Iterable, each token must be a separate argument.
+        pool_size (int|None): The size of the parallel pool.
+            This corresponds to the maximum number of concurrent processes
+            spawned by the function.
+        poll_interval (int): The poll interval in s.
+            This is the time between status updates in seconds.
+        callback (callable|None): A callback function.
+            This is called after each poll interval.
+        callback_args (Iterable|None): Positional arguments for `callback()`.
+        callback_kws (dict|tuple|None): Keyword arguments for `callback()`.
+        verbose (int): Set level of verbosity.
+
+    Returns:
+        None.
+    """
+    callback_args = tuple(callback_args) if callback_args is not None else ()
+    callback_kws = dict(callback_args) if callback_kws is not None else {}
+    if not pool_size:
+        pool_size = multiprocessing.cpu_count() + 1
+    num_total = len(commands)
+    num_processed = 0
+    begin_dt = datetime.datetime.now()
+    procs = [
+        subprocess.Popen(cmd, shell=True) for cmd in commands[:pool_size]]
+    for proc in procs:
+        msg('{} {}'.format('>>', ' '.join(proc.args)),
+            verbose, VERB_LVL['medium'])
+    num_submitted = len(procs)
+    done = False
+    while not done:
+        num_batch = len(procs)
+        procs = [proc for proc in procs if proc.poll() is None]
+        num_running = len(procs)
+        num_done = num_batch - num_running
+        if num_done > 0:
+            num_processed += num_done
+            new_procs = [
+                subprocess.Popen(cmd, shell=True)
+                for cmd in commands[num_submitted:num_submitted + num_done]]
+            for proc in new_procs:
+                msg('{} {}'.format('>>', ' '.join(proc.args)),
+                    verbose, VERB_LVL['medium'])
+            num_submitted += len(new_procs)
+            procs += new_procs
+            num_running = len(procs)
+        elapsed_dt = datetime.datetime.now() - begin_dt
+        text = ('I: {num_processed} / {num_total} processed'
+                ' ({num_running} running) - Elapsed: {elapsed_dt}'
+                ).format(**locals())
+        msg(text, verbose, D_VERB_LVL)
+        if callable(callback):
+            callback(*callback_args, **callback_kws)
+        if num_processed == num_total:
+            done = True
+        else:
+            time.sleep(poll_interval)
 
 
 # ======================================================================
