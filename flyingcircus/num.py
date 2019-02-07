@@ -4894,6 +4894,7 @@ def reframe(
 def multi_reframe(
         arrs,
         new_shape=None,
+        position=0.5,
         background=0.0,
         dtype=None):
     """
@@ -4907,6 +4908,8 @@ def multi_reframe(
     Args:
         arrs (Iterable[np.ndarray]): The input arrays.
         new_shape (Iterable[int]): The new base shape of the arrays.
+        position (int|float|Iterable[int|float]): Position within new shape.
+            See `flyingcircus.num.reframe()` for more info.
         background (int|float|complex): The background value for the frame.
         dtype (data-type): Desired output data-type.
             If None, its guessed from dtype of arrs.
@@ -4928,7 +4931,10 @@ def multi_reframe(
             max(*list(shape_arr[:, i]))
             for i in range(len(new_shape)))
 
+    position = fc.util.auto_repeat(position, len(arrs))
+
     if dtype is None:
+        # : alternative to looping
         # dtype = functools.reduce(
         #     (lambda x, y: np.promote_types(x, y.dtype)), arrs)
         dtype = bool
@@ -4938,7 +4944,7 @@ def multi_reframe(
     result = np.array(new_shape + (len(arrs),), dtype=dtype)
     for i, arr in enumerate(arrs):
         # ratio should not be kept: keep_ratio_method=None
-        result[..., i] = reframe(arr, new_shape, background=background)
+        result[..., i] = reframe(arr, new_shape, position, background)
     return result
 
 
