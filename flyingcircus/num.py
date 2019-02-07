@@ -4618,6 +4618,31 @@ def calc_stats(
 
 
 # ======================================================================
+def bounding_box(mask):
+    """
+    Find the bounding box of a mask.
+
+    Args:
+        mask (np.ndarray[bool]):
+
+    Returns:
+        result (tuple[slice]): The slices of the bounding in all dimensions.
+
+    Examples:
+        >>> arr = np.array([0, 0, 1, 0, 0, 1, 0], dtype=bool)
+        >>> print(bounding_box(arr > 0))
+        (slice(2, 6, None),)
+        >>> arr = np.array(
+        ...     [[0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0]], dtype=bool)
+        >>> print(bounding_box(arr > 0))
+        (slice(1, 2, None), slice(1, 3, None))
+    """
+    return tuple(
+        slice(np.min(indexes), np.max(indexes) + 1)
+        for indexes in np.where(mask))
+
+
+# ======================================================================
 def apply_mask(
         arr,
         mask,
@@ -4642,11 +4667,9 @@ def apply_mask(
             If int, this is in units of pixels.
             If float, this is proportional to the initial array shape.
             If int or float, uses the same value for all dimensions,
-            unless `unsqueezing` is set to True, in which case, the same value
+            unless `do_unsqueeze` is set to True, in which case, the same value
             is used only for non-singletons, while 0 is used for singletons.
             If Iterable, the size must match `arr` dimensions.
-            If 'use_longest' is True, use the longest dimension for the
-            calculations.
         background (int|float): The value used for masked-out pixels.
         do_unsqueeze (bool): Unsqueeze mask to input.
             If True, use `flyingcircus.num.unsqueeze()` on mask.
@@ -4691,6 +4714,51 @@ def apply_mask(
                 'Cannot apply mask shaped `{}` to array shaped `{}`.'.format(
                     mask.shape, arr.shape))
     return arr
+
+
+# ======================================================================
+def trim(
+        arr,
+        mask,
+        axis=None):
+    """
+    Trim the borders of an array along the specified dimensions.
+
+    Args:
+        arr (np.ndarray): The input array.
+        mask (np.ndarray[bool]): The mask array.
+            The False borders in all dimensions are trimmed away.
+        axis (int|tuple[int]|None): The axis along which to operate.
+
+    Returns:
+        result (np.ndarray): The trimmed array.
+
+    Examples:
+        >>> arr = np.array([0, 0, 1, 0, 0, 1, 0])
+        >>> print(trim(arr, arr > 0))
+        [1 0 0 1]
+        >>> arr = np.array([[0, 0, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
+        >>> print(trim(arr, arr > 0))
+        [[1 1]]
+        >>> print(trim(arr, arr > 0, 0))
+        [[0 1 1 0]]
+        >>> print(trim(arr, arr > 0, 1))
+        [[0 0]
+         [1 1]
+         [0 0]]
+    """
+    assert(mask.shape == arr.shape)
+    if axis is None:
+        axis = set(range(mask.ndim))
+    else:
+        try:
+            iter(axis)
+        except TypeError:
+            axis = (axis,)
+    slices = [
+        slice(None) if i not in axis else slice_
+        for i, slice_ in enumerate(bounding_box(mask))]
+    return arr[slices]
 
 
 # ======================================================================
@@ -5261,6 +5329,7 @@ def linear2angles(
         >>> linear2angles(linear)
 
     """
+    raise NotImplementedError
     assert (linear.shape[0] == linear.shape[1] and linear.ndim == 2)
     n_dim = linear.shape[0]
     n_angles = square_size_to_num_tria(n_dim)
