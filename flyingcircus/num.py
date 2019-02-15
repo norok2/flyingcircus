@@ -3035,10 +3035,7 @@ def entropy(
     """
     # normalize histogram to unity
     hist = hist / np.sum(hist)
-    # skip zero values
-    mask = hist != 0.0
-    log_hist = np.zeros_like(hist)
-    log_hist[mask] = np.log(hist[mask]) / np.log(base)
+    log_hist = apply_at(hist, lambda x: np.log(x) / np.log(base), hist > 0, 0)
     h = -np.sum(hist * log_hist)
     return h
 
