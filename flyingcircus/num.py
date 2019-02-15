@@ -54,6 +54,52 @@ from flyingcircus import HAS_JIT, jit
 
 
 # ======================================================================
+def apply_at(
+        arr,
+        func,
+        mask=None,
+        else_=None,
+        in_place=False):
+    """
+    Apply a function to an array.
+
+    Warning! Depending on the value of `in_place`, this function may alter
+    the input array.
+
+    Args:
+        arr (np.ndarray): The input array.
+        func (callable): The function to use.
+            Must have the signature: func(np.ndarray) -> np.ndarray
+        mask (np.ndarray[bool]): The mask where the function is applied.
+            Must have the same shape as `arr`.
+        else_ (callable|Any|None): The alternate behavior.
+            If callable, this is a function applied to non-masked values.
+            Must have the signature: func(np.ndarray) -> np.ndarray
+            If Any, the value is assigned (through broadcasting) to the
+            non-masked value.
+            If None, the npn-masked value are left untouched.
+        in_place (bool): Determine if the function is applied in-place.
+            If True, the input gets modified.
+            If False, the modification happen on a copy of the input.
+
+    Returns:
+        arr (np.ndarray): The output array.
+    """
+    if not in_place:
+        arr = arr.copy()
+    if mask is not None:
+        arr[mask] = func(arr[mask])
+        if else_ is not None:
+            if callable(else_):
+                arr[~mask] = else_(arr[~mask])
+            else:
+                arr[~mask] = else_
+    else:
+        arr = func(arr)
+    return arr
+
+
+# ======================================================================
 def ndim_slice(
         arr,
         axes=0,
