@@ -84,6 +84,19 @@ def apply_at(
 
     Returns:
         arr (np.ndarray): The output array.
+
+    Examples:
+        >>> arr = np.arange(10) - 5
+        >>> print(arr)
+        [-5 -4 -3 -2 -1  0  1  2  3  4]
+        >>> print(apply_at(arr, np.abs, arr < 0))
+        [5 4 3 2 1 0 1 2 3 4]
+        >>> print(apply_at(arr, np.abs, arr < 2, 0))
+        [5 4 3 2 1 0 1 0 0 0]
+        >>> print(apply_at(arr, np.abs, arr < 0, lambda x: x ** 2, True))
+        [ 5  4  3  2  1  0  1  4  9 16]
+        >>> print(arr)
+        [ 5  4  3  2  1  0  1  4  9 16]
     """
     if not in_place:
         arr = arr.copy()
@@ -95,7 +108,7 @@ def apply_at(
             else:
                 arr[~mask] = else_
     else:
-        arr = func(arr)
+        arr[...] = func(arr)
     return arr
 
 
@@ -790,12 +803,7 @@ def ndot(
     See Also:
         - flyingcircus.num.mdot()
     """
-
-    def _indexes(d):
-        return
-
-    if axis < 0:
-        axis += arr.ndim
+    axis = axis % arr.ndim
     mask = tuple(
         slice(None) if j != axis else slicing for j in range(arr.ndim))
     s_dim = arr[mask].shape[axis]
