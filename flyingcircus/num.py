@@ -940,7 +940,8 @@ def p_norm(
 # ======================================================================
 def normalize(
         arr,
-        normalization=np.linalg.norm):
+        normalization=np.linalg.norm,
+        in_place=False):
     """
     Compute the normalized array, i.e. the array divided by its non-zero norm.
 
@@ -951,6 +952,9 @@ def normalize(
         normalization (callable): The normalization function.
             Must have the following signature:
             normalization(np.ndarray) -> float
+        in_place (bool): Determine if the function is applied in-place.
+            If True, the input gets modified.
+            If False, the modification happen on a copy of the input.
 
     Returns:
         arr (np.ndarray): The normalized array.
@@ -966,9 +970,21 @@ def normalize(
         array([0.5, 0.5, 0.5, 0.5])
         >>> normalize(np.ones(8), lambda x: p_norm(x, 3))
         array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+        >>> arr = np.array([3.0, 4.0])
+        >>> print(arr)
+        [3. 4.]
+        >>> print(normalize(arr, in_place=True))
+        [0.6 0.8]
+        >>> print(arr)
+        [0.6 0.8]
     """
     norm = normalization(arr)
-    return arr / norm if norm else arr
+    if norm:
+        if in_place:
+            arr /= norm
+        else:
+            arr = arr / norm
+    return arr
 
 
 # ======================================================================
@@ -996,7 +1012,7 @@ def vectors2direction(
     """
     direction = np.array(vector2).ravel() - np.array(vector1).ravel()
     if normalized:
-        direction = normalize(direction)
+        direction = normalize(direction, in_place=True)
     return direction
 
 
@@ -1404,6 +1420,13 @@ def is_in_range(
         in_range (bool): The result of the comparison.
             True if all values of the array are within the interval.
             False otherwise.
+
+    Examples:
+        >>> arr = np.arange(10)
+        >>> is_in_range(arr, [-10, 10])
+        True
+        >>> is_in_range(arr, [1, 10])
+        False
     """
     interval = valid_interval(interval)
     if include_extrema:
