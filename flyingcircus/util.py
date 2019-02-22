@@ -4169,10 +4169,85 @@ def strip_decorator(
 
 
 # ======================================================================
+def to_bool(
+        text,
+        mappings=(('false', 'true'), ('0', '1'), ('off', 'on')),
+        case_sensitive=False,
+        strip=True):
+    """
+    Conversion to boolean value.
+
+    This is especially useful to interpret strings are booleans.
+
+    Args:
+        text (str|Any): The input value.
+            If not string, attempt the built-in `bool()` casting.
+        mappings (Iterable[Iterable]): The string values to map as boolean.
+            Each item consists of an iterable. Within the inner iterable,
+            the first element is mapped to False and all other elements map
+            to True.
+        case_sensitive (bool): Perform case-sensitive comparison.
+        strip (bool): Strip whitespaces from input string.
+            If input is not `str`, it has no effect.
+
+    Returns:
+        result (bool): The value converted to boolean.
+
+    Raises:
+        ValueError: if the conversion to boolen fails.
+
+    Examples:
+        >>> to_bool('false')
+        False
+        >>> to_bool('true')
+        True
+        >>> to_bool('0')
+        False
+        >>> to_bool('off')
+        False
+        >>> to_bool('0 ')
+        False
+        >>> to_bool(1)
+        True
+        >>> to_bool(0)
+        False
+        >>> to_bool(0j)
+        False
+        >>> to_bool('False')
+        False
+        >>> to_bool('False', case_sensitive=True)
+        Traceback (most recent call last):
+            ....
+        ValueError: Cannot convert to bool
+        >>> to_bool('False ', strip=False)
+        Traceback (most recent call last):
+            ....
+        ValueError: Cannot convert to bool
+    """
+    if isinstance(text, str):
+        if strip:
+            text = text.strip()
+        if not case_sensitive:
+            text = text.lower()
+            mappings = tuple(
+                tuple(match.lower() for match in mapping)
+                for mapping in mappings)
+        for mapping in mappings:
+            for i, match in enumerate(mapping):
+                if text == match:
+                    return bool(i)
+        else:
+            raise ValueError('Cannot convert to bool')
+    else:
+        return bool(text)
+
+
+# ======================================================================
 def auto_convert(
         text,
         pre_decor=None,
-        post_decor=None):
+        post_decor=None,
+        casts=(int, float, complex, to_bool)):
     """
     Convert value to numeric if possible, or strip delimiters from string.
 
@@ -4180,6 +4255,9 @@ def auto_convert(
         text (str|int|float|complex): The text input string.
         pre_decor (str): initial string decorator.
         post_decor (str): final string decorator.
+        casts (Iterable[callable]): The cast conversion methods.
+            Each callable must be able to perform the desired conversion,
+            or raise either a ValueError or a TypeError on failure.
 
     Returns:
         val (int|float|complex): The numeric value of the string.
@@ -4197,21 +4275,23 @@ def auto_convert(
         1000
         >>> auto_convert(1000.0)
         1000.0
+        >>> auto_convert('False')
+        False
     """
     if isinstance(text, str):
         if pre_decor and post_decor and \
                 has_decorator(text, pre_decor, post_decor):
             text = strip_decorator(text, pre_decor, post_decor)
-        try:
-            val = int(text)
-        except (TypeError, ValueError):
+        val = None
+        for cast in casts:
             try:
-                val = float(text)
+                val = cast(text)
             except (TypeError, ValueError):
-                try:
-                    val = complex(text)
-                except (TypeError, ValueError):
-                    val = text
+                pass
+            else:
+                break
+        if val is None:
+            val = text
     else:
         val = text
     return val
