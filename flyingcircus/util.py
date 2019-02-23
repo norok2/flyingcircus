@@ -4177,7 +4177,9 @@ def to_bool(
     """
     Conversion to boolean value.
 
-    This is especially useful to interpret strings are booleans.
+    This is especially useful to interpret strings are booleans, because
+    the built-in `bool()` method evaluates to False for empty strings and
+    True for non-empty strings.
 
     Args:
         text (str|Any): The input value.
@@ -4194,7 +4196,7 @@ def to_bool(
         result (bool): The value converted to boolean.
 
     Raises:
-        ValueError: if the conversion to boolen fails.
+        ValueError: if the conversion to boolean fails.
 
     Examples:
         >>> to_bool('false')
