@@ -1030,22 +1030,72 @@ def combine_iter_len(
 
 
 # ======================================================================
+def group_by(
+        items,
+        n,
+        truncate=False,
+        fill=None):
+    """
+    Generate grouped items (with constant group size).
+
+    For different handling of the last group for uneven splits, see
+    `flyingcircus.util.grouping()`.
+
+    Args:
+        items (Iterable): The input items.
+        n (int): Number of elements to group together.
+        truncate (bool): Determine how to handle uneven splits.
+            If True, last group is skipped if its length is smaller than `n`.
+        fill (Any): Value to use for fill group.
+            This is only used when `truncate` is False.
+
+    Returns:
+        groups (zip|itertools.zip_longest): Iterable of grouped items.
+            Each group is a tuple regardless of the original container.
+
+    Examples:
+        >>> l = list(range(10))
+        >>> tuple(group_by(l, 4))
+        ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, None, None))
+        >>> tuple(group_by(tuple(l), 2))
+        ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
+        >>> tuple(group_by(l, 4, True))
+        ((0, 1, 2, 3), (4, 5, 6, 7))
+        >>> tuple(group_by(l, 4, False, 0))
+        ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 0, 0))
+
+    See Also:
+        flyingcircus.util.grouping()
+    """
+    # : alternate (slower) implementations
+    # to_zip = tuple(items[i::n] for i in range(n))
+    # to_zip = tuple(itertools.islice(items, i, None, n) for i in range(n))
+    to_zip = [iter(items)] * n
+    if truncate:
+        return zip(*to_zip)
+    else:
+        return itertools.zip_longest(*to_zip, fillvalue=fill)
+
+
+# ======================================================================
 def grouping(
         items,
         splits):
     """
-    Generate a tuple of grouped items.
+    Generate grouped items (with varying grouping size)
+
+    Note that for integer splits, `group_by()` is a faster alternative.
 
     Args:
         items (Iterable): The input items.
         splits (int|Iterable[int]): Grouping information.
-            If Iterable, each group (except the last) has the number of
-            elements specified.
-            If int, all groups (except the last, which may have less items)
-            has the same number of elements.
+            If Iterable, each group has the number of elements specified.
+            If int, all groups have the same number of elements.
+            The last group will have the remaing items (if any).
 
-    Returns:
-        groups (tuple[Iterable]): Grouped items from the source.
+    Yields:
+        group (Iterable): The items from the grouping.
+            Its container matches the one of `items`.
 
     Examples:
         >>> l = list(range(10))
@@ -1057,8 +1107,13 @@ def grouping(
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
         >>> tuple(grouping(l, (2, 4, 1, 20)))
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
-        >>> tuple(grouping(tuple(l), 2))
-        ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
+        >>> tuple(grouping(tuple(l), 4))
+        ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9))
+        >>> tuple(grouping(tuple(l), 2)) == tuple(group_by(l, 2))
+        True
+
+    See Also:
+        flyingcircus.util.group_by()
     """
     if isinstance(splits, int):
         splits = auto_repeat(splits, len(items) // splits)
