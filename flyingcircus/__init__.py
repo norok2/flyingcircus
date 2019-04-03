@@ -22,7 +22,7 @@ import pkg_resources  # Manage package resource (from setuptools module)
 # ======================================================================
 # :: External Imports
 # import flyingcircus as fc
-# from flyingcircus import msg, dbg, elapsed, report,
+# from flyingcircus import msg, dbg, elapsed, report
 
 # ======================================================================
 # :: Version
@@ -379,6 +379,13 @@ def pkg_paths(
 
 # ======================================================================
 PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
+
+
+# ======================================================================
+# : populate flyingcircus namespace with submodules
+import flyingcircus.util
+import flyingcircus.num
+
 
 # ======================================================================
 elapsed()
