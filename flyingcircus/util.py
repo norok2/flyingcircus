@@ -2324,6 +2324,123 @@ def lcm(*nums):
 
 
 # ======================================================================
+def next_mean(
+        value,
+        mean,
+        num):
+    """
+    Compute the mean for (n + 1) items.
+
+    This is useful for low memory footprint computation of the mean.
+
+    Args:
+        value (Any): The next to consider.
+        mean (Any): The aggregate mean of the previous n items.
+        n (int): The number of items in the aggregate.
+
+    Returns:
+        mean (Any): The updated mean.
+
+    Examples:
+        >>> mean = 0.0
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     mean = next_mean(val, mean, i)
+        >>> print(mean)
+        9.0
+    """
+    return (num * mean + value) / (num + 1)
+
+
+# ======================================================================
+def next_mean_var(
+        value,
+        mean,
+        var,
+        num):
+    """
+    Compute the mean and variance for (n + 1) items.
+
+    This is useful for low memory footprint computation of the variance.
+
+    Note that both mean and variance MUST be updated at each iteration,
+    therefore a stand-alone `next_mean_var()` is sub-optimal.
+
+    Args:
+        value (Any): The next value to consider.
+        mean (Any): The aggregate mean of the previous n items.
+        var (Any): The aggregate variance of the previous n items.
+        num (int): The number of items in the aggregate.
+
+    Returns:
+        mean (Any): The tuple
+            contains:
+             - mean (Any): The updated mean.
+             - var (Any): The updated variance.
+
+    Examples:
+        >>> mean, var = 0.0, 0.0
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     mean, var = next_mean_var(val, mean, var, i)
+        >>> print(mean, var)
+        9.0 33.0
+    """
+    last = mean
+    mean = next_mean(value, mean, num)
+    var = ((var * num) + (value - last) * (value - mean)) / (num + 1)
+    return mean, var
+
+
+# ======================================================================
+def next_mean_mvar(
+        value,
+        mean=0.0,
+        mvar=0.0,
+        n=0):
+    """
+    Compute the mean and modified variance for (n + 1) items.
+
+    The modified variance is the variance multiplied by the number of items:
+
+    mvar = var * n
+
+    This is useful for low memory footprint computation of the variance
+    with a numerically stable algorithm.
+
+    Note that both mean and variance MUST be updated at each iteration,
+    therefore a stand-alone `next_mean_var()` is sub-optimal.
+
+    Args:
+        value (Any): The next value to consider.
+        mean (Any): The aggregate mean of the previous n items.
+        mvar (Any): The aggregate modified variance of the previous n items.
+        n (int): The number of items in the aggregate value.
+
+    Returns:
+        mean (Any): The tuple
+            contains:
+             - mean (Any): The updated mean.
+             - mvar (Any): The updated modified variance.
+
+    Examples:
+        >>> mean, mvar = 0.0, 0.0
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     mean, mvar = next_mean_mvar(val, mean, mvar, i)
+        >>> var = mvar / (i + 1)
+        >>> print(mean, var)
+        9.0 33.0
+
+    References:
+         - Welford, B.P. (1962). "Note on a method for calculating corrected
+           sums of squares and products". Technometrics 4(3):419–420.
+           doi:10.2307/1266577
+    """
+    last = mean
+    mean = next_mean(value, mean, n)
+    mvar = (mvar + (value - last) * (value - mean))
+    return mean, mvar
+
+
+# ======================================================================
 def num_align(
         num,
         align='pow2',
