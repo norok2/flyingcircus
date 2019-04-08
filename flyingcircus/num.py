@@ -1873,14 +1873,18 @@ def ravel_clean(
 
 
 # ======================================================================
-def dftn(arr):
+def dftn(
+        arr,
+        axes=None):
     """
     Discrete Fourier Transform.
 
-    Interface to fftn combined with fftshift.
+    Interface to fftn combined with appropriate shifts.
 
     Args:
         arr (np.ndarray): Input n-dim array.
+        axes (Iterable[int]|None): The axes along which to operate.
+            If None, operate on all axes.
 
     Returns:
         arr (np.ndarray): Output n-dim array.
@@ -1888,25 +1892,29 @@ def dftn(arr):
     Examples:
         >>> a = np.arange(2)
         >>> dftn(a)
-        array([-1.+0.j,  1.+0.j])
+        array([1.+0.j, 1.+0.j])
         >>> print(np.allclose(a, dftn(idftn(a))))
         True
 
     See Also:
         numpy.fft, scipy.fftpack
     """
-    return fftshift(fftn(arr))
+    return fftshift(fftn(ifftshift(arr, axes=axes), axes=axes), axes=axes)
 
 
 # ======================================================================
-def idftn(arr):
+def idftn(
+        arr,
+        axes=None):
     """
     Inverse Discrete Fourier transform.
 
-    Interface to ifftn combined with ifftshift.
+    Interface to ifftn combined with appropriate shifts.
 
     Args:
         arr (np.ndarray): Input n-dim array.
+        axes (Iterable[int]|None): The axes along which to operate.
+            If None, operate on all axes.
 
     Returns:
         arr (np.ndarray): Output n-dim array.
@@ -1921,7 +1929,7 @@ def idftn(arr):
     See Also:
         numpy.fft, scipy.fftpack
     """
-    return ifftn(ifftshift(arr))
+    return fftshift(ifftn(ifftshift(arr, axes=axes), axes=axes), axes=axes)
 
 
 # ======================================================================
