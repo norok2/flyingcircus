@@ -54,6 +54,30 @@ from flyingcircus import HAS_JIT, jit
 
 
 # ======================================================================
+def arange_nd(shape):
+    """
+    Generate sequential numbers shaped in a n-dim array.
+
+    This is useful for quick testing purposes.
+
+    Args:
+        shape (Iterable[int]): The final shape of the array.
+
+    Returns:
+        result (np.ndarray): The n-dim array with sequential values.
+
+    Examples:
+        >>> print(arange_nd((2, 2)))
+        [[0 1]
+         [2 3]]
+        >>> print(arange_nd((2, 10)))
+        [[ 0  1  2  3  4  5  6  7  8  9]
+         [10 11 12 13 14 15 16 17 18 19]]
+    """
+    return np.arange(util.prod(shape)).reshape(shape)
+
+
+# ======================================================================
 def apply_at(
         arr,
         func,
