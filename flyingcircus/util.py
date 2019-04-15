@@ -5183,7 +5183,7 @@ def is_percent(text):
         True
         >>> print(is_percent('421.43'))
         False
-        >>> print(is_percent('ciao421.43'))
+        >>> print(is_percent('ciao421.43%'))
         False
     """
     return \
@@ -5219,7 +5219,7 @@ def to_percent(text):
         0.001
         >>> print(to_percent('421.43'))
         None
-        >>> print(to_percent('ciao421.43'))
+        >>> print(to_percent('ciao421.43%'))
         None
     """
     match = re.match(r'[+-]?\d*(?:\.\d*)?(?:[eE][+-]?\d+)?%', text.strip())
