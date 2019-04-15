@@ -219,7 +219,7 @@ def range1(
         start, stop = first, second
     if not step:
         step = 1 if start < stop else -1
-    stop = stop + step * (1 if (start - stop) % step == 0 else 0)
+    stop = stop + (step if (start - stop) % step == 0 else 0)
     return range(start, stop, step)
 
 
