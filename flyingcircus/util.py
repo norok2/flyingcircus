@@ -5154,6 +5154,82 @@ def is_same_sign(items):
 
 
 # ======================================================================
+def is_percent(text):
+    """
+    Determine if the input string contains a percent value.
+
+    Args:
+        text (str): The input string.
+
+    Returns:
+        result (bool): The result of the check.
+            True if the input contains a valid percentage.
+            False otherwise.
+
+    Examples:
+        >>> print(is_percent('100%'))
+        True
+        >>> print(is_percent('0.5%'))
+        True
+        >>> print(is_percent('421.43%'))
+        True
+        >>> print(is_percent('-433%'))
+        True
+        >>> print(is_percent('421.%'))
+        True
+        >>> print(is_percent('.5%'))
+        True
+        >>> print(is_percent('1.e2%'))
+        True
+        >>> print(is_percent('421.43'))
+        False
+        >>> print(is_percent('ciao421.43'))
+        False
+    """
+    return \
+        (isinstance(text, str)
+         and re.match(r'[+-]?\d*(?:\.\d*)?(?:[eE][+-]?\d+)?%', text.strip())
+         is not None)
+
+
+# ======================================================================
+def to_percent(text):
+    """
+    Convert the input string to a float value as percentage.
+
+    Args:
+        text (str): The input string.
+
+    Returns:
+        result (float|None): The percent value.
+            If the input is invalid, returns None.
+
+    Examples:
+        >>> print(to_percent('100%'))
+        1.0
+        >>> print(to_percent('0.5%'))
+        0.005
+        >>> print(to_percent('421.43%'))
+        4.2143
+        >>> print(to_percent('-433%'))
+        -4.33
+        >>> print(to_percent('421.%'))
+        4.21
+        >>> print(to_percent('.1%'))
+        0.001
+        >>> print(to_percent('421.43'))
+        None
+        >>> print(to_percent('ciao421.43'))
+        None
+    """
+    match = re.match(r'[+-]?\d*(?:\.\d*)?(?:[eE][+-]?\d+)?%', text.strip())
+    if match:
+        return float(match.string[:-1]) / 100
+    else:
+        return None
+
+
+# ======================================================================
 elapsed(__file__[len(PATH['base']) + 1:])
 
 # ======================================================================
