@@ -162,6 +162,68 @@ def _is_special(stats_mode):
 
 
 # ======================================================================
+def range1(
+        first,
+        second=None,
+        step=None):
+    """
+    Range for 1-based indexing.
+
+    This is useful to produce 1-based ranges, which start from 1 and include
+    the `stop` element (if the `step` parameter allows).
+
+    Args:
+        first (int): The first value of the range.
+            Must be non-negative.
+            If `second == None` this is the `stop` value is included
+            if `step` is a multiple of the length of the sequence.
+            Otherwise, this is the start value and is included.
+            If `first < second` the sequence is yielded backwards.
+        second (int|None): The second value of the range.
+            If None, the start value is 1.
+            Otherwise, this is the stop value and is included
+            if `step` is a multiple of the length of the sequence.
+            If `first < second` the sequence is yielded backwards.
+        step (int): The step of the rows range.
+            If the sequence is yielded backward, the step should be negative,
+            otherwise an empty sequence is yielded.
+            If None, this is computed automatically based on `first` and
+            `second`, such that a non-empty sequence is avoided, if possible.
+
+    Returns:
+        result (range): The 1-based range.
+
+    Examples:
+        >>> print(list(range1(10)))
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> print(list(range1(1, 10)))
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> print(list(range1(-1, 10)))
+        [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> print(list(range1(-1, 9, 2)))
+        [-1, 1, 3, 5, 7, 9]
+        >>> print(list(range1(-1, 10, 2)))
+        [-1, 1, 3, 5, 7, 9]
+        >>> print(list(range1(10, 1)))
+        [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+        >>> print(list(range1(10, 1, -2)))
+        [10, 8, 6, 4, 2]
+        >>> print(list(range1(-1, -10, -2)))
+        [-1, -3, -5, -7, -9]
+        >>> print(list(range1(-1, -11, -2)))
+        [-1, -3, -5, -7, -9, -11]
+    """
+    if second is None:
+        start, stop = 1, first
+    else:
+        start, stop = first, second
+    if not step:
+        step = 1 if start < stop else -1
+    stop = stop + step * (1 if (start - stop) % step == 0 else 0)
+    return range(start, stop, step)
+
+
+# ======================================================================
 def read_stream(
         in_file,
         dtype,
