@@ -2496,19 +2496,89 @@ def lcm(*nums):
 
 
 # ======================================================================
+def mean(items):
+    """
+    Calculate the mean of arbitrary items.
+
+    For iterative computation see `flyingcircus.util.next_mean()`.
+
+    This is substantially faster than `statistics.mean()`.
+
+    Args:
+        items (Iterable): The input items.
+
+    Returns:
+        result: The mean of the items.
+
+    Examples:
+        >>> mean(range(0, 20, 2))
+        9.0
+    """
+    return sum(items) / len(items)
+
+
+# ======================================================================
+def var(items):
+    """
+    Calculate the variance of arbitrary items.
+
+    For iterative computation see `flyingcircus.util.next_mean_var()` and
+    `flyingcircus.util.next_mean_sosd()`.
+
+    This is substantially faster than `statistics.variance()`.
+
+    Args:
+        items (Iterable): The input items.
+
+    Returns:
+        result: The variance of the items.
+
+    Examples:
+        >>> var(range(0, 20, 2))
+        33.0
+    """
+    mean_ = mean(items)
+    return sum((i - mean_) ** 2 for i in items) / len(items)
+
+
+# ======================================================================
+def stdev(
+        items,
+        ddof=0):
+    """
+    Calculate the standard deviation of arbitrary items.
+
+    This is substantially faster than `statistics.stdev()`.
+
+    Args:
+        items (Iterable): The input items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result: The standard deviation of the items.
+
+    Examples:
+        >>> var(range(0, 20, 2))
+        33.0
+    """
+    mean_ = mean(items)
+    return (sum((i - mean_) ** 2 for i in items) / (len(items) - ddof)) ** 0.5
+
+
+# ======================================================================
 def next_mean(
         value,
-        mean,
+        mean_,
         num):
     """
-    Compute the mean for (n + 1) items.
+    Compute the mean for (num + 1) items.
 
     This is useful for low memory footprint computation of the mean.
 
     Args:
         value (Any): The next to consider.
-        mean (Any): The aggregate mean of the previous n items.
-        n (int): The number of items in the aggregate.
+        mean_ (Any): The aggregate mean of the previous n items.
+        num (int): The number of items in the aggregate.
 
     Returns:
         mean (Any): The updated mean.
@@ -2520,27 +2590,27 @@ def next_mean(
         >>> print(mean)
         9.0
     """
-    return (num * mean + value) / (num + 1)
+    return (num * mean_ + value) / (num + 1)
 
 
 # ======================================================================
 def next_mean_var(
         value,
-        mean,
-        var,
+        mean_,
+        var_,
         num):
     """
-    Compute the mean and variance for (n + 1) items.
+    Compute the mean and variance for (num + 1) items.
 
     This is useful for low memory footprint computation of the variance.
 
     Note that both mean and variance MUST be updated at each iteration,
-    therefore a stand-alone `next_mean_var()` is sub-optimal.
+    therefore a stand-alone `next_var()` is sub-optimal.
 
     Args:
         value (Any): The next value to consider.
-        mean (Any): The aggregate mean of the previous n items.
-        var (Any): The aggregate variance of the previous n items.
+        mean_ (Any): The aggregate mean of the previous n items.
+        var_ (Any): The aggregate variance of the previous n items.
         num (int): The number of items in the aggregate.
 
     Returns:
@@ -2556,60 +2626,101 @@ def next_mean_var(
         >>> print(mean, var)
         9.0 33.0
     """
-    last = mean
-    mean = next_mean(value, mean, num)
-    var = ((var * num) + (value - last) * (value - mean)) / (num + 1)
-    return mean, var
+    last = mean_
+    mean_ = next_mean(value, mean_, num)
+    var_ = ((var_ * num) + (value - last) * (value - mean_)) / (num + 1)
+    return mean_, var_
 
 
 # ======================================================================
-def next_mean_mvar(
+def next_mean_sosd(
         value,
-        mean=0.0,
-        mvar=0.0,
-        n=0):
+        mean_,
+        sosd,
+        num=0):
     """
-    Compute the mean and modified variance for (n + 1) items.
+    Compute the mean and sum-of-squared-deviations for (num + 1) items.
 
-    The modified variance is the variance multiplied by the number of items:
+    The sum is the variance multiplied by the number of items:
 
-    mvar = var * n
+    sosd = sum((x_i - mu) ** 2)
+    sosd = var * n
 
     This is useful for low memory footprint computation of the variance
     with a numerically stable algorithm.
 
     Note that both mean and variance MUST be updated at each iteration,
-    therefore a stand-alone `next_mean_var()` is sub-optimal.
+    therefore a stand-alone `next_var()` is sub-optimal.
 
     Args:
         value (Any): The next value to consider.
-        mean (Any): The aggregate mean of the previous n items.
-        mvar (Any): The aggregate modified variance of the previous n items.
-        n (int): The number of items in the aggregate value.
+        mean_ (Any): The aggregate mean of the previous n items.
+        sosd (Any): The aggregate modified variance of the previous n items.
+        num (int): The number of items in the aggregate value.
 
     Returns:
         mean (Any): The tuple
             contains:
              - mean (Any): The updated mean.
-             - mvar (Any): The updated modified variance.
+             - sosd (Any): The updated sum-of-squared-deviations.
 
     Examples:
-        >>> mean, mvar = 0.0, 0.0
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     mean, mvar = next_mean_mvar(val, mean, mvar, i)
-        >>> var = mvar / (i + 1)
-        >>> print(mean, var)
-        9.0 33.0
+        >>> mean_, mvar = 0.0, 0.0
+        >>> items = range(0, 20, 2)
+        >>> for i, val in enumerate(items):
+        ...     mean_, mvar = next_mean_sosd(val, mean_, mvar, i)
+        >>> var_ = sosd2var(mvar, i + 1)
+        >>> stdev_ = sosd2stdev(mvar, i + 1)
+        >>> print(mean_, var_, round(stdev_, 3))
+        9.0 33.0 5.745
+        >>> print(mean(items), var(items), round(stdev(items), 3))
+        9.0 33.0 5.745
 
     References:
          - Welford, B.P. (1962). "Note on a method for calculating corrected
            sums of squares and products". Technometrics 4(3):419–420.
            doi:10.2307/1266577
     """
-    last = mean
-    mean = next_mean(value, mean, n)
-    mvar = (mvar + (value - last) * (value - mean))
-    return mean, mvar
+    last = mean_
+    mean_ = next_mean(value, mean_, num)
+    sosd = (sosd + (value - last) * (value - mean_))
+    return mean_, sosd
+
+
+# ======================================================================
+def sosd2var(
+        sosd,
+        num):
+    """
+    Compute the variance from the sum-of-squared-deviations.
+
+    Args:
+        sosd (int|float): The sum-of-squared-deviations value.
+        num (int): The number of items.
+
+    Returns:
+        result: The variance value.
+    """
+    return sosd / num
+
+
+# ======================================================================
+def sosd2stdev(
+        sosd,
+        num,
+        ddof=0):
+    """
+    Compute the standard deviation from the sum-of-squared-deviations.
+
+    Args:
+        sosd (int|float): The sum-of-squared-deviations value.
+        num (int): The number of items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+
+    """
+    return (sosd / (num - ddof)) ** 0.5
 
 
 # ======================================================================
