@@ -208,9 +208,96 @@ def ndim_slice(
 
 
 # ======================================================================
-def slice_swap(a_slice):
+def nd_windowing(
+        arr,
+        sizes):
     """
-    Swap the `start` and `stop` attributes of a slice.
+    Generate a N-dimensional windowing of an array.
+
+    Args:
+        arr (np.ndarray): The input array.
+        sizes (Iterable[int]): The windowing sizes.
+
+    Returns:
+        result (np.ndarray): The windowing array.
+            This has shape equal to `arr.shape` + `sizes`.
+
+    Examples:
+        >>> arr = arange_nd((2, 3, 4))
+        >>> new_arr = nd_windowing(arr, (1, 2, 2))
+        >>> print(new_arr.shape)
+        (2, 2, 3, 1, 2, 2)
+        >>> print(new_arr)
+        [[[[[[ 0  1]
+             [ 4  5]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[ 1  2]
+             [ 5  6]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[ 2  3]
+             [ 6  7]]]]
+        <BLANKLINE>
+        <BLANKLINE>
+        <BLANKLINE>
+          [[[[ 4  5]
+             [ 8  9]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[ 5  6]
+             [ 9 10]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[ 6  7]
+             [10 11]]]]]
+        <BLANKLINE>
+        <BLANKLINE>
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[[[12 13]
+             [16 17]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[13 14]
+             [17 18]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[14 15]
+             [18 19]]]]
+        <BLANKLINE>
+        <BLANKLINE>
+        <BLANKLINE>
+          [[[[16 17]
+             [20 21]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[17 18]
+             [21 22]]]
+        <BLANKLINE>
+        <BLANKLINE>
+           [[[18 19]
+             [22 23]]]]]]
+    """
+    sizes = util.auto_repeat(sizes, arr.ndim)
+    result = np.zeros(
+        tuple(d - s + 1 for d, s in zip(arr.shape, sizes))
+        + arr.shape[len(sizes):] + sizes, dtype=arr.dtype)
+    for i, j in enumerate(itertools.product(*(range(k) for k in sizes))):
+        slicing = tuple(
+            slice(k, d - s + k + 1) for d, s, k in zip(arr.shape, sizes, j))
+        untouched = tuple(slice(None) for _ in range(arr.ndim - len(sizes)))
+        result[(slice(None),) * len(sizes) + untouched + j] = \
+            arr[slicing + untouched]
+    return result
+
+
+# ======================================================================
+def slice_reverse(a_slice):
+    """
+    Reverse a slice.
+
+    This is achieved by swapping its `start` and `stop` attributes.
 
     If `step` is specified, `-step` is used as new `step`.
 
@@ -221,9 +308,9 @@ def slice_swap(a_slice):
         r_slice (slice): The output slice.
 
     Examples:
-        >>> slice_swap(slice(10, 20))
+        >>> slice_reverse(slice(10, 20))
         slice(20, 10, None)
-        >>> slice_swap(slice(10, 20, 2))
+        >>> slice_reverse(slice(10, 20, 2))
         slice(20, 10, -2)
     """
     return slice(
@@ -349,10 +436,10 @@ def compute_edge_weights(
                 **weighting_kws),
             weighting(
                 arr[tuple(
-                    slice(None) if i != j else slice_swap(windows[0])
+                    slice(None) if i != j else slice_reverse(windows[0])
                     for j in range(arr.ndim))],
                 arr[tuple(
-                    slice(None) if i != j else slice_swap(windows[1])
+                    slice(None) if i != j else slice_reverse(windows[1])
                     for j in range(arr.ndim))],
                 **weighting_kws)
             if circular else
@@ -370,7 +457,7 @@ def compute_edge_weights(
                     slice(None) if i != j else window
                     for j in range(idx_arr.ndim))],
                 idx_arr[tuple(
-                    slice(None) if i != j else slice_swap(window)
+                    slice(None) if i != j else slice_reverse(window)
                     for j in range(idx_arr.ndim))]
                 if circular else
                 np.full(tuple(
