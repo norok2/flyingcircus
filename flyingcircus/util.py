@@ -1093,6 +1093,60 @@ def combine_iter_len(
 
 
 # ======================================================================
+def window(
+        items,
+        size=2,
+        step=None,
+        fill=None):
+    """
+    Generate a sliding window across the items.
+
+    This can be used, for example, to compute running/moving/rolling statics.
+
+    Args:
+        items (Iterable): The input items.
+        size (int): The windowing size.
+        step (int|None): The windowing step.
+            If int, must be larger than 0.
+            If None, uses a step equal to 1 and will not go beyond last item.
+        fill: The value to use to fill in window past the end of items.
+            This is used only if step is not None.
+
+    Returns:
+        result (zip|itertools.zip_longest): Iterable of items within window.
+
+    Examples:
+        >>> tuple(window(range(8), 2))
+        ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7))
+        >>> tuple(window(range(8), 3))
+        ((0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (5, 6, 7))
+        >>> tuple(window(range(8), 3, 2))
+        ((0, 1, 2), (2, 3, 4), (4, 5, 6), (6, 7, None))
+        >>> tuple(
+        ...     x for x in window(range(8), 3, 2)
+        ...     if not any([y is None for y in x]))
+        ((0, 1, 2), (2, 3, 4), (4, 5, 6))
+        >>> tuple(window(range(8), 2, 1))
+        ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, None))
+        >>> tuple(window(range(8), 1))
+        ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
+        >>> tuple(window(range(8), 1, 1))
+        ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
+    """
+    # : alternate (slightly faster, but less flexible: no step) implementation
+    # def consumed(iterator, n):
+    #     next(itertools.islice(iterator, n, n), None)
+    #     return iterator
+    # iterators = [consumed(iter(items), i) for i in range(size)]
+    iterators = [
+        itertools.islice(iter(items), i, None, step) for i in range(size)]
+    if step:
+        return itertools.zip_longest(*iterators, fillvalue=fill)
+    else:
+        return zip(*iterators)
+
+
+# ======================================================================
 def group_by(
         items,
         n,
@@ -1131,13 +1185,13 @@ def group_by(
         flyingcircus.util.grouping()
     """
     # : alternate (slower) implementations
-    # to_zip = tuple(items[i::n] for i in range(n))
-    # to_zip = tuple(itertools.islice(items, i, None, n) for i in range(n))
-    to_zip = [iter(items)] * n
+    # iterators = tuple(items[i::n] for i in range(n))
+    # iterators = tuple(itertools.islice(items, i, None, n) for i in range(n))
+    iterators = [iter(items)] * n
     if truncate:
-        return zip(*to_zip)
+        return zip(*iterators)
     else:
-        return itertools.zip_longest(*to_zip, fillvalue=fill)
+        return itertools.zip_longest(*iterators, fillvalue=fill)
 
 
 # ======================================================================
