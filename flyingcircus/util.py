@@ -169,8 +169,9 @@ def range1(
     """
     Range for 1-based indexing.
 
-    This is useful to produce 1-based ranges, which start from 1 and include
-    the `stop` element (if the `step` parameter allows).
+    This is useful to produce 1-based ranges, which start from 1 (if `start`
+    is not specified) and include the `stop` element (if the `step` parameter
+    allows).
 
     Args:
         first (int): The first value of the range.
