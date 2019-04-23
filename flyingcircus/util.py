@@ -2500,15 +2500,18 @@ def mean(items):
     """
     Calculate the mean of arbitrary items.
 
-    For iterative computation see `flyingcircus.util.next_mean()`.
+    For iterative computation see:
+     - `flyingcircus.util.next_mean()`
+     - `flyingcircus.util.imean()`
 
     This is substantially faster than `statistics.mean()`.
 
     Args:
         items (Iterable): The input items.
+            The iterable must support `len()`.
 
     Returns:
-        result: The mean of the items.
+        result (Any): The mean of the items.
 
     Examples:
         >>> mean(range(0, 20, 2))
@@ -2522,16 +2525,19 @@ def var(items):
     """
     Calculate the variance of arbitrary items.
 
-    For iterative computation see `flyingcircus.util.next_mean_var()` and
-    `flyingcircus.util.next_mean_sosd()`.
+    For iterative computation see:
+     - `flyingcircus.util.next_mean_var()`
+     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.util.ivar()`
 
     This is substantially faster than `statistics.variance()`.
 
     Args:
         items (Iterable): The input items.
+            The iterable must support `len()`.
 
     Returns:
-        result: The variance of the items.
+        result (Any): The variance of the items.
 
     Examples:
         >>> var(range(0, 20, 2))
@@ -2542,24 +2548,60 @@ def var(items):
 
 
 # ======================================================================
+def mean_var(items):
+    """
+    Calculate the variance of arbitrary items.
+
+    For iterative computation see:
+     - `flyingcircus.util.next_mean_var()`
+     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.util.ivar()`
+
+    This is substantially faster than `statistics.variance()`.
+
+    Args:
+        items (Iterable): The input items.
+            The iterable must support `len()`.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_`: The mean of the items.
+             - `var_`: The variance of the items.
+
+    Examples:
+        >>> mean_var(range(0, 20, 2))
+        (9.0, 33.0)
+    """
+    mean_ = mean(items)
+    return mean_, sum((i - mean_) ** 2 for i in items) / len(items)
+
+
+# ======================================================================
 def stdev(
         items,
         ddof=0):
     """
     Calculate the standard deviation of arbitrary items.
 
+    For iterative computation see:
+     - `flyingcircus.util.next_mean_var()`
+     - `flyingcircus.util.next_mean_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.util.istdev()`
+
     This is substantially faster than `statistics.stdev()`.
 
     Args:
         items (Iterable): The input items.
+            The iterable must support `len()`.
         ddof (int): The number of degrees of freedom.
 
     Returns:
-        result: The standard deviation of the items.
+        result (Any): The standard deviation of the items.
 
     Examples:
-        >>> var(range(0, 20, 2))
-        33.0
+        >>> round(stdev(range(0, 20, 2)), 3)
+        5.745
     """
     mean_ = mean(items)
     return (sum((i - mean_) ** 2 for i in items) / (len(items) - ddof)) ** 0.5
@@ -2665,12 +2707,12 @@ def next_mean_sosd(
              - sosd (Any): The updated sum-of-squared-deviations.
 
     Examples:
-        >>> mean_, mvar = 0.0, 0.0
+        >>> mean_, sosd = 0.0, 0.0
         >>> items = range(0, 20, 2)
         >>> for i, val in enumerate(items):
-        ...     mean_, mvar = next_mean_sosd(val, mean_, mvar, i)
-        >>> var_ = sosd2var(mvar, i + 1)
-        >>> stdev_ = sosd2stdev(mvar, i + 1)
+        ...     mean_, sosd = next_mean_sosd(val, mean_, sosd, i)
+        >>> var_ = sosd2var(sosd, i + 1)
+        >>> stdev_ = sosd2stdev(sosd, i + 1)
         >>> print(mean_, var_, round(stdev_, 3))
         9.0 33.0 5.745
         >>> print(mean(items), var(items), round(stdev(items), 3))
@@ -2695,11 +2737,11 @@ def sosd2var(
     Compute the variance from the sum-of-squared-deviations.
 
     Args:
-        sosd (int|float): The sum-of-squared-deviations value.
+        sosd (Any): The sum-of-squared-deviations value.
         num (int): The number of items.
 
     Returns:
-        result: The variance value.
+        result (Any): The variance value.
     """
     return sosd / num
 
@@ -2713,14 +2755,163 @@ def sosd2stdev(
     Compute the standard deviation from the sum-of-squared-deviations.
 
     Args:
-        sosd (int|float): The sum-of-squared-deviations value.
+        sosd (Any): The sum-of-squared-deviations value.
         num (int): The number of items.
         ddof (int): The number of degrees of freedom.
 
     Returns:
-
+        result: The standard deviation value.
     """
     return (sosd / (num - ddof)) ** 0.5
+
+
+# ======================================================================
+def i_mean(
+        items,
+        mean_=0.0,
+        num=0):
+    """
+    Calculate the mean of arbitrary items.
+
+    For iterative computation see:
+     - `flyingcircus.util.next_mean()`
+     - `flyingcircus.util.imean()`
+
+    This is substantially faster than `statistics.mean()`.
+
+    Args:
+        items (Iterable): The input items.
+            The iterable is not required to support `len()`.
+        mean_ (Any): The start mean value.
+        num (int): The number of items included in the start mean value.
+
+    Returns:
+        result: The mean of the items.
+
+    Examples:
+        >>> i_mean(range(0, 20, 2))
+        9.0
+    """
+    for i, item in enumerate(items):
+        mean_ = next_mean(item, mean_, i + num)
+    return mean_
+
+
+# ======================================================================
+def i_var(
+        items,
+        mean_=0.0,
+        var_=0.0,
+        num=0):
+    """
+    Calculate the variance of arbitrary items.
+
+    The length of `items`
+
+    Internally uses `flyingcircus.util.next_mean_sosd()` and
+    `flyingcircus.util.sosd2var()`.
+
+    This is substantially faster than `statistics.variance()`.
+
+    Args:
+        items (Iterable): The input items.
+            The iterable is not required to support `len()`.
+        mean_ (Any): The start mean value.
+        var_ (Any): The start variance value.
+        num (int): The number of items included in the start mean value.
+
+    Returns:
+        result: The variance of the items.
+
+    Examples:
+        >>> i_var(range(0, 20, 2))
+        33.0
+    """
+    i = 0
+    sosd = var_ * num
+    for i, item in enumerate(items):
+        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
+    return sosd2var(sosd, i + num + 1)
+
+
+# ======================================================================
+def i_mean_var(
+        items,
+        mean_=0.0,
+        var_=0.0,
+        num=0):
+    """
+    Calculate the variance of arbitrary items.
+
+    For iterative computation see:
+     - `flyingcircus.util.next_mean_var()`
+     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.util.ivar()`
+
+    This is substantially faster than `statistics.variance()`.
+
+    Args:
+        items (Iterable): The input items.
+            The iterable is not required to support `len()`.
+        mean_ (Any): The start mean value.
+        var_ (Any): The start variance value.
+        num (int): The number of items included in the start mean value.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_`: The mean of the items.
+             - `var_`: The variance of the items.
+             - `num`: The number of items.
+
+    Examples:
+        >>> i_mean_var(range(0, 20, 2))
+        (9.0, 33.0, 10)
+    """
+    i = 0
+    sosd = var_ * num
+    for i, item in enumerate(items):
+        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
+    return mean_, sosd2var(sosd, i + num + 1), i + num + 1
+
+
+# ======================================================================
+def i_stdev(
+        items,
+        mean_=0.0,
+        var_=0.0,
+        num=0,
+        ddof=0):
+    """
+    Calculate the standard deviation of arbitrary items.
+
+    For iterative computation see:
+     - `flyingcircus.util.next_mean_var()`
+     - `flyingcircus.util.next_mean_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.util.istdev()`
+
+    This is substantially faster than `statistics.stdev()`.
+
+    Args:
+        items (Iterable): The input items.
+            The iterable is not required to support `len()`.
+        mean_ (Any): The start mean value.
+        var_ (Any): The start variance value.
+        num (int): The number of items included in the start mean value.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result: The standard deviation of the items.
+
+    Examples:
+        >>> round(i_stdev(range(0, 20, 2)), 3)
+        5.745
+    """
+    i = 0
+    sosd = var_ * num
+    for i, item in enumerate(items):
+        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
+    return sosd2stdev(sosd, i + num + 1, ddof)
 
 
 # ======================================================================
