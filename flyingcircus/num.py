@@ -4940,7 +4940,7 @@ def trim(
          [1 1]
          [0 0]]
     """
-    assert(mask.shape == arr.shape)
+    assert (mask.shape == arr.shape)
     if axis is None:
         axis = set(range(mask.ndim))
     else:
@@ -6051,25 +6051,34 @@ def rotation_3d_from_vectors(
 
 
 # ======================================================================
-def rand_mask(
-        arr,
-        density=0.01):
+def random_mask(
+        shape,
+        density=0.5,
+        dtype=bool):
     """
     Calculate a randomly distributed mask of specified density.
 
     Args:
-        arr (np.ndarray): The target array.
+        shape (Iterable[int]): The target array shape.
         density (float): The density of the mask.
             Must be in the (0, 1) interval.
+        dtype (np.dtype): The data type of the resulting array.
 
     Returns:
-        mask
+        mask (np.ndarray[bool]): The rendered geometrical object.
+
+    Examples:
+        >>> import numpy as np
+        >>> np.random.seed(0)
+        >>> print(random_mask((2, 5), 0.5))
+        [[False  True False False False]
+         [ True  True False  True  True]]
     """
+    size = util.prod(shape)
     if not 0 < density < 1:
         raise ValueError('Density must be between 0 and 1')
-    shape = arr.shape
-    mask = np.zeros_like(arr).astype(np.bool).ravel()
-    mask[random.sample(range(arr.size), int(arr.size * density))] = True
+    mask = np.zeros(shape, dtype=dtype).ravel()
+    mask[random.sample(range(size), int(size * density))] = True
     return mask.reshape(shape)
 
 
