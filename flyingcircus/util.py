@@ -2507,8 +2507,8 @@ def mean(items):
     This is substantially faster than `statistics.mean()`.
 
     Args:
-        items (Iterable): The input items.
-            The iterable must support `len()`.
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
 
     Returns:
         result (Any): The mean of the items.
@@ -2533,8 +2533,8 @@ def var(items):
     This is substantially faster than `statistics.variance()`.
 
     Args:
-        items (Iterable): The input items.
-            The iterable must support `len()`.
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
 
     Returns:
         result (Any): The variance of the items.
@@ -2560,8 +2560,8 @@ def mean_var(items):
     This is substantially faster than `statistics.variance()`.
 
     Args:
-        items (Iterable): The input items.
-            The iterable must support `len()`.
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
 
     Returns:
         result (tuple): The tuple
@@ -2592,8 +2592,8 @@ def stdev(
     This is substantially faster than `statistics.stdev()`.
 
     Args:
-        items (Iterable): The input items.
-            The iterable must support `len()`.
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
         ddof (int): The number of degrees of freedom.
 
     Returns:
