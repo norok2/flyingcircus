@@ -565,16 +565,18 @@ def flatten(
 # ======================================================================
 def complement_slice(
         items,
-        slice_):
+        slice_,
+        container=None):
     """
     Extract the elements not matching a given slice.
 
     Args:
         items (Sequence): The input items.
         slice_ (slice): The slice to be complemented.
+        container (callable): The container for the result.
 
-    Yields:
-        item (Any): The item not matching the slice pattern.
+    Returns:
+        result (Sequence): The items not matching the slice pattern.
 
     Examples:
         >>> items = tuple(range(10))
@@ -630,13 +632,27 @@ def complement_slice(
         >>> s = slice(7, 2, -3)
         >>> print(items[s], tuple(complement_slice(items, s)))
         (7, 4) (9, 8, 6, 5, 3, 2, 1, 0)
+
+        >>> items = tuple(1 for i in range(10))
+        >>> s = slice(None, None, 3)
+        >>> print(items[s], tuple(complement_slice(items, s)))
+        (1, 1, 1, 1) (1, 1, 1, 1, 1, 1)
+
+        >>> items = tuple(i % 2 for i in range(10))
+        >>> s = slice(None, None, 3)
+        >>> print(items[s], tuple(complement_slice(items, s)))
+        (0, 1, 0, 1) (1, 0, 0, 1, 1, 0)
     """
-    to_exclude = set(items[slice_])
+    if container is None:
+        container = type(items)
+    to_exclude = set(range(len(items))[slice_])
     step = slice_.step if slice_.step else 1
-    ordering = slice(None) if step >= 0 else slice(None, None, -1)
-    for item in items[ordering]:
-        if item not in to_exclude:
-            yield item
+    result = container(
+        item for i, item in enumerate(items) if i not in to_exclude)
+    if step > 0:
+        return result
+    else:
+        return result[::-1]
 
 
 # ======================================================================
