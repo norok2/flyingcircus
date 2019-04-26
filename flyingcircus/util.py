@@ -642,6 +642,17 @@ def complement_slice(
         >>> s = slice(None, None, 3)
         >>> print(items[s], tuple(complement_slice(items, s)))
         (0, 1, 0, 1) (1, 0, 0, 1, 1, 0)
+
+        >>> ll = list(range(1000))
+        >>> vals = (3, 5, 7, 17, 101)
+        >>> vals += tuple(-x for x in vals) + (None,)
+        >>> print(vals)
+        (3, 5, 7, 17, 101, -3, -5, -7, -17, -101, None)
+        >>> sls = [slice(*x) for x in itertools.product(vals, vals, vals)]
+        >>> all([
+        ...     set(complement_slice(ll, sl)).intersection(ll[sl]) == set()
+        ...     for sl in sls])
+        True
     """
     if container is None:
         container = type(items)
@@ -649,10 +660,7 @@ def complement_slice(
     step = slice_.step if slice_.step else 1
     result = container(
         item for i, item in enumerate(items) if i not in to_exclude)
-    if step > 0:
-        return result
-    else:
-        return result[::-1]
+    return result if step > 0 else result[::-1]
 
 
 # ======================================================================
