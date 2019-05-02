@@ -162,12 +162,12 @@ def _is_special(stats_mode):
 
 
 # ======================================================================
-def range1(
+def span(
         first,
         second=None,
         step=None):
     """
-    Range for 1-based indexing.
+    Span consecutive numbers in a range.
 
     This is useful to produce 1-based ranges, which start from 1 (if `start`
     is not specified) and include the `stop` element (if the `step` parameter
@@ -186,32 +186,32 @@ def range1(
             if `step` is a multiple of the length of the sequence.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
-            If the sequence is yielded backward, the step should be negative,
-            otherwise an empty sequence is yielded.
+            If start > stop, the step parameter should be negative in order
+            to obtain a non-empty range.
             If None, this is computed automatically based on `first` and
             `second`, such that a non-empty sequence is avoided, if possible.
 
     Returns:
-        result (range): The 1-based range.
+        result (range): The spanned range.
 
     Examples:
-        >>> print(list(range1(10)))
+        >>> print(list(span(10)))
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        >>> print(list(range1(1, 10)))
+        >>> print(list(span(1, 10)))
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        >>> print(list(range1(-1, 10)))
+        >>> print(list(span(-1, 10)))
         [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        >>> print(list(range1(-1, 9, 2)))
+        >>> print(list(span(-1, 9, 2)))
         [-1, 1, 3, 5, 7, 9]
-        >>> print(list(range1(-1, 10, 2)))
+        >>> print(list(span(-1, 10, 2)))
         [-1, 1, 3, 5, 7, 9]
-        >>> print(list(range1(10, 1)))
+        >>> print(list(span(10, 1)))
         [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-        >>> print(list(range1(10, 1, -2)))
+        >>> print(list(span(10, 1, -2)))
         [10, 8, 6, 4, 2]
-        >>> print(list(range1(-1, -10, -2)))
+        >>> print(list(span(-1, -10, -2)))
         [-1, -3, -5, -7, -9]
-        >>> print(list(range1(-1, -11, -2)))
+        >>> print(list(span(-1, -11, -2)))
         [-1, -3, -5, -7, -9, -11]
     """
     if second is None:
