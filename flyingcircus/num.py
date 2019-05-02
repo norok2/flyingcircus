@@ -208,87 +208,372 @@ def ndim_slice(
 
 
 # ======================================================================
+def nbytes(arr):
+    """
+    Determine the actual memory consumption of a NumPy array.
+
+    Derive the `nbytes` value from the `base` attribute recursively.
+    Works both for `np.broadcast_to()` and `np.lib.stride_tricks.as_strided()`.
+
+    Args:
+        arr (np.array): The input array.
+
+    Returns:
+        result (int): The actual memory consumption of a NumPy array.
+            This also works for views/broadcasted/strided arrays.
+
+    Examples:
+        >>> arr = np.array([1, 2, 3], dtype=np.int64)
+        >>> print(nbytes(arr) == arr.nbytes)
+        True
+
+        >>> new_arr = np.broadcast_to(arr.reshape(3, 1), (3, 1000))
+        >>> print(nbytes(new_arr) == new_arr.nbytes)
+        False
+        >>> print(nbytes(new_arr) == new_arr.base.nbytes)
+        True
+        >>> print(nbytes(arr), nbytes(new_arr), new_arr.nbytes)
+        24 24 24000
+
+        >>> new_arr = np.lib.stride_tricks.as_strided(
+        ...     arr, shape=(3, 1000), strides=(8, 0), writeable=False)
+        >>> print(nbytes(new_arr) == new_arr.nbytes)
+        False
+        >>> print(nbytes(new_arr) == new_arr.base.base.nbytes)
+        True
+        >>> print(nbytes(arr), nbytes(new_arr), new_arr.nbytes)
+        24 24 24000
+    """
+    return arr.nbytes if arr.base is None else nbytes(arr.base)
+
+
+# ======================================================================
 def nd_windowing(
         arr,
-        sizes):
+        window,
+        steps=1,
+        window_steps=1,
+        as_view=True,
+        writeable=False,
+        shape_mode='end'):
     """
     Generate a N-dimensional windowing of an array.
 
     Args:
         arr (np.ndarray): The input array.
-        sizes (Iterable[int]): The windowing sizes.
+        window (int|Iterable[int]): The window sizes.
+        steps (int|Iterable[int]): The step sizes.
+        window_steps (int|Iterable[int])
+        as_view (bool): Determine if the result uses additional memory.
+            If True, a view on the original input is given.
+            If False, each entry of the result will have its own memory.
+            If False and `writeable` is True, then evenutal changes to `result`
+            will back-propagate to the input and vice-versa.
+        writeable (bool): Determine if the result entries can be overwritten.
+            If True and `as_view` is True, then eventual changes to `result`,
+            will back-propagate to the input and vice-versa.
+            If `as_view` is False, this has no effect.
+        shape_mode (str): Determine the shape of the result.
+            Accepted values are:
+             - 'begin': Window shape dims are at the beginning of shape
+             - 'end': Window shape dims are at the end of shape
+             - 'mix': Window shape dims are mixed with window position dims.
+             - 'mix_r': Window position dims are mixed with window shape dims.
 
     Returns:
         result (np.ndarray): The windowing array.
             This has shape equal to `arr.shape` + `sizes`.
 
     Examples:
-        >>> arr = arange_nd((2, 3, 4))
-        >>> new_arr = nd_windowing(arr, (1, 2, 2))
-        >>> print(new_arr.shape)
-        (2, 2, 3, 1, 2, 2)
+        >>> print(nd_windowing(np.zeros((11, 13, 17)), (2, 3, 2)).shape)
+        (10, 11, 16, 2, 3, 2)
+        >>> print(nd_windowing(np.zeros((11, 13, 17)), 2).shape)
+        (10, 12, 16, 2, 2, 2)
+        >>> print(nd_windowing(np.zeros((11, 13, 17)), 3).shape)
+        (9, 11, 15, 3, 3, 3)
+        >>> print(nd_windowing(np.zeros((11, 13, 17)), 3, 2).shape)
+        (5, 6, 8, 3, 3, 3)
+
+        >>> arr = arange_nd((4, 5))
+        >>> print(arr)
+        [[ 0  1  2  3  4]
+         [ 5  6  7  8  9]
+         [10 11 12 13 14]
+         [15 16 17 18 19]]
+
+        >>> print(nd_windowing(arr, (2, 1), shape_mode='begin').shape)
+        (2, 1, 3, 5)
+        >>> print(nd_windowing(arr, (2, 1), shape_mode='end').shape)
+        (3, 5, 2, 1)
+        >>> print(nd_windowing(arr, (2, 1), shape_mode='mix').shape)
+        (3, 2, 5, 1)
+        >>> print(nd_windowing(arr, (2, 1), shape_mode='mix_r').shape)
+        (2, 3, 1, 5)
+
+        >>> print(nd_windowing(arr, (2, 3)))
+        [[[[ 0  1  2]
+           [ 5  6  7]]
+        <BLANKLINE>
+          [[ 1  2  3]
+           [ 6  7  8]]
+        <BLANKLINE>
+          [[ 2  3  4]
+           [ 7  8  9]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 5  6  7]
+           [10 11 12]]
+        <BLANKLINE>
+          [[ 6  7  8]
+           [11 12 13]]
+        <BLANKLINE>
+          [[ 7  8  9]
+           [12 13 14]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[10 11 12]
+           [15 16 17]]
+        <BLANKLINE>
+          [[11 12 13]
+           [16 17 18]]
+        <BLANKLINE>
+          [[12 13 14]
+           [17 18 19]]]]
+
+        >>> print(nd_windowing(arr, (2, 3), (2, 2), shape_mode='end'))
+        [[[[ 0  1  2]
+           [ 5  6  7]]
+        <BLANKLINE>
+          [[ 2  3  4]
+           [ 7  8  9]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[10 11 12]
+           [15 16 17]]
+        <BLANKLINE>
+          [[12 13 14]
+           [17 18 19]]]]
+        >>> print(nd_windowing(arr, (2, 3), (2, 2), shape_mode='begin'))
+        [[[[ 0  2]
+           [10 12]]
+        <BLANKLINE>
+          [[ 1  3]
+           [11 13]]
+        <BLANKLINE>
+          [[ 2  4]
+           [12 14]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 5  7]
+           [15 17]]
+        <BLANKLINE>
+          [[ 6  8]
+           [16 18]]
+        <BLANKLINE>
+          [[ 7  9]
+           [17 19]]]]
+        >>> print(nd_windowing(arr, (2, 3), (2, 2), shape_mode='mix'))
+        [[[[ 0  1  2]
+           [ 2  3  4]]
+        <BLANKLINE>
+          [[ 5  6  7]
+           [ 7  8  9]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[10 11 12]
+           [12 13 14]]
+        <BLANKLINE>
+          [[15 16 17]
+           [17 18 19]]]]
+        >>> print(nd_windowing(arr, (2, 3), (2, 2), shape_mode='mix_r'))
+        [[[[ 0  2]
+           [ 1  3]
+           [ 2  4]]
+        <BLANKLINE>
+          [[10 12]
+           [11 13]
+           [12 14]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 5  7]
+           [ 6  8]
+           [ 7  9]]
+        <BLANKLINE>
+          [[15 17]
+           [16 18]
+           [17 19]]]]
+
+        >>> print(nd_windowing(arr, 2, 1, 2))
+        [[[[ 0  2]
+           [10 12]]
+        <BLANKLINE>
+          [[ 1  3]
+           [11 13]]
+        <BLANKLINE>
+          [[ 2  4]
+           [12 14]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 5  7]
+           [15 17]]
+        <BLANKLINE>
+          [[ 6  8]
+           [16 18]]
+        <BLANKLINE>
+          [[ 7  9]
+           [17 19]]]]
+
+        >>> print(nd_windowing(arr, (2, 3), 2, 0))
+        [[[[ 0  0  0]
+           [ 0  0  0]]
+        <BLANKLINE>
+          [[ 2  2  2]
+           [ 2  2  2]]
+        <BLANKLINE>
+          [[ 4  4  4]
+           [ 4  4  4]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[10 10 10]
+           [10 10 10]]
+        <BLANKLINE>
+          [[12 12 12]
+           [12 12 12]]
+        <BLANKLINE>
+          [[14 14 14]
+           [14 14 14]]]]
+
+        >>> print(nd_windowing(arr, (2, 3), 2, (0, 1)))
+        [[[[ 0  1  2]
+           [ 0  1  2]]
+        <BLANKLINE>
+          [[ 2  3  4]
+           [ 2  3  4]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[10 11 12]
+           [10 11 12]]
+        <BLANKLINE>
+          [[12 13 14]
+           [12 13 14]]]]
+
+        >>> new_arr = nd_windowing(arr, 2, 3, 1)
+        >>> new_arr[0] = 100
+        Traceback (most recent call last):
+            ....
+        ValueError: assignment destination is read-only
+
+        >>> new_arr = nd_windowing(arr, 2, 3, (0, 1), True, True)
         >>> print(new_arr)
-        [[[[[[ 0  1]
-             [ 4  5]]]
+        [[[[ 0  1]
+           [ 0  1]]
+        <BLANKLINE>
+          [[ 3  4]
+           [ 3  4]]]
         <BLANKLINE>
         <BLANKLINE>
-           [[[ 1  2]
-             [ 5  6]]]
+         [[[15 16]
+           [15 16]]
+        <BLANKLINE>
+          [[18 19]
+           [18 19]]]]
+        >>> new_arr[0, 0, 0, 0] = 100
+        >>> print(new_arr)
+        [[[[100   1]
+           [100   1]]
+        <BLANKLINE>
+          [[  3   4]
+           [  3   4]]]
         <BLANKLINE>
         <BLANKLINE>
-           [[[ 2  3]
-             [ 6  7]]]]
+         [[[ 15  16]
+           [ 15  16]]
+        <BLANKLINE>
+          [[ 18  19]
+           [ 18  19]]]]
+        >>> print(arr)
+        [[100   1   2   3   4]
+         [  5   6   7   8   9]
+         [ 10  11  12  13  14]
+         [ 15  16  17  18  19]]
+        >>> arr[0, 0] = 0
+        >>> print(new_arr)
+        [[[[ 0  1]
+           [ 0  1]]
+        <BLANKLINE>
+          [[ 3  4]
+           [ 3  4]]]
         <BLANKLINE>
         <BLANKLINE>
+         [[[15 16]
+           [15 16]]
         <BLANKLINE>
-          [[[[ 4  5]
-             [ 8  9]]]
+          [[18 19]
+           [18 19]]]]
+        >>> print(nbytes(new_arr), new_arr.nbytes)
+        160 128
+
+        >>> new_arr = nd_windowing(arr, 2, 3, (0, 1), False)
+        >>> new_arr[0, 0, 0, 0] = 100
+        >>> print(new_arr)
+        [[[[100   1]
+           [  0   1]]
         <BLANKLINE>
-        <BLANKLINE>
-           [[[ 5  6]
-             [ 9 10]]]
-        <BLANKLINE>
-        <BLANKLINE>
-           [[[ 6  7]
-             [10 11]]]]]
-        <BLANKLINE>
-        <BLANKLINE>
-        <BLANKLINE>
-        <BLANKLINE>
-         [[[[[12 13]
-             [16 17]]]
-        <BLANKLINE>
-        <BLANKLINE>
-           [[[13 14]
-             [17 18]]]
+          [[  3   4]
+           [  3   4]]]
         <BLANKLINE>
         <BLANKLINE>
-           [[[14 15]
-             [18 19]]]]
+         [[[ 15  16]
+           [ 15  16]]
         <BLANKLINE>
-        <BLANKLINE>
-        <BLANKLINE>
-          [[[[16 17]
-             [20 21]]]
-        <BLANKLINE>
-        <BLANKLINE>
-           [[[17 18]
-             [21 22]]]
-        <BLANKLINE>
-        <BLANKLINE>
-           [[[18 19]
-             [22 23]]]]]]
+          [[ 18  19]
+           [ 18  19]]]]
+        >>> print(nbytes(new_arr), new_arr.nbytes)
+        128 128
+
+        >>> new_arr = nd_windowing(arange_nd((100, 100)), 5)
+        >>> print(nbytes(new_arr), new_arr.nbytes)
+        80000 1843200
     """
-    sizes = util.auto_repeat(sizes, arr.ndim)
-    result = np.zeros(
-        tuple(d - s + 1 for d, s in zip(arr.shape, sizes))
-        + arr.shape[len(sizes):] + sizes, dtype=arr.dtype)
-    for i, j in enumerate(itertools.product(*(range(k) for k in sizes))):
-        slicing = tuple(
-            slice(k, d - s + k + 1) for d, s, k in zip(arr.shape, sizes, j))
-        untouched = tuple(slice(None) for _ in range(arr.ndim - len(sizes)))
-        result[(slice(None),) * len(sizes) + untouched + j] = \
-            arr[slicing + untouched]
+    shape_mode = shape_mode.lower()
+    window = util.auto_repeat(window, arr.ndim, check=True)
+    steps = util.auto_repeat(steps, arr.ndim, check=True)
+    window_steps = util.auto_repeat(window_steps, arr.ndim, check=True)
+    assert (all(step > 0 for step in steps))
+    assert (all(w_step >= 0 for w_step in window_steps))
+    assert (all(dim >= size for dim, size in zip(arr.shape, window)))
+    reduced_shape = tuple(
+        (dim - w_step * (size - 1) + step - 1) // step
+        for dim, size, step, w_step
+        in zip(arr.shape, window, steps, window_steps))
+    reduced_strides = tuple(
+        stride * max(1, step) for stride, step in zip(arr.strides, steps))
+    window_strides = tuple(
+        stride * max(0, w_step)
+        for stride, w_step in zip(arr.strides, window_steps))
+    if shape_mode == 'begin':
+        shape = tuple(window) + reduced_shape
+        strides = window_strides + reduced_strides
+    elif shape_mode == 'end':
+        shape = reduced_shape + tuple(window)
+        strides = reduced_strides + window_strides
+    elif shape_mode == 'mix':
+        shape = tuple(util.flatten(zip(reduced_shape, window)))
+        strides = tuple(util.flatten(zip(reduced_strides, window_strides)))
+    elif shape_mode == 'mix_r':
+        shape = tuple(util.flatten(zip(window, reduced_shape)))
+        strides = tuple(util.flatten(zip(window_strides, reduced_strides)))
+    else:
+        raise ValueError('shape_mode `{}` not supported.'.format(shape_mode))
+    if 0 in shape:
+        shape = tuple(
+            dim for dim in shape if dim > 0)
+        strides = tuple(
+            stride for dim, stride in zip(shape, strides) if dim > 0)
+    result = np.lib.stride_tricks.as_strided(
+        arr, shape=shape, strides=strides, writeable=writeable)
+    if not as_view:
+        result = result.copy()
     return result
 
 
@@ -3112,7 +3397,7 @@ def auto_bins(
         arrs (Iterable[np.ndarray]): The input arrays.
         method (str|Iterable[str]|None): The method for calculating bins.
             If str, the same method is applied to both arrays.
-            See `flyingcircus.util.auto_bin()` for available methods.
+            See `flyingcircus.num.auto_bin()` for available methods.
         dim (int|None): The dimension of the histogram.
         combine (callable|None): Combine each bin using the combine function.
             combine(n_bins) -> n_bin
@@ -4293,9 +4578,9 @@ def otsu_threshold(
         items (Iterable): The input items.
         bins (int|str|None): Number of bins used to calculate histogram.
             If str or None, this is automatically calculated from the data
-            using `flyingcircus.util.auto_bin()` with `method` set to
+            using `flyingcircus.num.auto_bin()` with `method` set to
             `bins` if str,
-            and using the default `flyingcircus.util.auto_bin()` method if
+            and using the default `flyingcircus.num.auto_bin()` method if
             set to
             None.
 
