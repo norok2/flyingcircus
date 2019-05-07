@@ -263,7 +263,9 @@ def nd_windowing(
         arr (np.ndarray): The input array.
         window (int|Iterable[int]): The window sizes.
         steps (int|Iterable[int]): The step sizes.
-        window_steps (int|Iterable[int])
+            This determines the step used for moving to the next window.
+        window_steps (int|Iterable[int]): The window step sizes.
+            This determines the step used for moving within the window.
         as_view (bool): Determine if the result uses additional memory.
             If True, a view on the original input is given.
             If False, each entry of the result will have its own memory.
@@ -734,7 +736,7 @@ def compute_edge_weights(
                 endpoint)),
             axis=i)
         for i in range(arr.ndim)], axis=-1)
-    idx_arr = np.arange(fc.util.prod(arr.shape), dtype=int).reshape(arr.shape)
+    idx_arr = np.arange(util.prod(arr.shape), dtype=int).reshape(arr.shape)
     orig_idx_arr, dest_idx_arr = tuple(
         np.stack([
             np.concatenate((
@@ -2011,7 +2013,7 @@ def auto_random(val=(0.0, 1.0)):
     if isinstance(val, (int, float, complex, str, bytes)) or val is None:
         return val
     elif isinstance(val, (slice, range)) or (
-            len(val) == 2 and fc.util.nesting_level(val) == 1):
+            len(val) == 2 and util.nesting_level(val) == 1):
         val = valid_interval(val)
         if all(isinstance(x, int) for x in val):
             return random.randint(val[0], val[1])
@@ -2135,8 +2137,8 @@ def sgngeomspace(
         nums = (num // 2 + equity, num - num // 2 - equity)
         endpoints = True, endpoint
         logspaces = tuple(
-            np.geomspace(*bound_, num=num_, endpoint=endpoint_)
-            for bound_, num_, endpoint_ in zip(bounds, nums, endpoints))
+            np.geomspace(*bound, num=n, endpoint=endpoint)
+            for bound, n, endpoint in zip(bounds, nums, endpoints))
         samples = np.concatenate(logspaces)
     else:
         samples = np.geomspace(start, stop, num=num, endpoint=endpoint)
@@ -2757,7 +2759,7 @@ def rel2abs(shape, size=0.5):
         - flyingcircus.num.coord()
         - flyingcircus.util.scale()
     """
-    size = fc.util.auto_repeat(size, len(shape), check=True)
+    size = util.auto_repeat(size, len(shape), check=True)
     return tuple((s - 1.0) * p for p, s in zip(size, shape))
 
 
@@ -2796,7 +2798,7 @@ def abs2rel(shape, position=0):
         - flyingcircus.num.coord()
         - flyingcircus.num.scale()
     """
-    position = fc.util.auto_repeat(position, len(shape), check=True)
+    position = util.auto_repeat(position, len(shape), check=True)
     return tuple(p / (s - 1.0) for p, s in zip(position, shape))
 
 
@@ -3035,22 +3037,77 @@ def exp_gradient_kernels(
 
 
 # ======================================================================
+def shape_to_pad_width(
+        shape,
+        new_shape,
+        position):
+    """
+    Generate width values for padding a shape onto a new shape (with offsets).
+
+    Args:
+        shape (Iterable[int]): The input shape.
+        new_shape (int|Iterable[int]): The output shape.
+            If int, uses the same value for all dimensions.
+            If Iterable, the size must match `arr` dimensions.
+            Additionally, each value of `new_shape` must be greater than or
+            equal to the corresponding dimensions of `shape`.
+        position (int|float|Iterable[int|float]): Position within new shape.
+            Determines the position of the array within the new shape.
+            If int or float, it is considered the same in all dimensions,
+            otherwise its length must match the number of dimensions of the
+            array.
+            If int or Iterable of int, the values are absolute and must be
+            less than or equal to the difference between the shape of the array
+            and the new shape.
+            If float or Iterable of float, the values are relative and must be
+            in the [0, 1] range.
+
+    Returns:
+        width (tuple[tuple[int]]): Size of the padding to use.
+
+    Examples:
+        >>> shape_to_pad_width((2, 3), (4, 5), 0.5)
+        ((1, 1), (1, 1))
+        >>> shape_to_pad_width((2, 3), (4, 5), 0)
+        ((0, 2), (0, 2))
+        >>> shape_to_pad_width((2, 3), (4, 5), (2, 0))
+        ((2, 0), (0, 2))
+    """
+    new_shape = util.auto_repeat(new_shape, len(shape), check=True)
+    position = util.auto_repeat(position, len(shape), check=True)
+    if any([dim > new_dim for dim, new_dim in zip(shape, new_shape)]):
+        raise ValueError('new shape cannot be smaller than the old one.')
+    position = tuple(
+        (int(round((new_dim - dim) * offset))
+         if isinstance(offset, float) else offset)
+        for dim, new_dim, offset in zip(shape, new_shape, position))
+    if any([dim + offset > new_dim
+            for dim, new_dim, offset in zip(shape, new_shape, position)]):
+        raise ValueError(
+            'Incompatible `new_shape`, `array shape` and `position`.')
+    width = tuple(
+        (offset, new_dim - dim - offset)
+        for dim, new_dim, offset in zip(shape, new_shape, position))
+    return width
+
+
+# ======================================================================
 def auto_pad_width(
-        pad_width,
+        width,
         shape,
         combine=None):
     """
-    Ensure pad_width value(s) to be consisting of integer.
+    Ensure width value(s) to be consisting of integer.
 
     Args:
-        pad_width (float|int|Iterable[float|int]): Size of the padding to use.
+        width (float|int|Iterable[float|int]): Size of the padding to use.
             This is useful for mitigating border effects.
             If Iterable, a value for each dim must be specified.
             If not Iterable, all dims will have the same value.
             If int, it is interpreted as absolute size.
             If float, it is interpreted as relative to corresponding dim size.
         shape (Iterable[int]): The shape to associate to `pad_width`.
-        combine (callable|None): The function for combining shape values.
+        combine (callable|None): The function for combining pad width values.
             If None, uses the corresponding dim from the shape.
 
     Returns:
@@ -3086,29 +3143,30 @@ def auto_pad_width(
         return int(val * factor) if isinstance(val, float) else val
 
     try:
-        iter(pad_width)
+        iter(width)
     except TypeError:
-        pad_width = ((pad_width,) * 2,)
+        width = ((width,) * 2,)
     finally:
         combined = combine(shape) if combine else None
-        pad_width = list(
-            pad_width if len(pad_width) > 1 else pad_width * len(shape))
-        assert (len(pad_width) == len(shape))
-        for i, (item, dim) in enumerate(zip(pad_width, shape)):
+        width = list(
+            width if len(width) > 1 else width * len(shape))
+        assert (len(width) == len(shape))
+        for i, (item, dim) in enumerate(zip(width, shape)):
             lower, upper = item
-            pad_width[i] = (
+            width[i] = (
                 float2int(lower, dim if not combine else combined),
                 float2int(upper, dim if not combine else combined))
-        pad_width = tuple(pad_width)
-    return pad_width
+        width = tuple(width)
+    return width
 
 
 # ======================================================================
 def padding(
         arr,
-        pad_width=0,
-        pad_mode='constant',
-        pad_kws=(('constant_values', 0.0),)):
+        width=0,
+        combine=None,
+        mode=0,
+        pad_kws=None):
     """
     Array padding with a constant value.
 
@@ -3116,9 +3174,15 @@ def padding(
 
     Args:
         arr (np.ndarray): The input array.
-        pad_width (int|float): Size of the padding to use.
-            See `flyingcircus.util.auto_pad_width()` for more details.
-        pad_mode (str): The padding mode.
+        width (int|float|Iterable[int|float]): Size of the padding to use.
+            Passed as `width` to `flyingcircus.util.auto_pad_width()`.
+            The output of `auto_pad_width()` is given to `np.pad()`.
+        combine (callable|None): The function for combining pad width values.
+            Passed as `combine` to `flyingcircus.util.auto_pad_width()`.
+        mode (str|int|float|complex): The padding mode.
+            If int, float or complex, `mode` is set to `constant` and this is
+            interpreted as the constant value to use.
+            If str, this is passed directly to `np.pad()`.
             See `np.pad()` for more details.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters.
             These are passed to `np.pad()`.
@@ -3132,17 +3196,37 @@ def padding(
     See Also:
         - flyingcircus.num.auto_pad_width()
         - flyingcircus.num.reframe()
+
+    Examples:
+        >>> arr = arange_nd((2, 3))
+        >>> new_arr, mask = padding(arr, 1)
+        >>> print(new_arr)
+        [[0 0 0 0 0]
+         [0 0 1 2 0]
+         [0 3 4 5 0]
+         [0 0 0 0 0]]
+        >>> print(mask)
+        (slice(1, -1, None), slice(1, -1, None))
     """
     pad_kws = dict(pad_kws) if pad_kws else {}
-    if pad_width:
-        shape = arr.shape
-        pad_width = auto_pad_width(pad_width, shape)
-        # mask = (slice(borders, -borders),) * arr.ndim
-        mask = tuple(slice(lower, -upper) for (lower, upper) in pad_width)
-        arr = np.pad(arr, pad_width, pad_mode, **pad_kws)
+    if width:
+        width = auto_pad_width(width, arr.shape, combine)
+        mask = tuple(slice(lower, -upper) for (lower, upper) in width)
+        if isinstance(mode, (int, float, complex)):
+            result = np.full(
+                tuple(
+                    sum(sizes) + dim for dim, sizes in zip(arr.shape, width)),
+                mode, dtype=arr.dtype)
+            inner = tuple(
+                slice(sizes[0], sizes[0] + dim, None)
+                for dim, sizes in zip(arr.shape, width))
+            result[inner] = arr
+        else:
+            result = np.pad(arr, width, mode, **pad_kws)
     else:
         mask = (slice(None),) * arr.ndim
-    return arr, mask
+        result = arr
+    return result, mask
 
 
 # ======================================================================
@@ -3816,107 +3900,6 @@ def gaussian_nd(
 
 
 # ======================================================================
-def moving_mean(
-        arr,
-        num=1):
-    """
-    Calculate the moving mean.
-
-    The moving average will be applied to the flattened array.
-    Unless specified otherwise, the size of the array will be reduced by
-    (num - 1).
-
-    Args:
-        arr (np.ndarray): The input array.
-        num (int|Iterable): The running window size.
-            The number of elements to group.
-
-    Returns:
-        arr (np.ndarray): The output array.
-
-    Examples:
-        >>> moving_mean(np.linspace(1, 9, 9), 1)
-        array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
-        >>> moving_mean(np.linspace(1, 8, 8), 1)
-        array([1., 2., 3., 4., 5., 6., 7., 8.])
-        >>> moving_mean(np.linspace(1, 9, 9), 2)
-        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
-        >>> moving_mean(np.linspace(1, 8, 8), 2)
-        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5])
-        >>> moving_mean(np.linspace(1, 9, 9), 5)
-        array([3., 4., 5., 6., 7.])
-        >>> moving_mean(np.linspace(1, 8, 8), 5)
-        array([3., 4., 5., 6.])
-    """
-    arr = arr.ravel()
-    arr = np.cumsum(arr)
-    arr[num:] = arr[num:] - arr[:-num]
-    arr = arr[num - 1:] / num
-    return arr
-
-
-# ======================================================================
-def moving_average(
-        arr,
-        weights=1,
-        **kws):
-    """
-    Calculate the moving average (with optional weights).
-
-    The moving average will be applied to the flattened array.
-    Unless specified otherwise, the size of the array will be reduced by
-    len(weights) - 1
-    This is equivalent to passing `mode='valid'` to `scipy.signal.convolve()`.
-    Please refer to `scipy.signal.convolve()` for more options.
-
-    Args:
-        arr (np.ndarray): The input array.
-        weights (int|Iterable): The running weights.
-            If int, the number of elements to group in the 'running' axis and
-            unity weights are used.
-            The size of the weights array len(weights) must be such that
-            len(weights) >= 1 and len(weights) <= len(array), otherwise the
-            flattened array is returned.
-        **kws (dict): Keyword arguments passed to `scipy.signal.convolve()`.
-
-    Returns:
-        arr (np.ndarray): The output array.
-
-    Examples:
-        >>> moving_average(np.linspace(1, 9, 9), 1)
-        array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
-        >>> moving_average(np.linspace(1, 8, 8), 1)
-        array([1., 2., 3., 4., 5., 6., 7., 8.])
-        >>> moving_average(np.linspace(1, 9, 9), 2)
-        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
-        >>> moving_average(np.linspace(1, 8, 8), 2)
-        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5])
-        >>> moving_average(np.linspace(1, 9, 9), 5)
-        array([3., 4., 5., 6., 7.])
-        >>> moving_average(np.linspace(1, 8, 8), 5)
-        array([3., 4., 5., 6.])
-        >>> moving_average(np.linspace(1, 8, 8), [1, 1, 1])
-        array([2., 3., 4., 5., 6., 7.])
-        >>> moving_average(np.linspace(1, 8, 8), [1, 0.2])
-        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
-               6.16666667, 7.16666667])
-    """
-    arr = arr.ravel()
-    if isinstance(weights, int):
-        weights = np.ones((weights,))
-    else:
-        # weights order needs to be inverted
-        weights = np.array(weights)[::-1]
-    num = len(weights) if isinstance(weights, np.ndarray) else 0
-    if len(arr) >= num > 1:
-        if 'mode' not in kws:
-            kws['mode'] = 'valid'
-        arr = sp.signal.convolve(arr, weights / len(weights), **kws)
-        arr *= len(weights) / np.sum(weights)
-    return arr
-
-
-# ======================================================================
 def bijective_part(arr, invert=False):
     """
     Determine the largest bijective part of an array.
@@ -3975,251 +3958,6 @@ def bijective_part(arr, invert=False):
     return slice(
         min_cut if min_cut > 0 else None,
         max_cut if max_cut < len(arr) - 1 else None)
-
-
-# ======================================================================
-def rolling_stat(
-        arr,
-        weights=1,
-        stat_func=np.mean,
-        stat_args=None,
-        stat_kws=None,
-        mode='valid',
-        borders=None):
-    """
-    Calculate the rolling statistics on an array.
-
-    This is calculated by running the specified statistics for each subset of
-    the array of given size, including optional weightings.
-    The moving average will be applied to the flattened array.
-
-    This function differs from `running_stat` in that it should be faster but
-    more memory demanding.
-    Also the `stat_func` callable is required to accept an `axis` parameter.
-
-    Args:
-        arr (np.ndarray): The input array.
-        weights (int|Iterable): The running weights.
-            If int, the number of elements to group in the 'running' axis and
-            unity weights are used.
-            The size of the weights array len(weights) must be such that
-            len(weights) >= 1 and len(weights) <= len(array), otherwise the
-            flattened array is returned.
-            Note that these weights are
-        stat_func (callable): Function to calculate in the 'running' axis.
-            Must accept an `axis` parameter, which will be set to -1 on the
-            flattened input.
-        stat_args (tuple|list): Positional arguments passed to `stat_func`.
-        stat_kws (dict): Keyword arguments passed to `stat_func`.
-        mode (str): The output mode.
-            Can be one of:
-            - 'valid': only values inside the array are used.
-            - 'same': must have the same size as the input.
-            - 'full': the full output is provided.
-        borders (str|complex|Iterable[complex]|None): The border parameters.
-            If int or float, the value is repeated at the borders.
-            If Iterable of int, float or complex, the first and last values are
-            repeated to generate the head and tail, respectively.
-            If str, the following values are accepted:
-                - 'same': the array extrema are used to generate head / tail.
-                - 'circ': the values are repeated periodically / circularly.
-                - 'sym': the values are repeated periodically / symmetrically.
-
-    Returns:
-        arr (np.ndarray): The output array.
-
-    Examples:
-        >>> num = 8
-        >>> arr = np.linspace(1, num, num)
-        >>> all([np.allclose(
-        ...                  moving_average(arr, n, mode=mode),
-        ...                  rolling_stat(arr, n, mode=mode))
-        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
-        True
-        >>> rolling_stat(arr, 4, mode='same', borders=100)
-        array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
-        >>> rolling_stat(arr, 4, mode='full', borders='same')
-        array([1.  , 1.25, 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.75, 8.\
-  ])
-        >>> rolling_stat(arr, 4, mode='full', borders='circ')
-        array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
-        >>> rolling_stat(arr, 4, mode='full', borders='sym')
-        array([1.75, 1.5 , 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.5 ,\
- 7.25])
-        >>> rolling_stat(arr, 4, mode='same', borders='circ')
-        array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
-        >>> rolling_stat(arr, [1, 0.2])
-        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
-               6.16666667, 7.16666667])
-    """
-    arr = arr.ravel()
-    if isinstance(weights, int):
-        weights = np.ones((weights,))
-    else:
-        # weights order needs to be inverted
-        weights = np.array(weights)[::-1]
-    num = len(weights) if isinstance(weights, np.ndarray) else 0
-    size = len(arr)
-    if size >= num > 1:
-        # calculate how to extend the input array
-        if borders is None:
-            extension = np.zeros((num - 1,))
-        elif borders == 'same':
-            extension = np.concatenate(
-                (np.full((num - 1,), arr[-1]),
-                 np.full((num - 1,), arr[0])))
-        elif borders == 'circ':
-            extension = arr
-        elif borders == 'sym':
-            extension = arr[::-1]
-        elif isinstance(borders, (int, float, complex)):
-            extension = np.full((num - 1,), borders)
-        elif isinstance(borders, (tuple, float)):
-            extension = np.concatenate(
-                (np.full((num - 1,), borders[-1]),
-                 np.full((num - 1,), borders[0])))
-        else:
-            raise ValueError(
-                '`borders={borders}` not understood'.format(**locals()))
-
-        # calculate generator for data and weights
-        arr = np.concatenate((arr, extension))
-        gen = np.zeros((size + num - 1, num))
-        for i in range(num):
-            gen[:, i] = np.roll(arr, i)[:size + num - 1]
-        w_gen = np.stack([weights] * (size + num - 1))
-
-        # calculate the running stats
-        arr = stat_func(
-            gen * w_gen,
-            *(stat_args if stat_args else ()), axis=-1,
-            **(stat_kws if stat_kws else {}))
-        arr *= len(weights) / np.sum(weights)
-
-        # adjust output according to mode
-        if mode == 'valid':
-            arr = arr[num - 1:-(num - 1)]
-        elif mode == 'same':
-            begin = (num - 1) // 2
-            arr = arr[begin:begin + size]
-    return arr
-
-
-# ======================================================================
-def running_stat(
-        arr,
-        weights=1,
-        stat_func=np.mean,
-        stat_args=None,
-        stat_kws=None,
-        mode='valid',
-        borders=None):
-    """
-    Calculate the running statistics on an array.
-
-    This is calculated by running the specified statistics for each subset of
-    the array of given size, including optional weightings.
-    The moving average will be applied to the flattened array.
-
-    This function differs from `rolling_stat` in that it should be slower but
-    less memory demanding.
-    Also the `stat_func` callable is not required to accept an `axis`
-    parameter.
-
-    Args:
-        arr (np.ndarray): The input array.
-        weights (int|Iterable): The running weights.
-            If int, the number of elements to group in the 'running' axis and
-            unity weights are used.
-            The size of the weights array len(weights) must be such that
-            len(weights) >= 1 and len(weights) <= len(array), otherwise the
-            flattened array is returned.
-            Note that these weights are
-        stat_func (callable): Function to calculate in the 'running' axis.
-        stat_args (tuple|list): Positional arguments passed to `stat_func`.
-        stat_kws (dict): Keyword arguments passed to `stat_func`.
-        mode (str): The output mode.
-            Can be one of:
-            - 'valid': only values inside the array are used.
-            - 'same': must have the same size as the input.
-            - 'full': the full output is provided.
-        borders (str|complex|None): The border parameters.
-            If int, float or complex, the value is repeated at the borders.
-            If Iterable of int, float or complex, the first and last values are
-            repeated to generate the head and tail, respectively.
-            If str, the following values are accepted:
-                - 'same': the array extrema are used to generate head / tail.
-                - 'circ': the values are repeated periodically / circularly.
-                - 'sym': the values are repeated periodically / symmetrically.
-
-    Returns:
-        arr (np.ndarray): The output array.
-
-    Examples:
-        >>> num = 8
-        >>> arr = np.linspace(1, num, num)
-        >>> all([np.allclose(
-        ...                  moving_average(arr, n, mode=mode),
-        ...                  running_stat(arr, n, mode=mode))
-        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
-        True
-        >>> running_stat(arr, 4, mode='same', borders=100)
-        array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
-        >>> running_stat(arr, 4, mode='same', borders='circ')
-        array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
-        >>> running_stat(arr, 4, mode='full', borders='circ')
-        array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
-        >>> running_stat(arr, [1, 0.2])
-        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
-               6.16666667, 7.16666667])
-    """
-    arr = arr.ravel()
-    if isinstance(weights, int):
-        weights = np.ones((weights,))
-    else:
-        weights = np.array(weights)
-    num = len(weights) if isinstance(weights, np.ndarray) else 0
-    size = len(arr)
-    if size >= num > 1:
-        # calculate how to extend the input array
-        if borders is None:
-            head = tail = np.zeros((num - 1,))
-        elif borders == 'same':
-            head = np.full((num - 1,), arr[0])
-            tail = np.full((num - 1,), arr[-1])
-        elif borders == 'circ':
-            tail = arr[:num - 1]
-            head = arr[-num + 1:]
-        elif borders == 'sym':
-            tail = arr[-num + 1:]
-            head = arr[:num - 1]
-        elif isinstance(borders, (int, float, complex)):
-            head = tail = np.full((num - 1,), borders)
-        elif isinstance(borders, (tuple, float)):
-            head = np.full((num - 1,), borders[0])
-            tail = np.full((num - 1,), borders[-1])
-        else:
-            raise ValueError(
-                '`borders={borders}` not understood'.format(**locals()))
-
-        # calculate generator for data and weights
-        gen = np.concatenate((head, arr, tail))
-        # print(gen)
-        arr = np.zeros((len(gen) - num + 1))
-        for i in range(len(arr)):
-            arr[i] = stat_func(
-                gen[i:i + num] * weights,
-                *(stat_args if stat_args else ()),
-                **(stat_kws if stat_kws else {}))
-        arr *= len(weights) / np.sum(weights)
-
-        # adjust output according to mode
-        if mode == 'valid':
-            arr = arr[num - 1:-(num - 1)]
-        elif mode == 'same':
-            begin = (num - 1) // 2
-            arr = arr[begin:begin + size]
-    return arr
 
 
 # ======================================================================
@@ -5164,7 +4902,7 @@ def apply_mask(
         ValueError: If the mask and array shapes are not compatible.
 
     See Also:
-        - flyingcircus.num.frame()
+        - flyingcircus.num.padding()
     """
     if mask is not None:
         mask = mask.astype(bool)
@@ -5175,7 +4913,7 @@ def apply_mask(
                 borders = [borders if dim != 1 else 0 for dim in mask.shape]
             elif borders is not None and len(borders) == len(old_shape):
                 borders = list(
-                    fc.util.replace_iter(
+                    util.replace_iter(
                         mask.shape, lambda x: x == 1, borders))
         arr = arr.copy()
         if arr.shape != mask.shape:
@@ -5242,78 +4980,70 @@ def trim(
 # ======================================================================
 def frame(
         arr,
-        borders=0.05,
-        background=0.0,
-        use_longest=True):
+        width=0.05,
+        mode=0,
+        combine=max,
+        pad_kws=None):
     """
     Add a background frame to an array specifying the borders.
 
+    This is essentially a more convenient interface to `fc.num.padding()`.
+    Also, the output `mask` from `fc.num.padding()` is discarded.
+
     Args:
         arr (np.ndarray): The input array.
-        borders (int|float|Iterable[int|float]): The border size(s).
-            If int, this is in units of pixels.
-            If float, this is proportional to the initial array shape.
-            If int or float, uses the same value for all dimensions.
-            If Iterable, the size must match `arr` dimensions.
-            If 'use_longest' is True, use the longest dimension for the
-            calculations.
-        background (int|float): The background value to be used for the frame.
-        use_longest (bool): Use longest dimension to get the border size.
+        width (int|float|Iterable[int|float]): Size of the padding to use.
+            Passed to `flyingcircus.util.padding()`.
+        mode (str|int|float|complex): The padding mode.
+            Passed to `flyingcircus.util.padding()`.
+        combine (callable|None): The function for combining pad width values.
+            Passed to `flyingcircus.util.padding()`.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+            Passed to `flyingcircus.util.padding()`.
 
     Returns:
-        result (np.ndarray): The result array with added borders.
+        result (np.ndarray): The padded array.
 
     See Also:
         - flyingcircus.num.reframe()
         - flyingcircus.num.padding()
+
+    Examples:
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(frame(arr, 1))
+        [[0 0 0 0 0]
+         [0 1 2 3 0]
+         [0 4 5 6 0]
+         [0 0 0 0 0]]
     """
-    borders = fc.util.auto_repeat(borders, arr.ndim)
-    if any(borders) < 0:
-        raise ValueError('relative border cannot be negative')
-    if isinstance(borders[0], float):
-        if use_longest:
-            dim = max(arr.shape)
-            borders = [round(border * dim) for border in borders]
-        else:
-            borders = [
-                round(border * dim) for dim, border in zip(arr.shape, borders)]
-    result = np.full(
-        [dim + 2 * border for dim, border in zip(arr.shape, borders)],
-        background, dtype=arr.dtype)
-    inner = [
-        slice(border, border + dim, None)
-        for dim, border in zip(arr.shape, borders)]
-    result[inner] = arr
+    result, mask = padding(arr, width, combine, mode, pad_kws)
     return result
 
 
 # ======================================================================
 def reframe(
         arr,
-        new_shape,
+        shape,
         position=0.5,
-        background=0.0):
+        mode=0,
+        pad_kws=None):
     """
     Add a frame to an array by centering the input array into a new shape.
 
     Args:
         arr (np.ndarray): The input array.
-        new_shape (int|Iterable[int]): The shape of the output array.
-            If int, uses the same value for all dimensions.
-            If Iterable, the size must match `arr` dimensions.
-            Additionally, each value of `new_shape` must be greater than or
-            equal to the corresponding dimensions of `arr`.
+            Its shape is passed as `shape` to `fc.num.shape_to_pad_width()`.
+        shape (int|Iterable[int]): The shape of the output array.
+            Passed as `new_shape` to `fc.num.shape_to_pad_width()`.
         position (int|float|Iterable[int|float]): Position within new shape.
-            Determines the position of the array within the new shape.
-            If int or float, it is considered the same in all dimensions,
-            otherwise its length must match the number of dimensions of the
-            array.
-            If int or Iterable of int, the values are absolute and must be
-            less than or equal to the difference between the shape of the array
-            and the new shape.
-            If float or Iterable of float, the values are relative and must be
-            in the [0, 1] range.
-        background (int|float): The background value to be used for the frame.
+            Passed as `position` to `fc.num.shape_to_pad_width()`.
+        mode (str|int|float|complex): The padding mode.
+            This is passed to `fc.num.padding()`.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+            These are passed to `fc.num.padding()`.
 
     Returns:
         result (np.ndarray): The result array with added borders.
@@ -5348,23 +5078,14 @@ def reframe(
                [0., 0., 1., 1., 1.],
                [0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0.]])
+        >>> reframe(arr, (4, 5), 1.0)
+        array([[0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.],
+               [0., 0., 1., 1., 1.],
+               [0., 0., 1., 1., 1.]])
     """
-    new_shape = fc.util.auto_repeat(new_shape, arr.ndim, check=True)
-    position = fc.util.auto_repeat(position, arr.ndim, check=True)
-    if any([old > new for old, new in zip(arr.shape, new_shape)]):
-        raise ValueError('new shape cannot be smaller than the old one.')
-    position = [
-        int(round((new - old) * x_i)) if isinstance(x_i, float) else x_i
-        for old, new, x_i in zip(arr.shape, new_shape, position)]
-    if any([old + x_i > new
-            for old, new, x_i in zip(arr.shape, new_shape, position)]):
-        raise ValueError(
-            'Incompatible `new_shape`, `array shape` and `position`.')
-    result = np.full(new_shape, background)
-    inner = tuple(
-        slice(offset, offset + dim, None)
-        for dim, offset in zip(arr.shape, position))
-    result[inner] = arr
+    width = shape_to_pad_width(arr.shape, shape, position)
+    result, mask = padding(arr, width, None, mode, pad_kws)
     return result
 
 
@@ -5409,7 +5130,7 @@ def multi_reframe(
             max(*list(shape_arr[:, i]))
             for i in range(len(new_shape)))
 
-    position = fc.util.auto_repeat(position, len(arrs))
+    position = util.auto_repeat(position, len(arrs))
 
     if dtype is None:
         # : alternative to looping
@@ -5445,7 +5166,7 @@ def zoom_prepare(
         zoom (tuple[float]): The zoom factors for each directions.
         shape (int|Iterable[int]): The shape of the array to operate with.
     """
-    zoom_factors = list(fc.util.auto_repeat(zoom_factors, len(shape)))
+    zoom_factors = list(util.auto_repeat(zoom_factors, len(shape)))
     if extra_dim:
         shape = list(shape) + [1] * (len(zoom_factors) - len(shape))
     else:
@@ -5618,7 +5339,7 @@ def multi_resample(
         shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
         for i, shape in enumerate(shapes):
             shape_arr[i, :len(shape)] = np.array(shape)
-        combiner = fc.util.lcm if lossless else max
+        combiner = util.lcm if lossless else max
         new_shape = tuple(
             combiner(*list(shape_arr[:, i]))
             for i in range(len(new_shape)))
@@ -6354,10 +6075,10 @@ def random_mask(
 
     Examples:
         >>> import numpy as np
-        >>> np.random.seed(0)
+        >>> random.seed(0)
         >>> print(random_mask((2, 5), 0.5))
-        [[False  True False False False]
-         [ True  True False  True  True]]
+        [[ True False  True False  True]
+         [False  True False False  True]]
     """
     size = util.prod(shape)
     if not 0 < density < 1:
@@ -6497,6 +6218,429 @@ def angles_in_ellipse(
             lambda x: (sp.special.ellipeinc(x, e) - arcs), angles)
         angles = res.x
     return angles + rot_offset
+
+
+# ======================================================================
+def rolling_window_nd(
+        arr,
+        window,
+        steps=1,
+        window_steps=1,
+        mode='view',
+        pad_mode=None,
+        writeable=False,
+        shape_mode='end'):
+    """
+    Generate a N-dimensional windowing of an array.
+
+    Args:
+        arr (np.ndarray): The input array.
+        window (int|Iterable[int]): The window sizes.
+        steps (int|Iterable[int]): The step sizes.
+            This determines the step used for moving to the next window.
+        window_steps (int|Iterable[int]): The window step sizes.
+            This determines the step used for moving within the window.
+        mode (str): The output mode.
+            Can be one of:
+            - 'valid': only values inside the array are used.
+            - 'view': same as `valid`, but returns a view of the input instead.
+            - 'same': must have the same size as the input.
+            - 'full': the full output is provided.
+        borders (str|complex|None): The border parameters.
+            Only used if `mode` is `same` or `full`.
+            If int, float or complex, the value is repeated at the borders.
+            If Iterable of int, float or complex, the first and last values are
+            repeated to generate the head and tail, respectively.
+            If str, the following values are accepted:
+                - 'circ': the values are repeated periodically / circularly.
+                - 'sym': the values are repeated periodically / symmetrically.
+        shape_mode (str): Determine the shape of the result.
+            Accepted values are:
+             - 'begin': Window shape dims are at the beginning of shape
+             - 'end': Window shape dims are at the end of shape
+             - 'mix': Window shape dims are mixed with window position dims.
+             - 'mix_r': Window position dims are mixed with window shape dims.
+
+    Returns:
+        result (np.ndarray): The windowing array.
+            This has shape equal to `arr.shape` + `sizes`.
+    """
+    as_view = (mode == 'view')
+    if mode in ('valid', 'view'):
+        new_shape = arr.shape
+    elif mode == 'same':
+        new_shape = arr.shape
+    elif mode == 'full':
+        new_shape = tuple(dim + size for dim, size in zip(arr.shape, window))
+    if borders is None:
+        pass
+    elif borders == 'circ':
+        extension = arr
+    elif borders == 'sym':
+        extension = arr[::-1]
+    elif isinstance(borders, (int, float, complex)):
+        arr = 1
+    else:
+        raise ValueError(
+            '`borders={borders}` not understood'.format(**locals()))
+
+    return nd_windowing(
+        arr, window, steps, window_steps, as_view, writeable, shape_mode)
+
+
+# ======================================================================
+def moving_mean(
+        arr,
+        num=1):
+    """
+    Calculate the moving mean.
+
+    The moving average will be applied to the flattened array.
+    Unless specified otherwise, the size of the array will be reduced by
+    (num - 1).
+
+    Args:
+        arr (np.ndarray): The input array.
+        num (int|Iterable): The running window size.
+            The number of elements to group.
+
+    Returns:
+        arr (np.ndarray): The output array.
+
+    Examples:
+        >>> moving_mean(np.linspace(1, 9, 9), 1)
+        array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
+        >>> moving_mean(np.linspace(1, 8, 8), 1)
+        array([1., 2., 3., 4., 5., 6., 7., 8.])
+        >>> moving_mean(np.linspace(1, 9, 9), 2)
+        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
+        >>> moving_mean(np.linspace(1, 8, 8), 2)
+        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5])
+        >>> moving_mean(np.linspace(1, 9, 9), 5)
+        array([3., 4., 5., 6., 7.])
+        >>> moving_mean(np.linspace(1, 8, 8), 5)
+        array([3., 4., 5., 6.])
+    """
+    arr = arr.ravel()
+    arr = np.cumsum(arr)
+    arr[num:] = arr[num:] - arr[:-num]
+    arr = arr[num - 1:] / num
+    return arr
+
+
+# ======================================================================
+def moving_average(
+        arr,
+        weights=1,
+        **kws):
+    """
+    Calculate the moving average (with optional weights).
+
+    The moving average will be applied to the flattened array.
+    Unless specified otherwise, the size of the array will be reduced by
+    len(weights) - 1
+    This is equivalent to passing `mode='valid'` to `scipy.signal.convolve()`.
+    Please refer to `scipy.signal.convolve()` for more options.
+
+    Args:
+        arr (np.ndarray): The input array.
+        weights (int|Iterable): The running weights.
+            If int, the number of elements to group in the 'running' axis and
+            unity weights are used.
+            The size of the weights array len(weights) must be such that
+            len(weights) >= 1 and len(weights) <= len(array), otherwise the
+            flattened array is returned.
+        **kws (dict): Keyword arguments passed to `scipy.signal.convolve()`.
+
+    Returns:
+        arr (np.ndarray): The output array.
+
+    Examples:
+        >>> moving_average(np.linspace(1, 9, 9), 1)
+        array([1., 2., 3., 4., 5., 6., 7., 8., 9.])
+        >>> moving_average(np.linspace(1, 8, 8), 1)
+        array([1., 2., 3., 4., 5., 6., 7., 8.])
+        >>> moving_average(np.linspace(1, 9, 9), 2)
+        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
+        >>> moving_average(np.linspace(1, 8, 8), 2)
+        array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5])
+        >>> moving_average(np.linspace(1, 9, 9), 5)
+        array([3., 4., 5., 6., 7.])
+        >>> moving_average(np.linspace(1, 8, 8), 5)
+        array([3., 4., 5., 6.])
+        >>> moving_average(np.linspace(1, 8, 8), [1, 1, 1])
+        array([2., 3., 4., 5., 6., 7.])
+        >>> moving_average(np.linspace(1, 8, 8), [1, 0.2])
+        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
+               6.16666667, 7.16666667])
+    """
+    arr = arr.ravel()
+    if isinstance(weights, int):
+        weights = np.ones((weights,))
+    else:
+        # weights order needs to be inverted
+        weights = np.array(weights)[::-1]
+    num = len(weights) if isinstance(weights, np.ndarray) else 0
+    if len(arr) >= num > 1:
+        if 'mode' not in kws:
+            kws['mode'] = 'valid'
+        arr = sp.signal.convolve(arr, weights / len(weights), **kws)
+        arr *= len(weights) / np.sum(weights)
+    return arr
+
+
+# ======================================================================
+def moving_stat(
+        arr,
+        weights=1,
+        stat_func=np.mean,
+        stat_args=None,
+        stat_kws=None,
+        mode='valid',
+        borders=None):
+    """
+    Calculate the rolling statistics (with optional weights).
+
+    The moving statistics will be applied to the flattened array.
+    This is calculated by running the specified statistics for each subset of
+    the array of given size, including optional weightings.
+
+
+    This function differs from `running_stat` in that it should be faster but
+    more memory demanding.
+    Also the `stat_func` callable is required to accept an `axis` parameter.
+
+    Args:
+        arr (np.ndarray): The input array.
+        weights (int|Iterable): The running weights.
+            If int, the number of elements to group in the 'running' axis and
+            unity weights are used.
+            The size of the weights array len(weights) must be such that
+            len(weights) >= 1 and len(weights) <= len(array), otherwise the
+            flattened array is returned.
+        stat_func (callable): Function to calculate in the 'running' axis.
+            Must accept an `axis` parameter, which will be set to -1 on the
+            flattened input.
+        stat_args (tuple|list): Positional arguments passed to `stat_func`.
+        stat_kws (dict): Keyword arguments passed to `stat_func`.
+        mode (str): The output mode.
+            Can be one of:
+            - 'valid': only values inside the array are used.
+            - 'same': must have the same size as the input.
+            - 'full': the full output is provided.
+        borders (str|complex|Iterable[complex]|None): The border parameters.
+            If int or float, the value is repeated at the borders.
+            If Iterable of int, float or complex, the first and last values are
+            repeated to generate the head and tail, respectively.
+            If str, the following values are accepted:
+                - 'same': the array extrema are used to generate head / tail.
+                - 'circ': the values are repeated periodically / circularly.
+                - 'sym': the values are repeated periodically / symmetrically.
+
+    Returns:
+        arr (np.ndarray): The output array.
+
+    Examples:
+        >>> num = 8
+        >>> arr = np.linspace(1, num, num)
+        >>> all([np.allclose(
+        ...                  moving_average(arr, n, mode=mode),
+        ...                  moving_stat(arr, n, mode=mode))
+        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
+        True
+        >>> moving_stat(arr, 4, mode='same', borders=100)
+        array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
+        >>> moving_stat(arr, 4, mode='full', borders='same')
+        array([1.  , 1.25, 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.75, 8.\
+  ])
+        >>> moving_stat(arr, 4, mode='full', borders='circ')
+        array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
+        >>> moving_stat(arr, 4, mode='full', borders='sym')
+        array([1.75, 1.5 , 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.5 ,\
+ 7.25])
+        >>> moving_stat(arr, 4, mode='same', borders='circ')
+        array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
+        >>> moving_stat(arr, [1, 0.2])
+        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
+               6.16666667, 7.16666667])
+    """
+    arr = arr.ravel()
+    if isinstance(weights, int):
+        weights = np.ones((weights,))
+    else:
+        # weights order needs to be inverted
+        weights = np.array(weights)[::-1]
+    num = len(weights) if isinstance(weights, np.ndarray) else 0
+    size = len(arr)
+    if size >= num > 1:
+        # calculate how to extend the input array
+        if borders is None:
+            extension = np.zeros((num - 1,))
+        elif borders == 'same':
+            extension = np.concatenate(
+                (np.full((num - 1,), arr[-1]),
+                 np.full((num - 1,), arr[0])))
+        elif borders == 'circ':
+            extension = arr
+        elif borders == 'sym':
+            extension = arr[::-1]
+        elif isinstance(borders, (int, float, complex)):
+            extension = np.full((num - 1,), borders)
+        elif isinstance(borders, (tuple, float)):
+            extension = np.concatenate(
+                (np.full((num - 1,), borders[-1]),
+                 np.full((num - 1,), borders[0])))
+        else:
+            raise ValueError(
+                '`borders={borders}` not understood'.format(**locals()))
+
+        # calculate generator for data and weights
+        arr = np.concatenate((arr, extension))
+        gen = np.zeros((size + num - 1, num))
+        for i in range(num):
+            gen[:, i] = np.roll(arr, i)[:size + num - 1]
+        w_gen = np.stack([weights] * (size + num - 1))
+
+        # calculate the running stats
+        arr = stat_func(
+            gen * w_gen,
+            *(stat_args if stat_args else ()), axis=-1,
+            **(stat_kws if stat_kws else {}))
+        arr *= len(weights) / np.sum(weights)
+
+        # adjust output according to mode
+        if mode == 'valid':
+            arr = arr[num - 1:-(num - 1)]
+        elif mode == 'same':
+            begin = (num - 1) // 2
+            arr = arr[begin:begin + size]
+    return arr
+
+
+# ======================================================================
+def running_stat(
+        arr,
+        weights=1,
+        stat_func=np.mean,
+        stat_args=None,
+        stat_kws=None,
+        mode='valid',
+        borders=None):
+    """
+    Calculate the running statistics (with optional weights).
+
+    This is calculated by running the specified statistics for each subset of
+    the array of given size, including optional weightings.
+    The moving statistics will be applied to the flattened array.
+
+    This function differs from `rolling_stat` in that it should be slower but
+    less memory demanding.
+    Also the `stat_func` callable is not required to accept an `axis`
+    parameter.
+
+    Args:
+        arr (np.ndarray): The input array.
+        weights (int|Iterable): The running weights.
+            If int, the number of elements to group in the 'running' axis and
+            unity weights are used.
+            The size of the weights array len(weights) must be such that
+            len(weights) >= 1 and len(weights) <= len(array), otherwise the
+            flattened array is returned.
+        stat_func (callable): Function to calculate in the 'running' axis.
+        stat_args (tuple|list): Positional arguments passed to `stat_func`.
+        stat_kws (dict): Keyword arguments passed to `stat_func`.
+        mode (str): The output mode.
+            Can be one of:
+            - 'valid': only values inside the array are used.
+            - 'same': must have the same size as the input.
+            - 'full': the full output is provided.
+        borders (str|complex|None): The border parameters.
+            If int, float or complex, the value is repeated at the borders.
+            If Iterable of int, float or complex, the first and last values are
+            repeated to generate the head and tail, respectively.
+            If str, the following values are accepted:
+                - 'same': the array extrema are used to generate head / tail.
+                - 'circ': the values are repeated periodically / circularly.
+                - 'sym': the values are repeated periodically / symmetrically.
+
+    Returns:
+        arr (np.ndarray): The output array.
+
+    Examples:
+        >>> num = 8
+        >>> arr = np.linspace(1, num, num)
+        >>> all([np.allclose(
+        ...                  moving_average(arr, n, mode=mode),
+        ...                  running_stat(arr, n, mode=mode))
+        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
+        True
+        >>> running_stat(arr, 4, mode='same', borders=100)
+        array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
+        >>> running_stat(arr, 4, mode='same', borders='circ')
+        array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
+        >>> running_stat(arr, 4, mode='full', borders='circ')
+        array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
+        >>> running_stat(arr, [1, 0.2])
+        array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
+               6.16666667, 7.16666667])
+    """
+    arr = arr.ravel()
+    if isinstance(weights, int):
+        weights = np.ones((weights,))
+    else:
+        weights = np.array(weights)
+    num = len(weights) if isinstance(weights, np.ndarray) else 0
+    size = len(arr)
+    if size >= num > 1:
+        # calculate how to extend the input array
+        if borders is None:
+            head = tail = np.zeros((num - 1,))
+        elif borders == 'same':
+            head = np.full((num - 1,), arr[0])
+            tail = np.full((num - 1,), arr[-1])
+        elif borders == 'circ':
+            tail = arr[:num - 1]
+            head = arr[-num + 1:]
+        elif borders == 'sym':
+            tail = arr[-num + 1:]
+            head = arr[:num - 1]
+        elif isinstance(borders, (int, float, complex)):
+            head = tail = np.full((num - 1,), borders)
+        elif isinstance(borders, (tuple, float)):
+            head = np.full((num - 1,), borders[0])
+            tail = np.full((num - 1,), borders[-1])
+        else:
+            raise ValueError(
+                '`borders={borders}` not understood'.format(**locals()))
+
+        # calculate generator for data and weights
+        gen = np.concatenate((head, arr, tail))
+        # print(gen)
+        arr = np.zeros((len(gen) - num + 1))
+        for i in range(len(arr)):
+            arr[i] = stat_func(
+                gen[i:i + num] * weights,
+                *(stat_args if stat_args else ()),
+                **(stat_kws if stat_kws else {}))
+        arr *= len(weights) / np.sum(weights)
+
+        # adjust output according to mode
+        if mode == 'valid':
+            arr = arr[num - 1:-(num - 1)]
+        elif mode == 'same':
+            begin = (num - 1) // 2
+            arr = arr[begin:begin + size]
+    return arr
+
+
+# ======================================================================
+def rolling_stat_nd(
+        arr,
+        func,
+        func_args,
+        func_kws):
+    # TODO
+    raise NotImplementedError
 
 
 # ======================================================================
