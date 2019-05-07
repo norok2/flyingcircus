@@ -257,7 +257,7 @@ def nd_windowing(
         writeable=False,
         shape_mode='end'):
     """
-    Generate a N-dimensional windowing of an array.
+    Generate a N-dimensional moving windowing view of an array.
 
     Args:
         arr (np.ndarray): The input array.
@@ -3184,7 +3184,7 @@ def padding(
             interpreted as the constant value to use.
             If str, this is passed directly to `np.pad()`.
             See `np.pad()` for more details.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
             These are passed to `np.pad()`.
 
     Returns:
@@ -4998,7 +4998,7 @@ def frame(
             Passed to `flyingcircus.util.padding()`.
         combine (callable|None): The function for combining pad width values.
             Passed to `flyingcircus.util.padding()`.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
             Passed to `flyingcircus.util.padding()`.
 
     Returns:
@@ -5042,7 +5042,7 @@ def reframe(
             Passed as `position` to `fc.num.shape_to_pad_width()`.
         mode (str|int|float|complex): The padding mode.
             This is passed to `fc.num.padding()`.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
             These are passed to `fc.num.padding()`.
 
     Returns:
@@ -5057,32 +5057,51 @@ def reframe(
         - flyingcircus.num.padding()
 
     Examples:
-        >>> arr = np.ones((2, 3))
-        >>> reframe(arr, (4, 5))
-        array([[0., 0., 0., 0., 0.],
-               [0., 1., 1., 1., 0.],
-               [0., 1., 1., 1., 0.],
-               [0., 0., 0., 0., 0.]])
-        >>> reframe(arr, (4, 5), 0)
-        array([[1., 1., 1., 0., 0.],
-               [1., 1., 1., 0., 0.],
-               [0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0.]])
-        >>> reframe(arr, (4, 5), (2, 0))
-        array([[0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0.],
-               [1., 1., 1., 0., 0.],
-               [1., 1., 1., 0., 0.]])
-        >>> reframe(arr, (4, 5), (0.0, 1.0))
-        array([[0., 0., 1., 1., 1.],
-               [0., 0., 1., 1., 1.],
-               [0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0.]])
-        >>> reframe(arr, (4, 5), 1.0)
-        array([[0., 0., 0., 0., 0.],
-               [0., 0., 0., 0., 0.],
-               [0., 0., 1., 1., 1.],
-               [0., 0., 1., 1., 1.]])
+        >>> arr = np.ones((2, 3), dtype=int)
+        >>> print(reframe(arr, (4, 5)))
+        [[0 0 0 0 0]
+         [0 1 1 1 0]
+         [0 1 1 1 0]
+         [0 0 0 0 0]]
+        >>> print(reframe(arr, (4, 5), 0))
+        [[1 1 1 0 0]
+         [1 1 1 0 0]
+         [0 0 0 0 0]
+         [0 0 0 0 0]]
+        >>> print(reframe(arr, (4, 5), (2, 0)))
+        [[0 0 0 0 0]
+         [0 0 0 0 0]
+         [1 1 1 0 0]
+         [1 1 1 0 0]]
+        >>> print(reframe(arr, (4, 5), (0.0, 1.0)))
+        [[0 0 1 1 1]
+         [0 0 1 1 1]
+         [0 0 0 0 0]
+         [0 0 0 0 0]]
+        >>> print(reframe(arr, (4, 5), 1.0))
+        [[0 0 0 0 0]
+         [0 0 0 0 0]
+         [0 0 1 1 1]
+         [0 0 1 1 1]]
+
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> print(reframe(arr, (4, 5), 0, 'wrap'))
+        [[1 2 3 1 2]
+         [4 5 6 4 5]
+         [1 2 3 1 2]
+         [4 5 6 4 5]]
+
+        >>> print(reframe(arr, (4, 5), 1, 'wrap'))
+        [[6 4 5 6 4]
+         [3 1 2 3 1]
+         [6 4 5 6 4]
+         [3 1 2 3 1]]
+
+        >>> print(reframe(arr, (4, 5), 0.5, 'wrap'))
+        [[6 4 5 6 4]
+         [3 1 2 3 1]
+         [6 4 5 6 4]
+         [3 1 2 3 1]]
     """
     width = shape_to_pad_width(arr.shape, shape, position)
     result, mask = padding(arr, width, None, mode, pad_kws)
@@ -6226,12 +6245,13 @@ def rolling_window_nd(
         window,
         steps=1,
         window_steps=1,
-        mode='view',
-        pad_mode=None,
+        out_mode='view',
+        pad_mode=0,
+        pad_kws=None,
         writeable=False,
         shape_mode='end'):
     """
-    Generate a N-dimensional windowing of an array.
+    Generate a N-dimensional rolling window of an array.
 
     Args:
         arr (np.ndarray): The input array.
@@ -6240,50 +6260,35 @@ def rolling_window_nd(
             This determines the step used for moving to the next window.
         window_steps (int|Iterable[int]): The window step sizes.
             This determines the step used for moving within the window.
-        mode (str): The output mode.
+        out_mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
             - 'view': same as `valid`, but returns a view of the input instead.
             - 'same': must have the same size as the input.
             - 'full': the full output is provided.
-        borders (str|complex|None): The border parameters.
-            Only used if `mode` is `same` or `full`.
-            If int, float or complex, the value is repeated at the borders.
-            If Iterable of int, float or complex, the first and last values are
-            repeated to generate the head and tail, respectively.
-            If str, the following values are accepted:
-                - 'circ': the values are repeated periodically / circularly.
-                - 'sym': the values are repeated periodically / symmetrically.
+        pad_mode (int|float|complex|str): The padding mode.
+            If `out_mode` is `valid` or `view` this parameter is ignored.
+            This is passed as `mode` to `fc.num.padding()`.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
+            If `out_mode` is `valid` or `view` this parameter is ignored.
+            This is passed as `mode` to `fc.num.padding()`.
+        writeable (bool): Determine if the result entries can be overwritten.
+            This is passed to `fc.num.nd_windowing()`.
         shape_mode (str): Determine the shape of the result.
-            Accepted values are:
-             - 'begin': Window shape dims are at the beginning of shape
-             - 'end': Window shape dims are at the end of shape
-             - 'mix': Window shape dims are mixed with window position dims.
-             - 'mix_r': Window position dims are mixed with window shape dims.
+            This is passed to `fc.num.nd_windowing()`.
 
     Returns:
         result (np.ndarray): The windowing array.
-            This has shape equal to `arr.shape` + `sizes`.
     """
-    as_view = (mode == 'view')
-    if mode in ('valid', 'view'):
-        new_shape = arr.shape
-    elif mode == 'same':
-        new_shape = arr.shape
-    elif mode == 'full':
-        new_shape = tuple(dim + size for dim, size in zip(arr.shape, window))
-    if borders is None:
-        pass
-    elif borders == 'circ':
-        extension = arr
-    elif borders == 'sym':
-        extension = arr[::-1]
-    elif isinstance(borders, (int, float, complex)):
-        arr = 1
-    else:
-        raise ValueError(
-            '`borders={borders}` not understood'.format(**locals()))
-
+    window = util.auto_repeat(window, arr.ndim, check=True)
+    as_view = (out_mode == 'view')
+    width = 0  # for both 'valid' and 'view' output modes
+    if out_mode == 'same':
+        width = tuple((size // 2, size - size // 2 - 1) for size in window)
+    elif out_mode == 'full':
+        width = tuple((size - 1, size - 1) for size in window)
+    if width:
+        arr, mask = padding(arr, width, mode=pad_mode, pad_kws=pad_kws)
     return nd_windowing(
         arr, window, steps, window_steps, as_view, writeable, shape_mode)
 
@@ -6390,23 +6395,23 @@ def moving_average(
 
 
 # ======================================================================
-def moving_stat(
+def moving_apply(
         arr,
         weights=1,
-        stat_func=np.mean,
-        stat_args=None,
-        stat_kws=None,
+        func=np.mean,
+        func_args=None,
+        func_kws=None,
         mode='valid',
         borders=None):
     """
-    Calculate the rolling statistics (with optional weights).
+    Compute a function on a moving (weighted) window of a 1D-array.
 
-    The moving statistics will be applied to the flattened array.
+    This is especially useful for running/moving/rolling statistics.
+    The function will be applied to the flattened array.
     This is calculated by running the specified statistics for each subset of
     the array of given size, including optional weightings.
 
-
-    This function differs from `running_stat` in that it should be faster but
+    This function differs from `running_apply` in that it should be faster but
     more memory demanding.
     Also the `stat_func` callable is required to accept an `axis` parameter.
 
@@ -6418,11 +6423,10 @@ def moving_stat(
             The size of the weights array len(weights) must be such that
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
-        stat_func (callable): Function to calculate in the 'running' axis.
-            Must accept an `axis` parameter, which will be set to -1 on the
-            flattened input.
-        stat_args (tuple|list): Positional arguments passed to `stat_func`.
-        stat_kws (dict): Keyword arguments passed to `stat_func`.
+        func (callable): Function to calculate in the 'moving' window.
+            Must accept an `axis` parameter, which will be set to -1.
+        func_args (tuple|None): Positional arguments passed to `func`.
+        func_kws (dict|None): Keyword arguments passed to `func`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
@@ -6445,22 +6449,22 @@ def moving_stat(
         >>> arr = np.linspace(1, num, num)
         >>> all([np.allclose(
         ...                  moving_average(arr, n, mode=mode),
-        ...                  moving_stat(arr, n, mode=mode))
+        ...                  moving_apply(arr, n, mode=mode))
         ...      for n in range(num) for mode in ('valid', 'same', 'full')])
         True
-        >>> moving_stat(arr, 4, mode='same', borders=100)
+        >>> moving_apply(arr, 4, mode='same', borders=100)
         array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
-        >>> moving_stat(arr, 4, mode='full', borders='same')
+        >>> moving_apply(arr, 4, mode='full', borders='same')
         array([1.  , 1.25, 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.75, 8.\
   ])
-        >>> moving_stat(arr, 4, mode='full', borders='circ')
+        >>> moving_apply(arr, 4, mode='full', borders='circ')
         array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
-        >>> moving_stat(arr, 4, mode='full', borders='sym')
+        >>> moving_apply(arr, 4, mode='full', borders='sym')
         array([1.75, 1.5 , 1.75, 2.5 , 3.5 , 4.5 , 5.5 , 6.5 , 7.25, 7.5 ,\
  7.25])
-        >>> moving_stat(arr, 4, mode='same', borders='circ')
+        >>> moving_apply(arr, 4, mode='same', borders='circ')
         array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
-        >>> moving_stat(arr, [1, 0.2])
+        >>> moving_apply(arr, [1, 0.2])
         array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
                6.16666667, 7.16666667])
     """
@@ -6502,10 +6506,10 @@ def moving_stat(
         w_gen = np.stack([weights] * (size + num - 1))
 
         # calculate the running stats
-        arr = stat_func(
+        arr = func(
             gen * w_gen,
-            *(stat_args if stat_args else ()), axis=-1,
-            **(stat_kws if stat_kws else {}))
+            *(func_args if func_args else ()), axis=-1,
+            **(func_kws if func_kws else {}))
         arr *= len(weights) / np.sum(weights)
 
         # adjust output according to mode
@@ -6518,22 +6522,23 @@ def moving_stat(
 
 
 # ======================================================================
-def running_stat(
+def running_apply(
         arr,
         weights=1,
-        stat_func=np.mean,
-        stat_args=None,
-        stat_kws=None,
+        func=np.mean,
+        func_args=None,
+        func_kws=None,
         mode='valid',
         borders=None):
     """
-    Calculate the running statistics (with optional weights).
+    Compute a function on a running (weighted) window of a 1D-array.
 
-    This is calculated by running the specified statistics for each subset of
+    This is especially useful for running/moving/rolling statistics.
+    This is calculated by running the specified function for each subset of
     the array of given size, including optional weightings.
-    The moving statistics will be applied to the flattened array.
+    The moving function will be applied to the flattened array.
 
-    This function differs from `rolling_stat` in that it should be slower but
+    This function differs from `rolling_apply` in that it should be slower but
     less memory demanding.
     Also the `stat_func` callable is not required to accept an `axis`
     parameter.
@@ -6546,9 +6551,9 @@ def running_stat(
             The size of the weights array len(weights) must be such that
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
-        stat_func (callable): Function to calculate in the 'running' axis.
-        stat_args (tuple|list): Positional arguments passed to `stat_func`.
-        stat_kws (dict): Keyword arguments passed to `stat_func`.
+        func (callable): Function to calculate in the 'running' axis.
+        func_args (tuple|None): Positional arguments passed to `func`.
+        func_kws (dict|None): Keyword arguments passed to `func`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
@@ -6571,16 +6576,16 @@ def running_stat(
         >>> arr = np.linspace(1, num, num)
         >>> all([np.allclose(
         ...                  moving_average(arr, n, mode=mode),
-        ...                  running_stat(arr, n, mode=mode))
+        ...                  running_apply(arr, n, mode=mode))
         ...      for n in range(num) for mode in ('valid', 'same', 'full')])
         True
-        >>> running_stat(arr, 4, mode='same', borders=100)
+        >>> running_apply(arr, 4, mode='same', borders=100)
         array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
-        >>> running_stat(arr, 4, mode='same', borders='circ')
+        >>> running_apply(arr, 4, mode='same', borders='circ')
         array([4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5])
-        >>> running_stat(arr, 4, mode='full', borders='circ')
+        >>> running_apply(arr, 4, mode='full', borders='circ')
         array([5.5, 4.5, 3.5, 2.5, 3.5, 4.5, 5.5, 6.5, 5.5, 4.5, 3.5])
-        >>> running_stat(arr, [1, 0.2])
+        >>> running_apply(arr, [1, 0.2])
         array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
                6.16666667, 7.16666667])
     """
@@ -6618,10 +6623,10 @@ def running_stat(
         # print(gen)
         arr = np.zeros((len(gen) - num + 1))
         for i in range(len(arr)):
-            arr[i] = stat_func(
+            arr[i] = func(
                 gen[i:i + num] * weights,
-                *(stat_args if stat_args else ()),
-                **(stat_kws if stat_kws else {}))
+                *(func_args if func_args else ()),
+                **(func_kws if func_kws else {}))
         arr *= len(weights) / np.sum(weights)
 
         # adjust output according to mode
@@ -6634,13 +6639,121 @@ def running_stat(
 
 
 # ======================================================================
-def rolling_stat_nd(
+def rolling_apply_nd(
         arr,
-        func,
-        func_args,
-        func_kws):
-    # TODO
-    raise NotImplementedError
+        window,
+        steps=1,
+        window_steps=1,
+        out_mode='valid',
+        pad_mode=0,
+        pad_kws=None,
+        func=np.mean,
+        func_args=None,
+        func_kws=None):
+    """
+    Compute a function on a rolling N-dim window of the array.
+
+    This is especially useful for running/moving/rolling statistics.
+    Partial application along given axes can be obtained by setting a window
+    size different from 1 only into the corresponding dimensions of interest.
+
+    Args:
+        arr (np.ndarray): The input array.
+        window (int|Iterable[int]): The window sizes.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+        steps (int|Iterable[int]): The step sizes.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+        window_steps (int|Iterable[int]): The window step sizes.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+        out_mode (str): The output mode.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            Note that `view` is now identical to `valid`.
+        pad_mode (int|float|complex|str): The padding mode.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
+            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+        func (callable): The function to apply.
+            Must have the following signature:
+            func(np.ndarray, axis=Iterable[int], *func_args, **func_kws)
+            -> np.ndarray
+            The result of `func` must be an array with the dimensions specified
+            in `axis` collapsed, e.g. `np.mean()`, `np.min()`, `np.max()`, etc.
+            Note that the `axis` parameter must be accepted.
+        func_args (tuple|None): Positional arguments of `func`.
+        func_kws (dict|None): Keyword arguments of `func`.
+
+    Returns:
+        result (np.ndarray): The rolling function.
+
+    Examples:
+        >>> arr = arange_nd((5, 7)) + 1
+        >>> print(arr)
+        [[ 1  2  3  4  5  6  7]
+         [ 8  9 10 11 12 13 14]
+         [15 16 17 18 19 20 21]
+         [22 23 24 25 26 27 28]
+         [29 30 31 32 33 34 35]]
+        >>> print(rolling_apply_nd(arr, 2))
+        [[ 5.  6.  7.  8.  9. 10.]
+         [12. 13. 14. 15. 16. 17.]
+         [19. 20. 21. 22. 23. 24.]
+         [26. 27. 28. 29. 30. 31.]]
+        >>> print(rolling_apply_nd(arr, 3))
+        [[ 9. 10. 11. 12. 13.]
+         [16. 17. 18. 19. 20.]
+         [23. 24. 25. 26. 27.]]
+        >>> print(np.round(rolling_apply_nd(arr, 2, out_mode='same'), 2))
+        [[ 0.25  0.75  1.25  1.75  2.25  2.75  3.25]
+         [ 2.25  5.    6.    7.    8.    9.   10.  ]
+         [ 5.75 12.   13.   14.   15.   16.   17.  ]
+         [ 9.25 19.   20.   21.   22.   23.   24.  ]
+         [12.75 26.   27.   28.   29.   30.   31.  ]]
+        >>> print(np.round(rolling_apply_nd(arr, 3, out_mode='same'), 2))
+        [[ 2.22  3.67  4.33  5.    5.67  6.33  4.44]
+         [ 5.67  9.   10.   11.   12.   13.    9.  ]
+         [10.33 16.   17.   18.   19.   20.   13.67]
+         [15.   23.   24.   25.   26.   27.   18.33]
+         [11.56 17.67 18.33 19.   19.67 20.33 13.78]]
+        >>> print(np.round(rolling_apply_nd(arr, 2, out_mode='full'), 2))
+        [[ 0.25  0.75  1.25  1.75  2.25  2.75  3.25  1.75]
+         [ 2.25  5.    6.    7.    8.    9.   10.    5.25]
+         [ 5.75 12.   13.   14.   15.   16.   17.    8.75]
+         [ 9.25 19.   20.   21.   22.   23.   24.   12.25]
+         [12.75 26.   27.   28.   29.   30.   31.   15.75]
+         [ 7.25 14.75 15.25 15.75 16.25 16.75 17.25  8.75]]
+        >>> a = rolling_apply_nd(arr, 2, out_mode='full', pad_mode='wrap')
+        >>> print(np.round(a, 2))
+        [[18.  15.5 16.5 17.5 18.5 19.5 20.5 18. ]
+         [ 7.5  5.   6.   7.   8.   9.  10.   7.5]
+         [14.5 12.  13.  14.  15.  16.  17.  14.5]
+         [21.5 19.  20.  21.  22.  23.  24.  21.5]
+         [28.5 26.  27.  28.  29.  30.  31.  28.5]
+         [18.  15.5 16.5 17.5 18.5 19.5 20.5 18. ]]
+        >>> a = rolling_apply_nd(arr, 2, out_mode='full', pad_mode='reflect')
+        >>> print(np.round(a, 2))
+        [[ 5.  5.  6.  7.  8.  9. 10. 10.]
+         [ 5.  5.  6.  7.  8.  9. 10. 10.]
+         [12. 12. 13. 14. 15. 16. 17. 17.]
+         [19. 19. 20. 21. 22. 23. 24. 24.]
+         [26. 26. 27. 28. 29. 30. 31. 31.]
+         [26. 26. 27. 28. 29. 30. 31. 31.]]
+        >>> a = rolling_apply_nd(arr, 2, out_mode='full', pad_mode='symmetric')
+        >>> print(np.round(a, 2))
+        [[ 1.   1.5  2.5  3.5  4.5  5.5  6.5  7. ]
+         [ 4.5  5.   6.   7.   8.   9.  10.  10.5]
+         [11.5 12.  13.  14.  15.  16.  17.  17.5]
+         [18.5 19.  20.  21.  22.  23.  24.  24.5]
+         [25.5 26.  27.  28.  29.  30.  31.  31.5]
+         [29.  29.5 30.5 31.5 32.5 33.5 34.5 35. ]]
+    """
+    func_args = tuple(func_args) if func_args else ()
+    func_kws = dict(func_kws) if func_kws else {}
+    arr = rolling_window_nd(
+        arr, window, steps, window_steps, out_mode, pad_mode, pad_kws,
+        False, 'end')
+    axes = tuple(range(arr.ndim // 2, arr.ndim))
+    func_kws['axis'] = axes
+    return func(arr, *func_args, **func_kws)
 
 
 # ======================================================================
