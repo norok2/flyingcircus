@@ -1408,9 +1408,9 @@ def vectors2direction(
         >>> vectors2direction([1, 2, 3, 4], [5, 6, 7, 8])
         array([0.5, 0.5, 0.5, 0.5])
     """
-    direction = np.array(vector2).ravel() - np.array(vector1).ravel()
+    direction = np.array(vector2) - np.array(vector1)
     if normalized:
-        direction = normalize(direction, in_place=True)
+        direction = normalize(direction, in_place=False)
     return direction
 
 
@@ -4971,9 +4971,9 @@ def trim(
             iter(axis)
         except TypeError:
             axis = (axis,)
-    slices = [
+    slices = tuple(
         slice(None) if i not in axis else slice_
-        for i, slice_ in enumerate(bounding_box(mask))]
+        for i, slice_ in enumerate(bounding_box(mask)))
     return arr[slices]
 
 
