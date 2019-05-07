@@ -102,30 +102,27 @@ def is_prime_verbose(num):
         is_divisible (bool): The result of the primality.
 
     Examples:
-        >>> is_prime(100)
+        >>> is_prime_verbose(100)
         False
-        >>> is_prime(101)
+        >>> is_prime_verbose(101)
         True
-        >>> is_prime(-100)
+        >>> is_prime_verbose(-100)
         False
-        >>> is_prime(-101)
+        >>> is_prime_verbose(-101)
         True
-        >>> is_prime(2 ** 17)
+        >>> is_prime_verbose(2 ** 17)
         False
-        >>> is_prime(17 * 19)
+        >>> is_prime_verbose(17 * 19)
         False
-        >>> is_prime(2 ** 17 - 1)
+        >>> is_prime_verbose(2 ** 17 - 1)
         True
-        >>> is_prime(0)
-        True
-        >>> is_prime(1)
-        True
-
-    See Also:
-        - https://en.wikipedia.org/wiki/AKS_primality_test
+        >>> is_prime_verbose(0)
+        False
+        >>> is_prime_verbose(1)
+        False
     """
     # : verbose implementation (skip 2 multiples!)
-    is_divisible = num == 1 or num != 2 and num % 2 == 0
+    is_divisible = num == 1 or (num != 2 and num % 2 == 0)
     i = 3
     while not is_divisible and i * i < num:
         is_divisible = num % i == 0
@@ -153,27 +150,24 @@ def is_prime_optimized(num):
         is_divisible (bool): The result of the primality.
 
     Examples:
-        >>> is_prime(100)
+        >>> is_prime_optimized(100)
         False
-        >>> is_prime(101)
+        >>> is_prime_optimized(101)
         True
-        >>> is_prime(-100)
+        >>> is_prime_optimized(-100)
         False
-        >>> is_prime(-101)
+        >>> is_prime_optimized(-101)
         True
-        >>> is_prime(2 ** 17)
+        >>> is_prime_optimized(2 ** 17)
         False
-        >>> is_prime(17 * 19)
+        >>> is_prime_optimized(17 * 19)
         False
-        >>> is_prime(2 ** 17 - 1)
+        >>> is_prime_optimized(2 ** 17 - 1)
         True
-        >>> is_prime(0)
+        >>> is_prime_optimized(0)
         True
-        >>> is_prime(1)
+        >>> is_prime_optimized(1)
         True
-
-    See Also:
-        - https://en.wikipedia.org/wiki/AKS_primality_test
     """
     # : optimized implementation (skip 2 multiples!)
     num = abs(num)
@@ -451,7 +445,7 @@ def slice_array(
     # determine slice index
     slab[axis] = index
     # slice the array
-    return arr[slab]
+    return arr[tuple(slab)]
 
 
 # ======================================================================
