@@ -16,13 +16,14 @@ import sys  # System-specific parameters and functions
 import functools  # Higher-order functions and operations on callable objects
 import doctest  # Test interactive Python examples
 import shlex  # Simple lexical analysis
+import itertools  # Functions creating iterators for efficient looping
 
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
 import flyingcircus as fc
-import flyingcircus.util
-import flyingcircus.num
+from flyingcircus import util
+from flyingcircus import num
 
 # :: External Imports Submodules
 import scipy.optimize  # SciPy: Optimization Algorithms
@@ -545,6 +546,401 @@ def accumulate(
     return [
         functools.reduce(func, list(items)[:i + 1])
         for i in range(len(items))]
+
+
+# ======================================================================
+def cyclic_padding_loops(
+        arr,
+        shape,
+        offsets):
+    """
+    Generate a cyclical padding of an array to a given shape with offsets.
+
+    Implemented using single element loops.
+
+    Args:
+        arr (np.ndarray): The input array.
+        shape (int|Iterable[int]): The output shape.
+            If int, a shape matching the input dimension is generated.
+        offsets (int|float|Iterable[int|float]): The input offset.
+            The input is shifted by the specified offset before padding.
+            If int or float, the same offset is applied to all dimensions.
+            If float, the offset is scaled to the difference between the
+            input shape and the output shape.
+
+    Returns:
+        result (np.ndarray): The cyclic padded array of given shape.
+
+    Examples:
+        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(cyclic_padding_loops(arr, (4, 5), (1, 1)))
+        [[5 6 4 5 6]
+         [2 3 1 2 3]
+         [5 6 4 5 6]
+         [2 3 1 2 3]]
+    """
+    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = tuple(
+        (int(round((new_dim - dim) * offset))
+         if isinstance(offset, float) else offset) % dim
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    assert (arr.ndim == len(shape) == len(offsets))
+    result = np.zeros(shape, dtype=arr.dtype)
+    for ij in itertools.product(*tuple(range(dim) for dim in result.shape)):
+        slicing = tuple(
+            (i + offset) % dim
+            for i, offset, dim in zip(ij, offsets, arr.shape))
+        result[ij] = arr[slicing]
+    return result
+
+
+# ======================================================================
+def symmetric_padding_loops(
+        arr,
+        shape,
+        offsets):
+    """
+    Generate a symmetrical padding of an array to a given shape with offsets.
+
+    Implemented using single element loops.
+
+    Args:
+        arr (np.ndarray): The input array.
+        shape (int|Iterable[int]): The output shape.
+            If int, a shape matching the input dimension is generated.
+        offsets (int|float|Iterable[int|float]): The input offset.
+            The input is shifted by the specified offset before padding.
+            If int or float, the same offset is applied to all dimensions.
+            If float, the offset is scaled to the difference between the
+            input shape and the output shape.
+
+    Returns:
+        result (np.ndarray): The symmetric padded array of given shape.
+
+    Examples:
+        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(symmetric_padding_loops(arr, (4, 5), (-1, -1)))
+        [[6 6 5 4 4]
+         [6 6 5 4 4]
+         [3 3 2 1 1]
+         [3 3 2 1 1]]
+    """
+    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = tuple(
+        (int(round((new_dim - dim) * offset))
+         if isinstance(offset, float) else offset) % dim
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    assert (arr.ndim == len(shape) == len(offsets))
+    result = np.zeros(shape, dtype=arr.dtype)
+    for ij in itertools.product(*tuple(range(dim) for dim in result.shape)):
+        slicing = tuple(
+            (i + offset) % dim
+            if (i + offset) // dim % 2 == 0 else
+            (dim - 1 - i - offset) % dim
+            for i, offset, dim in zip(ij, offsets, arr.shape))
+        result[ij] = arr[slicing]
+    return result
+
+
+# ======================================================================
+def cyclic_padding_tile(
+        arr,
+        shape,
+        offsets):
+    """
+    Generate a cyclical padding of an array to a given shape with offsets.
+
+    Implemented using single element loops.
+
+    Args:
+        arr (np.ndarray): The input array.
+        shape (int|Iterable[int]): The output shape.
+            If int, a shape matching the input dimension is generated.
+        offsets (int|float|Iterable[int|float]): The input offset.
+            The input is shifted by the specified offset before padding.
+            If int or float, the same offset is applied to all dimensions.
+            If float, the offset is scaled to the difference between the
+            input shape and the output shape.
+
+    Returns:
+        result (np.ndarray): The cyclic padded array of given shape.
+
+    Examples:
+        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(cyclic_padding_tile(arr, (4, 5), (1, 1)))
+        [[5 6 4 5 6]
+         [2 3 1 2 3]
+         [5 6 4 5 6]
+         [2 3 1 2 3]]
+    """
+    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
+    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = tuple(
+        (int(round((new_dim - dim) * offset))
+         if isinstance(offset, float) else offset) % dim
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    assert (arr.ndim == len(shape) == len(offsets))
+    tiling = tuple(
+        new_dim // dim + (1 if new_dim % dim else 0) + (1 if offset else 0)
+        for offset, dim, new_dim in zip(offsets, arr.shape, shape))
+    result = np.tile(arr, tiling)
+    slicing = tuple(
+        slice(offset, offset + new_dim)
+        for offset, new_dim in zip(offsets, shape))
+    return result[slicing]
+
+
+# ======================================================================
+def cyclic_padding_pad(
+        arr,
+        shape,
+        offsets):
+    """
+    Generate a cyclical padding of an array to a given shape with offsets.
+
+    Implemented using padding.
+
+    Args:
+        arr (np.ndarray): The input array.
+        shape (int|Iterable[int]): The output shape.
+            If int, a shape matching the input dimension is generated.
+        offsets (int|float|Iterable[int|float]): The input offset.
+            The input is shifted by the specified offset before padding.
+            If int or float, the same offset is applied to all dimensions.
+            If float, the offset is scaled to the difference between the
+            input shape and the output shape.
+
+    Returns:
+        result (np.ndarray): The cyclic padded array of given shape.
+
+    Examples:
+        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(cyclic_padding_pad(arr, (4, 5), (1, 1)))
+        [[5 6 4 5 6]
+         [2 3 1 2 3]
+         [5 6 4 5 6]
+         [2 3 1 2 3]]
+    """
+    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
+    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = tuple(
+        -(int(round((new_dim - dim) * offset))
+          if isinstance(offset, float) else offset) % dim
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    assert (arr.ndim == len(shape) == len(offsets))
+    width = tuple(
+        (0, new_dim - dim)
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    result = np.pad(np.roll(arr, offsets, range(arr.ndim)), width, mode='wrap')
+    return result
+
+
+# ======================================================================
+def cyclic_padding_slicing(
+        arr,
+        shape,
+        offsets):
+    """
+    Generate a cyclical padding of an array to a given shape with offsets.
+
+    Implemented using slicing.
+
+    Args:
+        arr (np.ndarray): The input array.
+        shape (int|Iterable[int]): The output shape.
+            If int, a shape matching the input dimension is generated.
+        offsets (int|float|Iterable[int|float]): The input offset.
+            The input is shifted by the specified offset before padding.
+            If int or float, the same offset is applied to all dimensions.
+            If float, the offset is scaled to the difference between the
+            input shape and the output shape.
+
+    Returns:
+        result (np.ndarray): The cyclic padded array of given shape.
+
+    Examples:
+        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> print(cyclic_padding_slicing(arr, (4, 5), (1, 1)))
+        [[5 6 4 5 6]
+         [2 3 1 2 3]
+         [5 6 4 5 6]
+         [2 3 1 2 3]]
+    """
+    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = tuple(
+        (int(round((new_dim - dim) * offset))
+         if isinstance(offset, float) else offset) % dim
+        for dim, new_dim, offset in zip(arr.shape, shape, offsets))
+    assert (arr.ndim == len(shape) == len(offsets))
+    views = tuple(
+        tuple(
+            slice(max(0, dim * i - offset), dim * (i + 1) - offset)
+            for i in range((new_dim + offset) // dim))
+        + (slice(dim * ((new_dim + offset) // dim) - offset, new_dim),)
+        for offset, dim, new_dim in zip(offsets, arr.shape, shape))
+    views = tuple(
+        tuple(slice_ for slice_ in view if slice_.start < slice_.stop)
+        for view in views)
+    result = np.zeros(shape, dtype=arr.dtype)
+    for view in itertools.product(*views):
+        slicing = tuple(
+            slice(None)
+            if slice_.stop - slice_.start == dim else (
+                slice(offset, offset + (slice_.stop - slice_.start))
+                if slice_.start == 0 else
+                slice(0, (slice_.stop - slice_.start)))
+            for slice_, offset, dim in zip(view, offsets, arr.shape))
+        result[view] = arr[slicing]
+    return result
+
+
+# ======================================================================
+def frame(
+        arr,
+        borders=0.05,
+        background=0.0,
+        use_longest=True):
+    """
+    Add a background frame to an array specifying the borders.
+
+    Note that this is similar to `fc.num.padding()` but it is significantly
+    faster, although less flexible.
+
+    Args:
+        arr (np.ndarray): The input array.
+        borders (int|float|Iterable[int|float]): The border size(s).
+            If int, this is in units of pixels.
+            If float, this is proportional to the initial array shape.
+            If int or float, uses the same value for all dimensions.
+            If Iterable, the size must match `arr` dimensions.
+            If 'use_longest' is True, use the longest dimension for the
+            calculations.
+        background (int|float): The background value to be used for the frame.
+        use_longest (bool): Use longest dimension to get the border size.
+
+    Returns:
+        result (np.ndarray): The result array with added borders.
+
+    See Also:
+        - flyingcircus.num.reframe()
+        - flyingcircus.num.padding()
+    """
+    borders = util.auto_repeat(borders, arr.ndim)
+    if any(borders) < 0:
+        raise ValueError('relative border cannot be negative')
+    if isinstance(borders[0], float):
+        if use_longest:
+            dim = max(arr.shape)
+            borders = [round(border * dim) for border in borders]
+        else:
+            borders = [
+                round(border * dim) for dim, border in zip(arr.shape, borders)]
+    result = np.full(
+        [dim + 2 * border for dim, border in zip(arr.shape, borders)],
+        background, dtype=arr.dtype)
+    inner = tuple(
+        slice(border, border + dim, None)
+        for dim, border in zip(arr.shape, borders))
+    result[inner] = arr
+    return result
+
+
+# ======================================================================
+def reframe(
+        arr,
+        new_shape,
+        position=0.5,
+        background=0.0):
+    """
+    Add a frame to an array by centering the input array into a new shape.
+
+    Args:
+        arr (np.ndarray): The input array.
+        new_shape (int|Iterable[int]): The shape of the output array.
+            If int, uses the same value for all dimensions.
+            If Iterable, the size must match `arr` dimensions.
+            Additionally, each value of `new_shape` must be greater than or
+            equal to the corresponding dimensions of `arr`.
+        position (int|float|Iterable[int|float]): Position within new shape.
+            Determines the position of the array within the new shape.
+            If int or float, it is considered the same in all dimensions,
+            otherwise its length must match the number of dimensions of the
+            array.
+            If int or Iterable of int, the values are absolute and must be
+            less than or equal to the difference between the shape of the array
+            and the new shape.
+            If float or Iterable of float, the values are relative and must be
+            in the [0, 1] range.
+        background (int|float): The background value to be used for the frame.
+
+    Returns:
+        result (np.ndarray): The result array with added borders.
+
+    Raises:
+        IndexError: input and output shape sizes must match.
+        ValueError: output shape cannot be smaller than the input shape.
+
+    See Also:
+        - flyingcircus.num.frame()
+        - flyingcircus.num.padding()
+
+    Examples:
+        >>> arr = np.ones((2, 3))
+        >>> reframe(arr, (4, 5))
+        array([[0., 0., 0., 0., 0.],
+               [0., 1., 1., 1., 0.],
+               [0., 1., 1., 1., 0.],
+               [0., 0., 0., 0., 0.]])
+        >>> reframe(arr, (4, 5), 0)
+        array([[1., 1., 1., 0., 0.],
+               [1., 1., 1., 0., 0.],
+               [0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.]])
+        >>> reframe(arr, (4, 5), (2, 0))
+        array([[0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.],
+               [1., 1., 1., 0., 0.],
+               [1., 1., 1., 0., 0.]])
+        >>> reframe(arr, (4, 5), (0.0, 1.0))
+        array([[0., 0., 1., 1., 1.],
+               [0., 0., 1., 1., 1.],
+               [0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0.]])
+    """
+    new_shape = util.auto_repeat(new_shape, arr.ndim, check=True)
+    position = util.auto_repeat(position, arr.ndim, check=True)
+    if any([old > new for old, new in zip(arr.shape, new_shape)]):
+        raise ValueError('new shape cannot be smaller than the old one.')
+    position = tuple(
+        int(round((new - old) * x_i)) if isinstance(x_i, float) else x_i
+        for old, new, x_i in zip(arr.shape, new_shape, position))
+    if any([old + x_i > new
+            for old, new, x_i in zip(arr.shape, new_shape, position)]):
+        raise ValueError(
+            'Incompatible `new_shape`, `array shape` and `position`.')
+    result = np.full(new_shape, background)
+    inner = tuple(
+        slice(offset, offset + dim, None)
+        for dim, offset in zip(arr.shape, position))
+    result[inner] = arr
+    return result
 
 
 # ======================================================================
