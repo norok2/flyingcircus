@@ -560,11 +560,15 @@ def nd_windowing(
         shape = reduced_shape + tuple(window)
         strides = reduced_strides + window_strides
     elif shape_mode == 'mix':
-        shape = tuple(util.flatten(zip(reduced_shape, window)))
-        strides = tuple(util.flatten(zip(reduced_strides, window_strides)))
+        shape = tuple(
+            x for xs in zip(reduced_shape, window) for x in xs)
+        strides = tuple(
+            x for xs in zip(reduced_strides, window_strides) for x in xs)
     elif shape_mode == 'mix_r':
-        shape = tuple(util.flatten(zip(window, reduced_shape)))
-        strides = tuple(util.flatten(zip(window_strides, reduced_strides)))
+        shape = tuple(
+            x for xs in zip(window, reduced_shape) for x in xs)
+        strides = tuple(
+            x for xs in zip(window_strides, reduced_strides) for x in xs)
     else:
         raise ValueError('shape_mode `{}` not supported.'.format(shape_mode))
     if 0 in shape:
@@ -2757,7 +2761,7 @@ def rel2abs(shape, size=0.5):
     See Also:
         - flyingcircus.num.abs2rel()
         - flyingcircus.num.coord()
-        - flyingcircus.util.scale()
+        - flyingcircus.num.scale()
     """
     size = util.auto_repeat(size, len(shape), check=True)
     return tuple((s - 1.0) * p for p, s in zip(size, shape))
@@ -3037,40 +3041,42 @@ def exp_gradient_kernels(
 
 
 # ======================================================================
-def shape_to_pad_width(
+def width_from_shapes(
         shape,
         new_shape,
         position):
     """
-    Generate width values for padding a shape onto a new shape (with offsets).
+    Generate width values for padding a shape onto a new shape.
 
     Args:
         shape (Iterable[int]): The input shape.
         new_shape (int|Iterable[int]): The output shape.
             If int, uses the same value for all dimensions.
-            If Iterable, the size must match `arr` dimensions.
+            If Iterable, must have the same length as `shape`.
             Additionally, each value of `new_shape` must be greater than or
-            equal to the corresponding dimensions of `shape`.
+            equal to the corresponding value of `shape`.
         position (int|float|Iterable[int|float]): Position within new shape.
             Determines the position of the array within the new shape.
             If int or float, it is considered the same in all dimensions,
-            otherwise its length must match the number of dimensions of the
-            array.
+            otherwise its length must match the length of shape.
             If int or Iterable of int, the values are absolute and must be
-            less than or equal to the difference between the shape of the array
-            and the new shape.
-            If float or Iterable of float, the values are relative and must be
-            in the [0, 1] range.
+            less than or equal to the difference between the shape and
+            the new shape.
+            If float or Iterable of float, the values are relative to the
+            difference between `new_shape` and `shape` and must bein the
+            [0, 1] range.
 
     Returns:
         width (tuple[tuple[int]]): Size of the padding to use.
 
     Examples:
-        >>> shape_to_pad_width((2, 3), (4, 5), 0.5)
+        >>> width_from_shapes((2, 3), (4, 5), 0.5)
         ((1, 1), (1, 1))
-        >>> shape_to_pad_width((2, 3), (4, 5), 0)
+        >>> width_from_shapes((2, 3), (4, 5), 0)
         ((0, 2), (0, 2))
-        >>> shape_to_pad_width((2, 3), (4, 5), (2, 0))
+        >>> width_from_shapes((2, 3), (4, 5), (2, 0))
+        ((2, 0), (0, 2))
+        >>> width_from_shapes((2, 3), (4, 5), (2, 0))
         ((2, 0), (0, 2))
     """
     new_shape = util.auto_repeat(new_shape, len(shape), check=True)
@@ -3084,7 +3090,7 @@ def shape_to_pad_width(
     if any([dim + offset > new_dim
             for dim, new_dim, offset in zip(shape, new_shape, position)]):
         raise ValueError(
-            'Incompatible `new_shape`, `array shape` and `position`.')
+            'Incompatible `shape`, `new_shape` and `position`.')
     width = tuple(
         (offset, new_dim - dim - offset)
         for dim, new_dim, offset in zip(shape, new_shape, position))
@@ -3092,81 +3098,12 @@ def shape_to_pad_width(
 
 
 # ======================================================================
-def auto_pad_width(
-        width,
-        shape,
-        combine=None):
-    """
-    Ensure width value(s) to be consisting of integer.
-
-    Args:
-        width (float|int|Iterable[float|int]): Size of the padding to use.
-            This is useful for mitigating border effects.
-            If Iterable, a value for each dim must be specified.
-            If not Iterable, all dims will have the same value.
-            If int, it is interpreted as absolute size.
-            If float, it is interpreted as relative to corresponding dim size.
-        shape (Iterable[int]): The shape to associate to `pad_width`.
-        combine (callable|None): The function for combining pad width values.
-            If None, uses the corresponding dim from the shape.
-
-    Returns:
-        pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
-            If input `pad_width` is not Iterable, result is not Iterable.
-
-    See Also:
-        - np.pad()
-        - flyingcircus.num.padding()
-
-    Examples:
-        >>> shape = (10, 20, 30)
-        >>> auto_pad_width(0.1, shape)
-        ((1, 1), (2, 2), (3, 3))
-        >>> auto_pad_width(0.1, shape, max)
-        ((3, 3), (3, 3), (3, 3))
-        >>> shape = (10, 20, 30)
-        >>> auto_pad_width(((0.1, 0.5),), shape)
-        ((1, 5), (2, 10), (3, 15))
-        >>> auto_pad_width(((2, 3),), shape)
-        ((2, 3), (2, 3), (2, 3))
-        >>> auto_pad_width(((2, 3), (1, 2)), shape)
-        Traceback (most recent call last):
-            ...
-        AssertionError
-        >>> auto_pad_width(((0.1, 0.2),), shape, min)
-        ((1, 2), (1, 2), (1, 2))
-        >>> auto_pad_width(((0.1, 0.2),), shape, max)
-        ((3, 6), (3, 6), (3, 6))
-    """
-
-    def float2int(val, factor):
-        return int(val * factor) if isinstance(val, float) else val
-
-    try:
-        iter(width)
-    except TypeError:
-        width = ((width,) * 2,)
-    finally:
-        combined = combine(shape) if combine else None
-        width = list(
-            width if len(width) > 1 else width * len(shape))
-        assert (len(width) == len(shape))
-        for i, (item, dim) in enumerate(zip(width, shape)):
-            lower, upper = item
-            width[i] = (
-                float2int(lower, dim if not combine else combined),
-                float2int(upper, dim if not combine else combined))
-        width = tuple(width)
-    return width
-
-
-# ======================================================================
 def const_padding(
         arr,
         width=0,
-        combine=None,
         value=0):
     """
+
 
     Args:
         arr:
@@ -3177,7 +3114,7 @@ def const_padding(
     Returns:
 
     """
-    width = auto_pad_width(width, arr.shape, combine)
+    width = auto_scale_pairs(width, arr.shape, None)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3195,7 +3132,6 @@ def const_padding(
 def edge_padding(
         arr,
         width=0,
-        combine=None,
         values=0):
     """
 
@@ -3211,7 +3147,7 @@ def edge_padding(
         >>> arr = arange_nd((2, 3)) + 1
         >>> new_arr = edge_padding(arr, 1)
     """
-    width = auto_pad_width(width, arr.shape, combine)
+    width = auto_scale_pairs(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3234,7 +3170,7 @@ def cyclic_padding(
         arr,
         width,
         combine=None):
-    width = auto_pad_width(width, arr.shape, combine)
+    width = auto_scale_pairs(width, arr.shape, combine)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3253,7 +3189,7 @@ def symmetric_padding(
         arr,
         width,
         combine=None):
-    width = auto_pad_width(width, arr.shape, combine)
+    width = auto_scale_pairs(width, arr.shape, combine)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3275,7 +3211,7 @@ def padding(
         mode=0,
         pad_kws=None):
     """
-    Array padding with a constant value.
+    Pads an array
 
     Useful for zero-padding. This is the default behavior.
 
@@ -3316,16 +3252,15 @@ def padding(
         (slice(1, -1, None), slice(1, -1, None))
     """
     pad_kws = dict(pad_kws) if pad_kws else {}
-    width = auto_pad_width(width, arr.shape, combine)
+    width = auto_scale_pairs(width, arr.shape, combine)
     if width:
-        width = auto_pad_width(width, arr.shape, combine)
+        width = auto_scale_pairs(width, arr.shape, combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
             pad_kws['constant_values'] = mode
             mode = 'constant'
         if mode == 'constant':
-            result = const_padding(
-                arr, width, combine, pad_kws['constant_values'])
+            result = const_padding(arr, width, pad_kws['constant_values'])
         else:
             result = np.pad(arr, width, mode, **pad_kws)
     else:
@@ -5208,7 +5143,7 @@ def reframe(
          [6 4 5 6 4]
          [3 1 2 3 1]]
     """
-    width = shape_to_pad_width(arr.shape, shape, position)
+    width = width_from_shapes(arr.shape, shape, position)
     result, mask = padding(arr, width, None, mode, pad_kws)
     return result
 

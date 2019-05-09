@@ -367,6 +367,8 @@ def auto_repeat(
         Traceback (most recent call last):
             ...
         AssertionError
+        >>> auto_repeat(1, (3,))
+        (1, 1, 1)
         >>> auto_repeat(1, (3, 2))
         ((1, 1), (1, 1), (1, 1))
         >>> auto_repeat(1, (2, 3))
@@ -406,7 +408,6 @@ def auto_repeat(
                 obj = auto_repeat(obj, i, True, check)
                 if check:
                     assert (len(obj) == i)
-
     return obj
 
 
@@ -5747,6 +5748,124 @@ def to_percent(text):
         return float(match.string[:-1]) / 100
     else:
         return None
+
+
+# ======================================================================
+def scale_to_int(
+        val,
+        scale,
+        rounding=True):
+    """
+    Scale a value by the specified size.
+
+    Args:
+        val (Any): The value to scale.
+        scale (Any): The scale size.
+        rounding (bool): Perform rounding.
+            If True, call `round()` before int conversion.
+
+    Returns:
+        result (Any): The scaled value.
+
+    Examples:
+        >>> scale_to_int(0.1, 10)
+        1
+        >>> scale_to_int(0.1, 10.0)
+        1
+        >>> scale_to_int(1.0, 10.0)
+        10
+        >>> scale_to_int(0.5, 11.0)
+        6
+        >>> scale_to_int(0.5, 11.0, False)
+        5
+        >>> scale_to_int(1, 10.0)
+        1
+    """
+    return int(round(val * scale) if rounding else (val * scale)) \
+        if not isinstance(val, int) else val
+
+
+# ======================================================================
+def auto_scale_to_int(
+        vals,
+        scales,
+        combine=None,
+        condition=lambda val, scale: isinstance(val, float),
+        type_=None):
+    """
+    Ensure width value(s) to be consisting of integer.
+
+    Args:
+        val (int|float|Iterable[int|float|Iterable]): The input value(s)
+            If Iterable, a value for each scale must be specified.
+            If not Iterable, all pairs will have the same value.
+            If int, it is interpreted as absolute size.
+            If float, it is interpreted as relative to corresponding dim size.
+        scales (Iterable[int]): The scale sizes for the pairs.
+        combine (callable|None): The function for combining pad width scales.
+            Must accept: combine(Iterable[int]) -> int|float
+            This is used to compute a reference scaling value for the
+            float to int conversion, using `combine(shape)`.
+            For the int values of `width`, this parameter has no effect.
+            If None, uses the corresponding dim from the shape.
+
+    Returns:
+        pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
+            If input `pad_width` is not Iterable, result is not Iterable.
+
+    See Also:
+        - np.pad()
+        - flyingcircus.num.padding()
+
+    Examples:
+        >>> scales = (10, 20, 30)
+
+        >>> auto_scale_pairs(0.1, scales)
+        ((1, 1), (2, 2), (3, 3))
+        >>> auto_scale_pairs(0.1, scales, max)
+        ((3, 3), (3, 3), (3, 3))
+        >>> auto_scale_pairs(2, scales)
+        ((2, 2), (2, 2), (2, 2))
+        >>> auto_scale_pairs((1, 1, 2), scales)
+        ((1, 1), (1, 1), (2, 2))
+        >>> auto_scale_pairs((0.1, 1, 2), scales)
+        ((1, 1), (1, 1), (2, 2))
+        >>> auto_scale_pairs((0.1, 1, 2), scales, max)
+        ((3, 3), (1, 1), (2, 2))
+        >>> auto_scale_pairs(((0.1, 0.5),), scales)
+        ((1, 5), (2, 10), (3, 15))
+        >>> auto_scale_pairs(((2, 3),), scales)
+        ((2, 3), (2, 3), (2, 3))
+        >>> auto_scale_pairs(((2, 3), (1, 2)), scales)
+        Traceback (most recent call last):
+            ...
+        AssertionError
+        >>> auto_scale_pairs(((0.1, 0.2),), scales, min)
+        ((1, 2), (1, 2), (1, 2))
+        >>> auto_scale_pairs(((0.1, 0.2),), scales, max)
+        ((3, 6), (3, 6), (3, 6))
+    """
+    if not is_deep(vals):
+        vals = auto_repeat(scale_val)
+    try:
+        iter(vals)
+    except TypeError:
+        vals = ((vals,) * 2,)
+    finally:
+        combined = combine(scales) if combine else None
+        vals = list(
+            vals if len(vals) > 1 else vals * len(scales))
+        assert (len(vals) == len(scales))
+        for i, (item, dim) in enumerate(zip(vals, scales)):
+            try:
+                lower, upper = item
+            except TypeError:
+                lower, upper = item, item
+            vals[i] = (
+                scale_val(lower, dim if not combine else combined),
+                scale_val(upper, dim if not combine else combined))
+        vals = tuple(vals)
+    return vals
 
 
 # ======================================================================
