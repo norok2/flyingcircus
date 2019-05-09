@@ -3161,6 +3161,113 @@ def auto_pad_width(
 
 
 # ======================================================================
+def const_padding(
+        arr,
+        width=0,
+        combine=None,
+        value=0):
+    """
+
+    Args:
+        arr:
+        width:
+        combine:
+        value:
+
+    Returns:
+
+    """
+    width = auto_pad_width(width, arr.shape, combine)
+    if any(any(size for size in sizes) for sizes in width):
+        new_shape = tuple(
+            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
+        result = np.full(new_shape, value, dtype=arr.dtype)
+        inner = tuple(
+            slice(sizes[0], sizes[0] + dim, None)
+            for dim, sizes in zip(arr.shape, width))
+        result[inner] = arr
+    else:
+        result = arr
+    return result
+
+
+# ======================================================================
+def edge_padding(
+        arr,
+        width=0,
+        combine=None,
+        values=0):
+    """
+
+    Args:
+        arr:
+        width:
+        combine:
+        value:
+
+    Returns:
+
+    Examples:
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> new_arr = edge_padding(arr, 1)
+    """
+    width = auto_pad_width(width, arr.shape, combine)
+    if any(any(size for size in sizes) for sizes in width):
+        new_shape = tuple(
+            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
+        result = np.zeros(new_shape, dtype=arr.dtype)
+        inner = tuple(
+            slice(sizes[0], sizes[0] + dim, None)
+            for dim, sizes in zip(arr.shape, width))
+        result[inner] = arr
+        views = tuple(
+            (slice(0, low), slice(low, dim - up), slice(dim - up, dim))
+            for dim, (low, up) in zip(new_shape, width))
+        print(views)
+    else:
+        result = arr
+    return result
+
+
+# ======================================================================
+def cyclic_padding(
+        arr,
+        width,
+        combine=None):
+    width = auto_pad_width(width, arr.shape, combine)
+    if any(any(size for size in sizes) for sizes in width):
+        new_shape = tuple(
+            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
+        result = np.full(new_shape, value, dtype=arr.dtype)
+        inner = tuple(
+            slice(sizes[0], sizes[0] + dim, None)
+            for dim, sizes in zip(arr.shape, width))
+        result[inner] = arr
+    else:
+        result = arr
+    return result
+
+
+# ======================================================================
+def symmetric_padding(
+        arr,
+        width,
+        combine=None):
+    width = auto_pad_width(width, arr.shape, combine)
+    if any(any(size for size in sizes) for sizes in width):
+        new_shape = tuple(
+            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
+        result = np.full(new_shape, value, dtype=arr.dtype)
+        inner = tuple(
+            slice(sizes[0], sizes[0] + dim, None)
+            for dim, sizes in zip(arr.shape, width))
+        result[inner] = arr
+    else:
+        result = arr
+    return result
+
+
+# ======================================================================
 def padding(
         arr,
         width=0,
@@ -3209,18 +3316,16 @@ def padding(
         (slice(1, -1, None), slice(1, -1, None))
     """
     pad_kws = dict(pad_kws) if pad_kws else {}
+    width = auto_pad_width(width, arr.shape, combine)
     if width:
         width = auto_pad_width(width, arr.shape, combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
-            result = np.full(
-                tuple(
-                    sum(sizes) + dim for dim, sizes in zip(arr.shape, width)),
-                mode, dtype=arr.dtype)
-            inner = tuple(
-                slice(sizes[0], sizes[0] + dim, None)
-                for dim, sizes in zip(arr.shape, width))
-            result[inner] = arr
+            pad_kws['constant_values'] = mode
+            mode = 'constant'
+        if mode == 'constant':
+            result = const_padding(
+                arr, width, combine, pad_kws['constant_values'])
         else:
             result = np.pad(arr, width, mode, **pad_kws)
     else:
