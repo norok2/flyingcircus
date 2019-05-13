@@ -328,6 +328,145 @@ def read_cstr(
 
 
 # ======================================================================
+def is_deep(
+        obj,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Determine if an object is deep, i.e. it can be iterated through.
+
+    Args:
+        obj (Any): The object to test.
+        avoid (tuple|None): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (bool): If the object is deep or not.
+
+    Examples:
+        >>> is_deep(1)
+        False
+        >>> is_deep(())
+        True
+        >>> is_deep([1, 2, 3])
+        True
+        >>> is_deep('ciao', avoid=None)
+        True
+        >>> is_deep('ciao')
+        False
+    """
+    try:
+        no_expand = avoid and isinstance(obj, avoid)
+        if no_expand or max_depth == 0 or obj == next(iter(obj)):
+            raise TypeError
+    except TypeError:
+        return False
+    except StopIteration:
+        return True
+    else:
+        return True
+
+
+# ======================================================================
+def nesting_level(
+        obj,
+        deep=True,
+        avoid=(str, bytes),
+        max_depth=-1,
+        combine=max):
+    """
+    Compute the nesting level of nested iterables.
+
+    Args:
+        obj (Any): The object to test.
+        deep (bool): Evaluate all item.
+            If True, all elements within `obj` are evaluated.
+            If False, only the first element of each deep object is evaluated.
+            An object is considered deep using `is_deep()`.
+        avoid (tuple|None): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+        combine (callable): Combine multiple depth at the same level.
+            If `deep` is False, this parameter is ignored.
+
+    Returns:
+        result (int): The nesting level.
+
+    Examples:
+        >>> nesting_level([])
+        1
+        >>> nesting_level([], True)
+        1
+        >>> nesting_level([[]], False)
+        2
+        >>> nesting_level(
+        ...     [[(1, 2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], True)
+        3
+        >>> nesting_level(
+        ...     [[1, (2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], False)
+        2
+        >>> nesting_level(
+        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], True)
+        22
+        >>> nesting_level(
+        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], False)
+        1
+        >>> nesting_level(((1, 2), (1), (1, (2, 3))), True)
+        3
+        >>> nesting_level(((1, 2), (1), (1, (2, 3))), True, combine=min)
+        1
+    """
+    if not is_deep(obj, avoid, max_depth):
+        return 0
+    elif len(obj) == 0:
+        return 1
+    else:
+        next_level = (
+            nesting_level(obj[0], deep)
+            if not deep else
+            combine(nesting_level(x, deep) for x in obj))
+        return 1 + next_level
+
+
+# ======================================================================
+def nesting_len(
+        obj,
+        deep=True,
+        avoid=(str, bytes),
+        max_depth=-1,
+        combine=max,
+        check_all_same=True):
+    """
+
+    Args:
+        obj:
+        deep:
+        avoid:
+        max_depth:
+        combine:
+
+    Returns:
+
+    Examples:
+        >>> nesting_len(((1, 2), (1,), (1, (2, 3))))
+        (3, 2, 2)
+        >>> nesting_len(((1, 2), (1, 2), (1, 2)))
+        (3, 2)
+        >>> nesting_len(((1,), (1,), (1,)))
+        (3, 1)
+        >>> nesting_len((1, 2, 3))
+        (3,)
+    """
+    if not is_deep(obj, avoid, max_depth):
+        return ()
+    else:
+        next_level = (
+            nesting_len(obj[0], deep)
+            if not deep else
+            combine(nesting_len(x, deep) for x in obj))
+        return (len(obj),) + next_level
+
+
+# ======================================================================
 def auto_repeat(
         obj,
         n,
@@ -391,6 +530,8 @@ def auto_repeat(
         Traceback (most recent call last):
             ...
         AssertionError
+        >>> auto_repeat(((1, 1), (1, 1), (1, 1)), (3, 2), False)
+        ((1, 1), (1, 1), (1, 1))
     """
     try:
         iter(obj)
@@ -409,98 +550,6 @@ def auto_repeat(
                 if check:
                     assert (len(obj) == i)
     return obj
-
-
-# ======================================================================
-def is_deep(
-        obj,
-        avoid=(str, bytes),
-        max_depth=-1):
-    """
-    Determine if an object is deep, i.e. it can be iterated through.
-
-    Args:
-        obj (Any): The object to test.
-        avoid (tuple|None): Data types to skip.
-        max_depth (int): Maximum depth to reach. Negative for unlimited.
-
-    Returns:
-        result (bool): If the object is deep or not.
-
-    Examples:
-        >>> is_deep(1)
-        False
-        >>> is_deep(())
-        True
-        >>> is_deep([1, 2, 3])
-        True
-        >>> is_deep('ciao', avoid=None)
-        True
-        >>> is_deep('ciao')
-        False
-    """
-    try:
-        no_expand = avoid and isinstance(obj, avoid)
-        if no_expand or max_depth == 0 or obj == next(iter(obj)):
-            raise TypeError
-    except TypeError:
-        return False
-    except StopIteration:
-        return True
-    else:
-        return True
-
-
-# ======================================================================
-def nesting_level(
-        obj,
-        deep=True,
-        avoid=(str, bytes),
-        max_depth=-1):
-    """
-    Compute the nesting level of nested iterables.
-
-    Args:
-        obj (Any): The object to test.
-        deep (bool): Evaluate all item.
-            If True, all elements within `obj` are evaluated.
-            If False, only the first element of each deep object is evaluated.
-            An object is considered deep using `is_deep()`.
-        avoid (tuple|None): Data types to skip.
-        max_depth (int): Maximum depth to reach. Negative for unlimited.
-
-    Returns:
-        result (int): The nesting level.
-
-    Examples:
-        >>> nesting_level([])
-        1
-        >>> nesting_level([], True)
-        1
-        >>> nesting_level([[]], False)
-        2
-        >>> nesting_level(
-        ...     [[(1, 2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], True)
-        3
-        >>> nesting_level(
-        ...     [[1, (2, 3), (4, 5)], [(1, 2), (3,)], ['1,2', [6, 7]]], False)
-        2
-        >>> nesting_level(
-        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], True)
-        22
-        >>> nesting_level(
-        ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], False)
-        1
-    """
-    if not is_deep(obj, avoid, max_depth):
-        return 0
-    elif len(obj) == 0:
-        return 1
-    else:
-        next_level = (
-            nesting_level(obj[0], deep)
-            if not deep else max(nesting_level(x, deep) for x in obj))
-        return 1 + next_level
 
 
 # ======================================================================
