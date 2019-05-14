@@ -5093,7 +5093,7 @@ def auto_convert(
     Convert value to numeric if possible, or strip delimiters from string.
 
     Args:
-        text (str|int|float|complex): The text input string.
+        text (str|Number): The text input string.
         pre_decor (str): initial string decorator.
         post_decor (str): final string decorator.
         casts (Iterable[callable]): The cast conversion methods.
@@ -5101,7 +5101,7 @@ def auto_convert(
             or raise either a ValueError or a TypeError on failure.
 
     Returns:
-        val (int|float|complex): The numeric value of the string.
+        val (Number): The numeric value of the string.
 
     Examples:
         >>> auto_convert('<100>', '<', '>')
@@ -5362,7 +5362,7 @@ def guess_numerical_sequence(
     Guess a compact expression for a numerical sequence.
 
     Args:
-        items (Iterable[int|float|complex]): The input items.
+        items (Iterable[Number]): The input items.
         rounding (int|None): The maximum number of decimals to show.
 
     Returns:

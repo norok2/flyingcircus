@@ -1947,11 +1947,11 @@ def scaled_randomizer(
 
     Args:
         val (int|float): The value to randomize.
-        interval (Iterable[int|float]|int|float|complex): The scaled interval.
+        interval (Iterable[int|float]|Number): The scaled interval.
             Specifies the scaling interval of the random variation as relative
             to the value itself.
             This is passed to `flyingcircus.num.valid_interval()`.
-        fallback_interval (Iterable[int|float]|int|float|complex): An interval.
+        fallback_interval (Iterable[int|float]|Number): An interval.
             Specifies the fallback interval of the random variation in
             absolute terms.
             This is only used if the value is 0 or if `interval` is None.
@@ -3214,16 +3214,20 @@ def padding(
     """
     Pad an array using different padding strategies.
 
-    The default behavior is zero-padding.
+    The default behavior is zero-padding. Note that this function internally
+    calls a specialized padding function from this package, if possible.
+    Otherwise, it defaults to the `np.pad()`.
+    Note that `np.pad()` is typically less performant than the specialized
+    counterparts available in this package.
 
     Args:
         arr (np.ndarray): The input array.
         width (int|float|Iterable[int|float]): Size of the padding to use.
-            Passed as `width` to `flyingcircus.util.auto_pad_width()`.
-            The output of `auto_pad_width()` is given to `np.pad()`.
+            This is used with `flyingcircus.util.multi_scale_to_int()`.
+            The shape of the array is used for the scales.
         combine (callable|None): The function for combining pad width values.
-            Passed as `combine` to `flyingcircus.util.auto_pad_width()`.
-        mode (str|int|float|complex): The padding mode.
+            Passed as `combine` to `flyingcircus.util.multi_scale_to_int()`.
+        mode (Number|Iterable|str): The padding mode.
             If int, float or complex, `mode` is set to `constant` and this is
             interpreted as the constant value to use.
             If str, this is passed directly to `np.pad()`.
@@ -4441,7 +4445,7 @@ def auto_num_components(
              `flyingcircus.util.marginal_sep_quad_inv_weight()`.
              - 'otsu': use `flyingcircus.segmentation.threshold_otsu()`.
              - 'X%': set the threshold at 'X' percent of the largest eigenval.
-        q (Iterable[int|float|complex]|None): The values of the components.
+        q (Iterable[Number]|None): The values of the components.
             If None, `num` must be specified.
             If Iterable, `num` must be None.
         num (int|None): The number of components.
@@ -5034,7 +5038,7 @@ def frame(
         arr (np.ndarray): The input array.
         width (int|float|Iterable[int|float]): Size of the padding to use.
             Passed to `flyingcircus.util.padding()`.
-        mode (str|int|float|complex): The padding mode.
+        mode (str|Number): The padding mode.
             Passed to `flyingcircus.util.padding()`.
         combine (callable|None): The function for combining pad width values.
             Passed to `flyingcircus.util.padding()`.
@@ -5080,7 +5084,7 @@ def reframe(
             Passed as `new_shape` to `fc.num.shape_to_pad_width()`.
         position (int|float|Iterable[int|float]): Position within new shape.
             Passed as `position` to `fc.num.shape_to_pad_width()`.
-        mode (str|int|float|complex): The padding mode.
+        mode (str|Number): The padding mode.
             This is passed to `fc.num.padding()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
             These are passed to `fc.num.padding()`.
@@ -5168,7 +5172,7 @@ def multi_reframe(
         new_shape (Iterable[int]): The new base shape of the arrays.
         position (int|float|Iterable[int|float]): Position within new shape.
             See `flyingcircus.num.reframe()` for more info.
-        background (int|float|complex): The background value for the frame.
+        background (Number): The background value for the frame.
         dtype (data-type): Desired output data-type.
             If None, its guessed from dtype of arrs.
             See `np.ndarray()` for more.
@@ -6306,7 +6310,7 @@ def rolling_window_nd(
             - 'view': same as `valid`, but returns a view of the input instead.
             - 'same': must have the same size as the input.
             - 'full': the full output is provided.
-        pad_mode (int|float|complex|str): The padding mode.
+        pad_mode (Number|str): The padding mode.
             If `out_mode` is `valid` or `view` this parameter is ignored.
             This is passed as `mode` to `fc.num.padding()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
@@ -6708,7 +6712,7 @@ def rolling_apply_nd(
         out_mode (str): The output mode.
             This is passed as `mode` to `fc.num.rolling_window_nd()`.
             Note that `view` is now identical to `valid`.
-        pad_mode (int|float|complex|str): The padding mode.
+        pad_mode (Number|str): The padding mode.
             This is passed as `mode` to `fc.num.rolling_window_nd()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
             This is passed as `mode` to `fc.num.rolling_window_nd()`.
