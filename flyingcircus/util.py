@@ -5932,27 +5932,32 @@ def scale_to_int(
 
 
 # ======================================================================
-def auto_scale_to_int(
+def multi_scale_to_int(
         vals,
         scales,
         shape=(None, 2),
         combine=None):
     """
-    Ensure width value(s) to be consisting of integer.
+    Ensure values scaling of multiple values.
 
     Args:
-        val (int|float|Iterable[int|float|Iterable]): The input value(s)
+        vals (int|float|Iterable[int|float|Iterable]): The input value(s)
             If Iterable, a value for each scale must be specified.
             If not Iterable, all pairs will have the same value.
-            If int, it is interpreted as absolute size.
-            If float, it is interpreted as relative to corresponding dim size.
+            If any value is int, it is not scaled further.
+            If any value is float, it is scaled to the corresponding scale,
+            if `combine` is None, otherwise it is scaled to a combined scale
+            according to the result of `combine(scales)`.
         scales (Iterable[int]): The scale sizes for the pairs.
+        shape (Iterable[int|None]): The shape of the output.
+            It must be a 2-tuple of int or None.
+            None entries are replaced by `len(scales)`.
         combine (callable|None): The function for combining pad width scales.
             Must accept: combine(Iterable[int]) -> int|float
             This is used to compute a reference scaling value for the
-            float to int conversion, using `combine(shape)`.
+            float to int conversion, using `combine(scales)`.
             For the int values of `width`, this parameter has no effect.
-            If None, uses the corresponding dim from the shape.
+            If None, uses the corresponding scale from the scales.
 
     Returns:
         pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
@@ -5965,49 +5970,50 @@ def auto_scale_to_int(
     Examples:
         >>> scales = (10, 20, 30)
 
-        >>> auto_scale_to_int(0.1, scales)
+        >>> multi_scale_to_int(0.1, scales)
         ((1, 1), (2, 2), (3, 3))
-        >>> auto_scale_to_int(0.1, scales, combine=max)
+        >>> multi_scale_to_int(0.1, scales, combine=max)
         ((3, 3), (3, 3), (3, 3))
-        >>> auto_scale_to_int(2, scales)
+        >>> multi_scale_to_int(2, scales)
         ((2, 2), (2, 2), (2, 2))
-        >>> auto_scale_to_int((1, 1, 2), scales)
+        >>> multi_scale_to_int((1, 1, 2), scales)
         ((1, 1), (1, 1), (2, 2))
-        >>> auto_scale_to_int((0.1, 1, 2), scales)
+        >>> multi_scale_to_int((0.1, 1, 2), scales)
         ((1, 1), (1, 1), (2, 2))
-        >>> auto_scale_to_int((0.1, 1, 2), scales, combine=max)
+        >>> multi_scale_to_int((0.1, 1, 2), scales, combine=max)
         ((3, 3), (1, 1), (2, 2))
-        >>> auto_scale_to_int(((0.1, 0.5),), scales)
+        >>> multi_scale_to_int(((0.1, 0.5),), scales)
         ((1, 5), (2, 10), (3, 15))
-        >>> auto_scale_to_int(((2, 3),), scales)
+        >>> multi_scale_to_int(((2, 3),), scales)
         ((2, 3), (2, 3), (2, 3))
-        >>> auto_scale_to_int(((2, 3), (1, 2)), scales)
+        >>> multi_scale_to_int(((2, 3), (1, 2)), scales)
         Traceback (most recent call last):
             ...
-        AssertionError
-        >>> auto_scale_to_int(((0.1, 0.2),), scales, combine=min)
+        ValueError: Incompatible `vals` and `scales`.
+        >>> multi_scale_to_int(((0.1, 0.2),), scales, combine=min)
         ((1, 2), (1, 2), (1, 2))
-        >>> auto_scale_to_int(((0.1, 0.2),), scales, combine=max)
+        >>> multi_scale_to_int(((0.1, 0.2),), scales, combine=max)
         ((3, 6), (3, 6), (3, 6))
     """
-    # if not is_deep(vals):
-    #     vals = auto_repeat(vals, tuple(x if x else len(scales) for x in shape))
-    # combined = combine(scales) if combine else None
-    # if len(vals) == len(scales):
-    #
-    # vals = list(
-    #     vals if len(vals) > 1 else vals * len(scales))
-    # for i, (item, dim) in enumerate(zip(vals, scales)):
-    #     try:
-    #         iter(item)
-    #     except TypeError:
-    #         item = (item,)
-    #     vals = (
-    #         scale_to_int(lower, dim if not combine else combined),
-    #         scale_to_int(upper, dim if not combine else combined))
-    # vals = tuple(vals)
-    # return vals
-    raise NotImplementedError
+    shape = tuple(x if x else len(scales) for x in shape)
+    if not is_deep(vals):
+        vals = auto_repeat(vals, shape)
+    elif len(vals) == len(scales):
+        vals = tuple(transpose(auto_repeat(vals, shape[::-1])))
+    elif len(vals) == 1 and len(vals[0]) == shape[-1]:
+        vals = auto_repeat(vals[0], shape[0], True, True)
+    else:
+        raise ValueError('Incompatible `vals` and `scales`.')
+    if callable(combine):
+        combined = combine(scales)
+        result = tuple(
+            tuple(scale_to_int(x, combined) for x in val)
+            for val in vals)
+    else:
+        result = tuple(
+            tuple(scale_to_int(x, scale) for x in val)
+            for val, scale in zip(vals, scales))
+    return result
 
 
 # ======================================================================
