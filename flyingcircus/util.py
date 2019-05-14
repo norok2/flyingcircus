@@ -419,51 +419,94 @@ def nesting_level(
         return 0
     elif len(obj) == 0:
         return 1
+    elif max_depth == 0:
+        return 1
     else:
-        next_level = (
-            nesting_level(obj[0], deep)
-            if not deep else
-            combine(nesting_level(x, deep) for x in obj))
+        if deep:
+            next_level = combine(
+                nesting_level(x, deep, avoid, max_depth - 1, combine)
+                for x in obj)
+        else:
+            next_level = nesting_level(
+                obj[0], deep, avoid, max_depth - 1, combine)
         return 1 + next_level
 
 
 # ======================================================================
-def nesting_len(
+def nested_len(
         obj,
         deep=True,
         avoid=(str, bytes),
         max_depth=-1,
         combine=max,
-        check_all_same=True):
+        check_same=True):
     """
+    Compute the length of nested iterables.
 
     Args:
-        obj:
-        deep:
-        avoid:
-        max_depth:
-        combine:
+        obj (Any): The object to test.
+        deep (bool): Evaluate all item.
+            If True, all elements within `obj` are evaluated.
+            If False, only the first element of each deep object is evaluated.
+            An object is considered deep using `is_deep()`.
+        avoid (tuple|None): Data types to skip.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+        combine (callable|None): Combine multiple depth at the same level.
+            If None, the lengths do not get combined (using `combine=tuple`
+            has the same effect).
+            If `deep` is False, this parameter is ignored.
+        check_same (bool): Check that same-level items have the same length.
 
     Returns:
+        result (tuple[int]): The length of the nested iterables.
+
+    Raises:
+        ValueError: if `check_same` is True and items at the same nesting level
+            have different length.
 
     Examples:
-        >>> nesting_len(((1, 2), (1,), (1, (2, 3))))
-        (3, 2, 2)
-        >>> nesting_len(((1, 2), (1, 2), (1, 2)))
+        >>> nested_len(((1, 1), (1, 1), (1, 1)))
         (3, 2)
-        >>> nesting_len(((1,), (1,), (1,)))
+        >>> nested_len(((1, 2), (1,), (1, (2, 3))), check_same=True)
+        Traceback (most recent call last):
+            ...
+        ValueError: Same nesting level items with different length.
+        >>> nested_len(((1, 2), (1,), (1, (2, 3))), check_same=False)
+        (3, 2, 2)
+        >>> nested_len(((1, 2), (1, 2), (1, 2)), check_same=False)
+        (3, 2)
+        >>> nested_len(((1,), (1,), (1,)))
         (3, 1)
-        >>> nesting_len((1, 2, 3))
+        >>> nested_len((1, 2, 3))
         (3,)
+        >>> nested_len(
+        ...     ((1, 2), (1,), (1, (2, 3))), combine=None, check_same=False)
+        (3, (2,), (1,), (2, (2,)))
+        >>> nested_len(
+        ...     ((1, 2), (1,), ((1,), (2, 3))), combine=None, check_same=False)
+        (3, (2,), (1,), (2, (1,), (2,)))
+        >>> nested_len(
+        ...     ((1, 2), (1,), ((1, (2, 3)),)), combine=None, check_same=False)
+        (3, (2,), (1,), (1, (2, (2,))))
     """
     if not is_deep(obj, avoid, max_depth):
         return ()
     else:
-        next_level = (
-            nesting_len(obj[0], deep)
-            if not deep else
-            combine(nesting_len(x, deep) for x in obj))
-        return (len(obj),) + next_level
+        if deep:
+            next_level = tuple(
+                nested_len(
+                    x, deep, avoid, max_depth - 1, combine, check_same)
+                for x in obj)
+            if check_same and any(x != next_level[0] for x in next_level):
+                raise ValueError(
+                    'Same nesting level items with different length.')
+            if not callable(combine):
+                combine = tuple
+            next_level = combine(next_level)
+        else:
+            next_level = nested_len(
+                obj[0], deep, avoid, max_depth - 1, combine, check_same)
+        return (len(obj),) + tuple(x for x in next_level if x)
 
 
 # ======================================================================
@@ -476,14 +519,21 @@ def auto_repeat(
     Automatically repeat the specified object n times.
 
     If the object is not Iterable, a tuple with the specified size is returned.
-    If the object is Iterable, the object is left untouched.
+    If the object is Iterable, the object is repeated only if `n` is Iterable,
+    in which case it is repeated accordingly.
+    The resulting length depends on the value of `force`.
 
     Args:
         obj: The object to operate with.
         n (int|Iterable[int]): The length(s) of the output object.
             If Iterable, multiple nested tuples will be generated.
         force (bool): Force the repetition, even if the object is Iterable.
+            If True, the nested length of the result is equal to `n` plus the
+            length of the input, otherwise it is equal to `n` (but the last
+            value) plus the length of the input.
         check (bool): Ensure that the object has length n.
+            More precisely the `n` and the initial part of
+            `nested_len(check_same=True)` must be identical.
 
     Returns:
         val (tuple): Returns obj repeated n times.
@@ -505,7 +555,7 @@ def auto_repeat(
         >>> auto_repeat([1, 2, 3], 2, False, True)
         Traceback (most recent call last):
             ...
-        AssertionError
+        ValueError: Incompatible input value length.
         >>> auto_repeat(1, (3,))
         (1, 1, 1)
         >>> auto_repeat(1, (3, 2))
@@ -529,27 +579,41 @@ def auto_repeat(
         >>> auto_repeat([1], (3, 3), False, True)
         Traceback (most recent call last):
             ...
-        AssertionError
-        >>> auto_repeat(((1, 1), (1, 1), (1, 1)), (3, 2), False)
+        ValueError: Incompatible input value length.
+        >>> auto_repeat(((1, 1), (1, 1), (1, 1)), (3, 2), False, True)
         ((1, 1), (1, 1), (1, 1))
+        >>> auto_repeat((1, 1), (3, 2), False, True)
+        ((1, 1), (1, 1), (1, 1))
+        >>> auto_repeat((1, 1, 1), (3, 2), False, True)
+        Traceback (most recent call last):
+            ...
+        ValueError: Incompatible input value length.
+        >>> auto_repeat((1, 1, 1), (3, 2), False, False)
+        ((1, 1, 1), (1, 1, 1), (1, 1, 1))
+        >>> auto_repeat((1, 1), (3, 2), True, True)
+        (((1, 1), (1, 1)), ((1, 1), (1, 1)), ((1, 1), (1, 1)))
     """
     try:
         iter(obj)
     except TypeError:
         force = True
     finally:
+        result = obj
         if isinstance(n, int):
             if force:
-                obj = (obj,) * n
-            if check:
-                assert (len(obj) == n)
+                result = (obj,) * n
+            if check and len(result) != n:
+                raise ValueError('Incompatible input value length.')
         else:
-            obj = auto_repeat(obj, n[-1], force, check)
-            for i in n[-2::-1]:
-                obj = auto_repeat(obj, i, True, check)
-                if check:
-                    assert (len(obj) == i)
-    return obj
+            if nested_len(obj, check_same=True) != n or force:
+                result = auto_repeat(obj, n[-1], force, check)
+                for i in n[-2::-1]:
+                    result = auto_repeat(result, i, True, check)
+            if check and \
+                    nested_len(result, check_same=True) \
+                    != n + (nested_len(obj, check_same=True) if force else ()):
+                raise ValueError('Incompatible input value length.')
+    return result
 
 
 # ======================================================================
@@ -610,6 +674,39 @@ def flatten(
                 yield subitem
         else:
             yield item
+
+
+# ======================================================================
+def transpose(
+        items,
+        longest=False,
+        fill=None):
+    """
+    Transpose an iterable of iterables.
+
+    Args:
+        items (Iterable[Iterable]): The input items.
+        longest (bool): Align to longest inner iterable.
+            If True, aligns to the longest inner iterable from the input.
+            If False, cuts the inner iterables to the shortest.
+        fill (Any): Fill value to use for aligning to longest.
+            If `longest` is False, this parameter has no effect.
+
+    Returns:
+        result (zip|itertools.zip_longest): The transposed items.
+
+    Examples:
+        >>> tuple(transpose(((1, 2), (3, 4), (5, 6))))
+        ((1, 3, 5), (2, 4, 6))
+        >>> tuple(transpose(((1, 2), (3, 4), (5, 6, 7))))
+        ((1, 3, 5), (2, 4, 6))
+        >>> tuple(transpose(((1, 2), (3, 4), (5, 6, 7)), True))
+        ((1, 3, 5), (2, 4, 6), (None, None, 7))
+    """
+    if longest:
+        return itertools.zip_longest(*items, fillvalue=fill)
+    else:
+        return zip(*items)
 
 
 # ======================================================================
@@ -5838,9 +5935,8 @@ def scale_to_int(
 def auto_scale_to_int(
         vals,
         scales,
-        combine=None,
-        condition=lambda val, scale: isinstance(val, float),
-        type_=None):
+        shape=(None, 2),
+        combine=None):
     """
     Ensure width value(s) to be consisting of integer.
 
@@ -5869,52 +5965,49 @@ def auto_scale_to_int(
     Examples:
         >>> scales = (10, 20, 30)
 
-        >>> auto_scale_pairs(0.1, scales)
+        >>> auto_scale_to_int(0.1, scales)
         ((1, 1), (2, 2), (3, 3))
-        >>> auto_scale_pairs(0.1, scales, max)
+        >>> auto_scale_to_int(0.1, scales, combine=max)
         ((3, 3), (3, 3), (3, 3))
-        >>> auto_scale_pairs(2, scales)
+        >>> auto_scale_to_int(2, scales)
         ((2, 2), (2, 2), (2, 2))
-        >>> auto_scale_pairs((1, 1, 2), scales)
+        >>> auto_scale_to_int((1, 1, 2), scales)
         ((1, 1), (1, 1), (2, 2))
-        >>> auto_scale_pairs((0.1, 1, 2), scales)
+        >>> auto_scale_to_int((0.1, 1, 2), scales)
         ((1, 1), (1, 1), (2, 2))
-        >>> auto_scale_pairs((0.1, 1, 2), scales, max)
+        >>> auto_scale_to_int((0.1, 1, 2), scales, combine=max)
         ((3, 3), (1, 1), (2, 2))
-        >>> auto_scale_pairs(((0.1, 0.5),), scales)
+        >>> auto_scale_to_int(((0.1, 0.5),), scales)
         ((1, 5), (2, 10), (3, 15))
-        >>> auto_scale_pairs(((2, 3),), scales)
+        >>> auto_scale_to_int(((2, 3),), scales)
         ((2, 3), (2, 3), (2, 3))
-        >>> auto_scale_pairs(((2, 3), (1, 2)), scales)
+        >>> auto_scale_to_int(((2, 3), (1, 2)), scales)
         Traceback (most recent call last):
             ...
         AssertionError
-        >>> auto_scale_pairs(((0.1, 0.2),), scales, min)
+        >>> auto_scale_to_int(((0.1, 0.2),), scales, combine=min)
         ((1, 2), (1, 2), (1, 2))
-        >>> auto_scale_pairs(((0.1, 0.2),), scales, max)
+        >>> auto_scale_to_int(((0.1, 0.2),), scales, combine=max)
         ((3, 6), (3, 6), (3, 6))
     """
-    if not is_deep(vals):
-        vals = auto_repeat(scale_val)
-    try:
-        iter(vals)
-    except TypeError:
-        vals = ((vals,) * 2,)
-    finally:
-        combined = combine(scales) if combine else None
-        vals = list(
-            vals if len(vals) > 1 else vals * len(scales))
-        assert (len(vals) == len(scales))
-        for i, (item, dim) in enumerate(zip(vals, scales)):
-            try:
-                lower, upper = item
-            except TypeError:
-                lower, upper = item, item
-            vals[i] = (
-                scale_val(lower, dim if not combine else combined),
-                scale_val(upper, dim if not combine else combined))
-        vals = tuple(vals)
-    return vals
+    # if not is_deep(vals):
+    #     vals = auto_repeat(vals, tuple(x if x else len(scales) for x in shape))
+    # combined = combine(scales) if combine else None
+    # if len(vals) == len(scales):
+    #
+    # vals = list(
+    #     vals if len(vals) > 1 else vals * len(scales))
+    # for i, (item, dim) in enumerate(zip(vals, scales)):
+    #     try:
+    #         iter(item)
+    #     except TypeError:
+    #         item = (item,)
+    #     vals = (
+    #         scale_to_int(lower, dim if not combine else combined),
+    #         scale_to_int(upper, dim if not combine else combined))
+    # vals = tuple(vals)
+    # return vals
+    raise NotImplementedError
 
 
 # ======================================================================
