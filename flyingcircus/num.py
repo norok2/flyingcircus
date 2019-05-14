@@ -3103,18 +3103,19 @@ def const_padding(
         width=0,
         value=0):
     """
-
+    Pad an array using a constant value.
 
     Args:
-        arr:
+        arr (np.ndarray): The input array.
         width:
-        combine:
         value:
 
     Returns:
-
+        result (np.ndarray): The padded array.
     """
-    width = auto_scale_pairs(width, arr.shape, None)
+    width = util.multi_scale_to_int(width, arr.shape)
+    if callable(value):
+        value = value(arr)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3132,14 +3133,15 @@ def const_padding(
 def edge_padding(
         arr,
         width=0,
-        values=0):
+        edges=None):
     """
+    Pad an array using edge values.
 
     Args:
         arr:
         width:
-        combine:
-        value:
+        edges (Iterable[int|Iterable[int]]|None): The edge values.
+            If ...
 
     Returns:
 
@@ -3147,7 +3149,8 @@ def edge_padding(
         >>> arr = arange_nd((2, 3)) + 1
         >>> new_arr = edge_padding(arr, 1)
     """
-    width = auto_scale_pairs(width, arr.shape)
+    width = util.multi_scale_to_int(width, arr.shape)
+    edges = util.multi_scale_to_int(edges, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3168,9 +3171,8 @@ def edge_padding(
 # ======================================================================
 def cyclic_padding(
         arr,
-        width,
-        combine=None):
-    width = auto_scale_pairs(width, arr.shape, combine)
+        width):
+    width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3187,9 +3189,8 @@ def cyclic_padding(
 # ======================================================================
 def symmetric_padding(
         arr,
-        width,
-        combine=None):
-    width = auto_scale_pairs(width, arr.shape, combine)
+        width):
+    width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         new_shape = tuple(
             sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
@@ -3211,9 +3212,9 @@ def padding(
         mode=0,
         pad_kws=None):
     """
-    Pads an array
+    Pad an array using different padding strategies.
 
-    Useful for zero-padding. This is the default behavior.
+    The default behavior is zero-padding.
 
     Args:
         arr (np.ndarray): The input array.
@@ -3251,10 +3252,9 @@ def padding(
         >>> print(mask)
         (slice(1, -1, None), slice(1, -1, None))
     """
-    pad_kws = dict(pad_kws) if pad_kws else {}
-    width = auto_scale_pairs(width, arr.shape, combine)
-    if width:
-        width = auto_scale_pairs(width, arr.shape, combine)
+    if width or util.is_deep(width) and any(util.flatten(width)):
+        pad_kws = dict(pad_kws) if pad_kws else {}
+        width = util.multi_scale_to_int(width, arr.shape, combine=combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
             pad_kws['constant_values'] = mode
