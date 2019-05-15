@@ -5994,14 +5994,18 @@ def multi_scale_to_int(
         ((1, 2), (1, 2), (1, 2))
         >>> multi_scale_to_int(((0.1, 0.2),), scales, combine=max)
         ((3, 6), (3, 6), (3, 6))
+        >>> multi_scale_to_int(((1, 2), (3, 4)), (2, 3))
+        ((1, 2), (3, 4))
     """
     shape = tuple(x if x else len(scales) for x in shape)
     if not is_deep(vals):
         vals = auto_repeat(vals, shape)
-    elif len(vals) == len(scales):
+    elif len(vals) == len(scales) and not is_deep(vals[0]):
         vals = tuple(transpose(auto_repeat(vals, shape[::-1])))
     elif len(vals) == 1 and len(vals[0]) == shape[-1]:
         vals = auto_repeat(vals[0], shape[0], True, True)
+    elif nested_len(vals) == shape:
+        pass
     else:
         raise ValueError('Incompatible `vals` and `scales`.')
     if callable(combine):
