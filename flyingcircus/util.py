@@ -5996,6 +5996,10 @@ def multi_scale_to_int(
         ((3, 6), (3, 6), (3, 6))
         >>> multi_scale_to_int(((1, 2), (3, 4)), (2, 3))
         ((1, 2), (3, 4))
+        >>> multi_scale_to_int(((1, 2), 3), (2, 3))
+        ((1, 2), (3, 3))
+        >>> multi_scale_to_int(((1, 2), 0.7), (2, 3))
+        ((1, 2), (2, 2))
     """
     shape = tuple(x if x else len(scales) for x in shape)
     if not is_deep(vals):
@@ -6004,6 +6008,11 @@ def multi_scale_to_int(
         vals = tuple(transpose(auto_repeat(vals, shape[::-1])))
     elif len(vals) == 1 and len(vals[0]) == shape[-1]:
         vals = auto_repeat(vals[0], shape[0], True, True)
+    elif len(vals) == len(scales) \
+            and any(not is_deep(val) or len(val) != shape[-1] for val in vals):
+        vals = tuple(
+            val if is_deep(val) else auto_repeat(val, shape[-1], check=True)
+            for val in vals)
     elif nested_len(vals) == shape:
         pass
     else:
