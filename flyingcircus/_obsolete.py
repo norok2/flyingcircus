@@ -321,7 +321,7 @@ def is_prime_pascal(num):
 
     See Also:
         - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_in_range()
+        - flyingcircus.util.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
