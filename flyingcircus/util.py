@@ -2287,6 +2287,8 @@ def primes_range(
         start, stop = 2, first
     else:
         start, stop = first, second
+    if start < 2 and start < stop:
+        start = 2
     step = 2 if start < stop else -2
     if start % 2 == 0:
         if start == 2:
@@ -2295,6 +2297,8 @@ def primes_range(
     for num in range(start, stop, step):
         if is_prime(num):
             yield num
+    if start > stop and stop < 2:
+        yield 2
 
 
 # ======================================================================
