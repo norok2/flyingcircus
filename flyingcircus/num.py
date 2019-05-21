@@ -3101,16 +3101,33 @@ def width_from_shapes(
 def const_padding(
         arr,
         width=0,
-        value=0):
+        values=0):
     """
     Pad an array using a constant value.
+
+    This is equivalent to `np.pad(mode='constant')`, but should be faster.
+    Also `width` and `values` parameters are interpreted in a more general way.
 
     Args:
         arr (np.ndarray): The input array.
         width (int|float|Iterable[int|float]): Size of the padding to use.
             This is used with `flyingcircus.util.multi_scale_to_int()`.
             The shape of the array is used for the scales.
-        value (Any|Iterable[Any]): The constant value to use for padding.
+        values (Any|Iterable[Any]): The constant value(s) to use for padding.
+            If not Iterable, the value is used for all width sizes.
+            If Iterable of non-iterable, the iterable must be of length equal
+            to `arr.ndim` or 1 (in which case the inner iterable is repeated
+            according to `arr.ndim`), while each value is repeated twice.
+            If Iterable of Iterable, the inner iterables must be of length 2,
+            while the outer iterable must be of length equal to `arr.ndim` or 1
+            (in which case the inner iterable is repeated according to
+            `arr.ndim`).
+            In general, `values` should have shape `(arr.ndim, 2)` either
+            directly or after appling `flyingcircus.util.strech()`.
+            For each dimensions, the first value is used for the width size
+            before the original input and the second value is used for the
+            width size after the original input.
+            Each dimension is applied incrementally from smaller to larger.
 
     Returns:
         result (np.ndarray): The padded array.
@@ -3128,6 +3145,12 @@ def const_padding(
          [0 0 4 5 6 0 0]
          [0 0 0 0 0 0 0]
          [0 0 0 0 0 0 0]]
+        >>> new_arr = const_padding(arr, (1,))
+        >>> print(new_arr)
+        [[0 0 0 0 0]
+         [0 1 2 3 0]
+         [0 4 5 6 0]
+         [0 0 0 0 0]]
         >>> new_arr = const_padding(arr, (1, 3))
         >>> print(new_arr)
         [[0 0 0 0 0 0 0 0 0]
@@ -3161,17 +3184,63 @@ def const_padding(
          [9 9 9 9 9 9 1 2 3 9 9 9 9 9 9]
          [9 9 9 9 9 9 4 5 6 9 9 9 9 9 9]
          [9 9 9 9 9 9 9 9 9 9 9 9 9 9 9]]
+        >>> np.all(const_padding(arr, 5) == np.pad(arr, 5, 'constant'))
+        True
+
+        >>> new_arr = const_padding(arr, 2, ((1, 2), (3, 4)))
+        >>> print(new_arr)
+        [[3 3 1 1 1 4 4]
+         [3 3 1 1 1 4 4]
+         [3 3 1 2 3 4 4]
+         [3 3 4 5 6 4 4]
+         [3 3 2 2 2 4 4]
+         [3 3 2 2 2 4 4]]
+        >>> new_arr = const_padding(arr, 2, (1, 2))
+        >>> print(new_arr)
+        [[2 2 1 1 1 2 2]
+         [2 2 1 1 1 2 2]
+         [2 2 1 2 3 2 2]
+         [2 2 4 5 6 2 2]
+         [2 2 1 1 1 2 2]
+         [2 2 1 1 1 2 2]]
+        >>> new_arr = const_padding(arr, 2, ((1, 2),))
+        >>> print(new_arr)
+        [[1 1 1 1 1 2 2]
+         [1 1 1 1 1 2 2]
+         [1 1 1 2 3 2 2]
+         [1 1 4 5 6 2 2]
+         [1 1 2 2 2 2 2]
+         [1 1 2 2 2 2 2]]
+
+        >>> vals = ((1, 2), (3, 4))
+        >>> np.all(
+        ...     const_padding(arr, 5, vals)
+        ...     == np.pad(arr, 5, 'constant', constant_values=vals))
+        True
     """
     width = util.multi_scale_to_int(width, arr.shape)
-    if callable(value):
-        value = value(arr)
+    if callable(values):
+        values = values(arr)
     if any(any(size for size in sizes) for sizes in width):
-        new_shape = tuple(
-            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
-        result = np.full(new_shape, value, dtype=arr.dtype)
+        shape = tuple(
+            low + dim + up for dim, (low, up) in zip(arr.shape, width))
+        if not util.is_deep(values):
+            result = np.full(shape, values, dtype=arr.dtype)
+        else:
+            values = util.stretch(values, (arr.ndim, 2))
+            result = np.zeros(shape, dtype=arr.dtype)
+            slices = tuple(
+                (slice(0, low), slice(dim - up, dim))
+                for dim, (low, up) in zip(shape, width))
+            for i, (slices_, values_) in enumerate(zip(slices, values)):
+                for slice_, value in zip(slices_, values_):
+                    slicing = tuple(
+                        slice(None) if i != j else slice_ for j, dim in
+                        enumerate(shape))
+                    result[slicing] = value
         inner = tuple(
-            slice(sizes[0], sizes[0] + dim, None)
-            for dim, sizes in zip(arr.shape, width))
+            slice(low, low + dim)
+            for dim, (low, up) in zip(arr.shape, width))
         result[inner] = arr
     else:
         result = arr
@@ -3181,56 +3250,83 @@ def const_padding(
 # ======================================================================
 def edge_padding(
         arr,
-        width=0,
-        edges=None,
-        overlap=None):
+        width=0):
     """
     Pad an array using edge values.
+
+    This is equivalent to `np.pad(mode='edge')`, but should be faster.
+    Also, the `width` parameter is interpreted in a more general way.
 
     Args:
         arr (np.ndarray): The input array.
         width (int|float|Iterable[int|float]): Size of the padding to use.
             This is used with `flyingcircus.util.multi_scale_to_int()`.
             The shape of the array is used for the scales.
-        edges (Iterable[int|Iterable[int]]|None): The edge values.
-            If ...
-        overlap (Any|str|
 
     Returns:
         result (np.ndarray): The padded array.
 
     Examples:
         >>> arr = arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
         >>> new_arr = edge_padding(arr, 1)
         >>> print(new_arr)
         [[1 1 2 3 3]
          [1 1 2 3 3]
          [4 4 5 6 6]
          [4 4 5 6 6]]
-        >>> new_arr = edge_padding(arr, 1, (-1, -2))
+        >>> new_arr = edge_padding(arr, 2)
         >>> print(new_arr)
-        [[ 0 -1 -1 -1  0]
-         [-2  1  2  3 -2]
-         [-2  4  5  6 -2]
-         [ 0 -1 -1 -1  0]]
-        >>> new_arr = edge_padding(arr, 1, (-1, -2), np.sum)
+        [[1 1 1 2 3 3 3]
+         [1 1 1 2 3 3 3]
+         [1 1 1 2 3 3 3]
+         [4 4 4 5 6 6 6]
+         [4 4 4 5 6 6 6]
+         [4 4 4 5 6 6 6]]
+        >>> new_arr = edge_padding(arr, (2, 3))
         >>> print(new_arr)
+        [[1 1 1 1 2 3 3 3 3]
+         [1 1 1 1 2 3 3 3 3]
+         [1 1 1 1 2 3 3 3 3]
+         [4 4 4 4 5 6 6 6 6]
+         [4 4 4 4 5 6 6 6 6]
+         [4 4 4 4 5 6 6 6 6]]
+        >>> new_arr = edge_padding(arr, ((2, 3),))
+        >>> print(new_arr)
+        [[1 1 1 2 3 3 3 3]
+         [1 1 1 2 3 3 3 3]
+         [1 1 1 2 3 3 3 3]
+         [4 4 4 5 6 6 6 6]
+         [4 4 4 5 6 6 6 6]
+         [4 4 4 5 6 6 6 6]
+         [4 4 4 5 6 6 6 6]]
+        >>> new_arr = edge_padding(arr, ((1, 2), (3, 4)))
+        >>> print(new_arr)
+        [[1 1 1 1 2 3 3 3 3 3]
+         [1 1 1 1 2 3 3 3 3 3]
+         [4 4 4 4 5 6 6 6 6 6]
+         [4 4 4 4 5 6 6 6 6 6]
+         [4 4 4 4 5 6 6 6 6 6]]
+        >>> arr = arange_nd((2, 3, 4)) + 1
+        >>> np.all(edge_padding(arr, 5) == np.pad(arr, 5, 'edge'))
+        True
     """
     width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
-        new_shape = tuple(
-            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
-        if edges is not None:
-            edges = util.multi_scale_to_int(edges, arr.shape)
-        result = np.zeros(new_shape, dtype=arr.dtype)
-        slicing = tuple(
+        shape = tuple(
+            low + dim + up for dim, (low, up) in zip(arr.shape, width))
+        result = np.zeros(shape, dtype=arr.dtype)
+        target_slices = tuple(
             (slice(0, low), slice(low, dim - up), slice(dim - up, dim))
-            for dim, (low, up) in zip(new_shape, width))
-        outer_slicing = tuple((slices[0], slices[-1]) for slices in slicing)
-        inner_slicing = tuple(slices[1] for slices in slicing)
-        raise NotImplementedError
-        result[inner] = arr
-        print(views)
+            for dim, (low, up) in zip(shape, width))
+        source_slices = tuple(
+            (slice(0, 1), slice(None), slice(-1, None)) for dim in shape)
+        for target_slicing, source_slicing in zip(
+                itertools.product(*target_slices),
+                itertools.product(*source_slices)):
+            result[target_slicing] = arr[source_slicing]
     else:
         result = arr
     return result
@@ -3240,9 +3336,65 @@ def edge_padding(
 def cyclic_padding(
         arr,
         width):
+    """
+    Pad an array using cyclic values.
+
+    This is equivalent to `np.pad(mode='wrap')`, but should be faster.
+    Also, the `width` parameter is interpreted in a more general way.
+
+    It uses a combination of `np.tile()` and `np.roll()` to achieve
+    optimal performances.
+
+    Args:
+        arr (np.ndarray): The input array.
+        width (int|float|Iterable[int|float]): Size of the padding to use.
+            This is used with `flyingcircus.util.multi_scale_to_int()`.
+            The shape of the array is used for the scales.
+
+    Returns:
+        result (np.ndarray): The padded array.
+
+    Examples:
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> new_arr = cyclic_padding(arr, (1, 2))
+        >>> print(new_arr)
+        [[5 6 4 5 6 4 5]
+         [2 3 1 2 3 1 2]
+         [5 6 4 5 6 4 5]
+         [2 3 1 2 3 1 2]]
+        >>> new_arr = cyclic_padding(arr, ((0, 1), 2))
+        >>> print(new_arr)
+        [[2 3 1 2 3 1 2]
+         [5 6 4 5 6 4 5]
+         [2 3 1 2 3 1 2]]
+        >>> new_arr = cyclic_padding(arr, ((1, 0), 2))
+        >>> print(new_arr)
+        [[5 6 4 5 6 4 5]
+         [2 3 1 2 3 1 2]
+         [5 6 4 5 6 4 5]]
+        >>> new_arr = cyclic_padding(arr, ((0, 1.0),))
+        >>> print(new_arr)
+        [[1 2 3 1 2 3]
+         [4 5 6 4 5 6]
+         [1 2 3 1 2 3]
+         [4 5 6 4 5 6]]
+    """
     width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
-        raise NotImplementedError
+        offsets = tuple(
+            (low + dim) % dim for dim, (low, up) in zip(arr.shape, width))
+        tiling = tuple(
+            (low + dim + up) // dim + (1 if (low + dim + up) % dim else 0)
+            for dim, (low, up) in zip(arr.shape, width))
+        slicing = tuple(
+            slice(0, low + dim + up)
+            for dim, (low, up) in zip(arr.shape, width))
+        if any(offset != 0 for offset in offsets):
+            nonzero_offsets_axes, nonzero_offsets = tuple(zip(*(
+                (axis, offset) for axis, offset in enumerate(offsets)
+                if offset != 0)))
+            arr = np.roll(arr, nonzero_offsets, nonzero_offsets_axes)
+        result = np.tile(arr, tiling)[slicing]
     else:
         result = arr
     return result
@@ -3252,15 +3404,40 @@ def cyclic_padding(
 def symmetric_padding(
         arr,
         width):
+    """
+    Pad an array using symmetric values.
+
+    This is equivalent to `np.pad(mode='symmetric')`, but should be faster.
+    Also, the `width` parameter is interpreted in a more general way.
+
+    Args:
+        arr (np.ndarray): The input array.
+        width (int|float|Iterable[int|float]): Size of the padding to use.
+            This is used with `flyingcircus.util.multi_scale_to_int()`.
+            The shape of the array is used for the scales.
+
+    Returns:
+        result (np.ndarray): The padded array.
+
+    Examples:
+        >>> TODO
+    """
     width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
-        new_shape = tuple(
-            sum(sizes) + dim for dim, sizes in zip(arr.shape, width))
-        result = np.full(new_shape, value, dtype=arr.dtype)
-        inner = tuple(
-            slice(sizes[0], sizes[0] + dim, None)
-            for dim, sizes in zip(arr.shape, width))
-        result[inner] = arr
+        shape = tuple(
+            low + dim + up for dim, (low, up) in zip(arr.shape, width))
+        result = np.zeros(shape, dtype=arr.dtype)
+        target_slices = tuple(
+            tuple(
+                slice(
+                    max((i - (1 if low % dim else 0)) * dim + low % dim, 0),
+                    min((i + 1 - (1 if low % dim else 0)) * dim + low % dim, low + dim + up))
+                for i in range(
+                    util.div_ceil(low, dim) + util.div_ceil(up, dim) + 1))
+            for dim, (low, up) in zip(arr.shape, width))
+        for i, target_slicing in enumerate(itertools.product(*target_slices)):
+            print(i, target_slicing)
+        raise NotImplementedError
     else:
         result = arr
     return result
@@ -3272,14 +3449,14 @@ def padding(
         width=0,
         combine=None,
         mode=0,
-        **kwargs):
+        **kws):
     """
     Pad an array using different padding strategies.
 
     The default behavior is zero-padding. Note that this function internally
     calls a specialized padding function from this package, if possible.
     Otherwise, it defaults to the `np.pad()`.
-    Note that `np.pad()` is typically less performant than the specialized
+    Note that `np.pad()` is typically less performing than the specialized
     counterparts available in this package.
 
     Args:
@@ -3287,6 +3464,13 @@ def padding(
         width (int|float|Iterable[int|float]): Size of the padding to use.
             This is used with `flyingcircus.util.multi_scale_to_int()`.
             The shape of the array is used for the scales.
+            Note that this is more sophisticated than the interpretation from
+            `np.pad()`.
+             In particular the following mappings hold:
+             - `padding(width=((a, b),))` == `np.pad(width=(a, b)`
+             - `padding(width=(a, b))` == `np.pad(width=((a, a), (b, b))`
+             - `padding(width=(a, (b, c)))` == `np.pad(width=((a, a), (b, c))`
+             By contrast, e.g. `np.pad(width=(a, (b, c))` is not supported.
         combine (callable|None): The function for combining pad width values.
             Passed as `combine` to `flyingcircus.util.multi_scale_to_int()`.
         mode (Number|Iterable[Number|Iterable]|str): The padding mode.
@@ -3333,12 +3517,18 @@ def padding(
         width = util.multi_scale_to_int(width, arr.shape, combine=combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
-            pad_kws['constant_values'] = mode
+            kws['constant_values'] = mode
             mode = 'constant'
         if mode == 'constant':
-            result = const_padding(arr, width, **kwargs)
+            result = const_padding(arr, width, values=kws['constant_values'])
+        elif mode == 'edge':
+            result = edge_padding(arr, width)
+        elif mode in ('cyclic', 'wrap'):
+            result = cyclic_padding(arr, width)
+        # elif mode == 'symmetric':
+        #     result = symmetric_padding(arr, width)
         else:
-            result = np.pad(arr, width, mode, **kwargs)
+            result = np.pad(arr, width, mode, **kws)
     else:
         mask = (slice(None),) * arr.ndim
         result = arr
