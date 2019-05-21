@@ -536,7 +536,7 @@ def auto_repeat(
             `nested_len(check_same=True)` must be identical.
 
     Returns:
-        val (tuple): Returns obj repeated n times.
+        result (tuple): Returns obj repeated n times.
 
     Raises:
         AssertionError: If force is True and the object does not have length n.
@@ -613,6 +613,96 @@ def auto_repeat(
                     nested_len(result, check_same=True) \
                     != n + (nested_len(obj, check_same=True) if force else ()):
                 raise ValueError('Incompatible input value length.')
+    return result
+
+
+# ======================================================================
+def stretch(
+        items,
+        shape):
+    """
+    Automatically stretch the values to the target shape.
+
+    This is similar to `flyingcircus.util.auto_repeat()`, except that it
+    can flexibly repeat values only when needed.
+    This is similar to shape broadcasting of multi-dimensional arrays.
+
+    Args:
+        items (Any|Iterable): The input items.
+        shape (Iterable[int]): The target shape (nested lengths).
+
+    Returns:
+        result (tuple): The values stretched to match the target shape.
+
+    Raises:
+        ValueError: If `items` and `shape` are incompatible.
+
+    Examples:
+        >>> stretch(1, 10)
+        (1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+        >>> stretch(1, (2, 3))
+        ((1, 1, 1), (1, 1, 1))
+        >>> stretch(1, (2, 3, 2))
+        (((1, 1), (1, 1), (1, 1)), ((1, 1), (1, 1), (1, 1)))
+        >>> stretch((1, (2, 3)), (2, 2))
+        ((1, 1), (2, 3))
+        >>> stretch((1, (2, 3, 4)), (2, 3))
+        ((1, 1, 1), (2, 3, 4))
+        >>> stretch((1, (2, 3,)), (2, 3))
+        Traceback (most recent call last):
+            ...
+        ValueError: Cannot stretch `(2, 3)` to `(3,)`.
+        >>> stretch((1, (2, 3, 4, 5)), (2, 3))
+        Traceback (most recent call last):
+            ...
+        ValueError: Cannot stretch `(2, 3, 4, 5)` to `(3,)`.
+        >>> stretch(((1, 2),), (4, 2))
+        ((1, 2), (1, 2), (1, 2), (1, 2))
+        >>> stretch((1, 2, 3, 4), (4, 2))
+        ((1, 1), (2, 2), (3, 3), (4, 4))
+        >>> items = [[[[1], [2], [3]]], [[[4], [5], [6]]]]
+        >>> print(nested_len(items))
+        (2, 1, 3, 1)
+        >>> stretch(items, (2, 4, 3, 4))
+        ((((1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3)),\
+ ((1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3)),\
+ ((1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3)),\
+ ((1, 1, 1, 1), (2, 2, 2, 2), (3, 3, 3, 3))),\
+ (((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6)),\
+ ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6)),\
+ ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6)),\
+ ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6))))
+    """
+    if not is_deep(items):
+        result = auto_repeat(items, shape)
+    else:
+        old_shape = nested_len(items, check_same=False)
+        if len(old_shape) == 1 and len(shape) > 1 and shape[0] == old_shape[0]:
+            result = tuple(
+                auto_repeat(item, shape[1:], True, True)
+                for item in items)
+        elif old_shape[0] == 1:
+            result = tuple(
+                stretch(item, shape[1:]) if shape[1:] else item
+                for item in items) * shape[0]
+        elif old_shape == shape:
+            try:
+                nested_len(items, check_same=True)
+            except ValueError:
+                result = tuple(
+                    stretch(item, shape[1:])
+                    if is_deep(item) else auto_repeat(item, shape[1:])
+                    for item in items)
+            else:
+                result = items
+        elif old_shape[0] == shape[0]:
+            result = tuple(
+                stretch(item, shape[1:])
+                if is_deep(item) else auto_repeat(item, shape[1:])
+                for item in items)
+        else:
+            raise ValueError(
+                'Cannot stretch `{}` to `{}`.'.format(items, shape))
     return result
 
 
@@ -1844,6 +1934,63 @@ def dictlist2listdict(
 
 
 # ======================================================================
+def round_up(x):
+    """
+    Round to the largest close integer.
+
+    Args:
+        x (Number): The input number.
+
+    Returns:
+        x (int): The rounded-up integer.
+
+    Examples:
+        >>> round_up(10.4)
+        11
+        >>> round_up(10.9)
+        11
+        >>> round_up(11.0)
+        11
+        >>> round_up(-10.4)
+        -11
+        >>> round_up(-10.9)
+        -11
+        >>> round_up(-11.0)
+        -11
+    """
+    int_x = int(x)
+    frac_x = x % 1
+    return int_x + ((1 if int_x > 0 else -1) if frac_x > 0 else 0)
+
+
+# ======================================================================
+def div_ceil(a, b):
+    """
+    Compute integer ceil division.
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        qc (int): The ceiled quotient.
+            This is the quotient if `a` is divisible by `b`, otherwise
+            it gived the quotient plus one.
+
+    Examples:
+        >>> div_ceil(6, 3)
+        2
+        >>> div_ceil(7, 3)
+        3
+        >>> div_ceil(6, 3) == 6 // 3
+        True
+        >>> div_ceil(7, 3) == (7 // 3) + 1
+        True
+    """
+    return a // b + (1 if a % b else 0)
+
+
+# ======================================================================
 def isqrt(num):
     """
     Calculate the integer square root of a number.
@@ -2076,10 +2223,9 @@ def is_prime(num):
 
     See Also:
         - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_in_range()
+        - flyingcircus.util.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Trial_division
-        - https://en.wikipedia.org/wiki/AKS_primality_test
     """
     # : fastest implementation (skip both 2 and 3 multiples!)
     num = abs(num)
@@ -2127,6 +2273,10 @@ def primes_range(
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049]
         >>> list(primes_range(1050, 1000))
         [1049, 1039, 1033, 1031, 1021, 1019, 1013, 1009]
+        >>> list(primes_range(1, 50))
+        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+        >>> list(primes_range(50, 1))
+        [47, 43, 41, 37, 31, 29, 23, 19, 17, 13, 11, 7, 5, 3, 2]
 
     See Also:
         - flyingcircus.util.is_prime()
@@ -2176,7 +2326,7 @@ def get_primes(
 
     See Also:
         - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_in_range()
+        - flyingcircus.util.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     i = 0
@@ -5989,7 +6139,7 @@ def multi_scale_to_int(
         >>> multi_scale_to_int(((2, 3), (1, 2)), scales)
         Traceback (most recent call last):
             ...
-        ValueError: Incompatible `vals` and `scales`.
+        ValueError: Cannot stretch `((2, 3), (1, 2))` to `(3, 2)`.
         >>> multi_scale_to_int(((0.1, 0.2),), scales, combine=min)
         ((1, 2), (1, 2), (1, 2))
         >>> multi_scale_to_int(((0.1, 0.2),), scales, combine=max)
@@ -6002,21 +6152,7 @@ def multi_scale_to_int(
         ((1, 2), (2, 2))
     """
     shape = tuple(x if x else len(scales) for x in shape)
-    if not is_deep(vals):
-        vals = auto_repeat(vals, shape)
-    elif len(vals) == len(scales) and not is_deep(vals[0]):
-        vals = tuple(transpose(auto_repeat(vals, shape[::-1])))
-    elif len(vals) == 1 and len(vals[0]) == shape[-1]:
-        vals = auto_repeat(vals[0], shape[0], True, True)
-    elif len(vals) == len(scales) \
-            and any(not is_deep(val) or len(val) != shape[-1] for val in vals):
-        vals = tuple(
-            val if is_deep(val) else auto_repeat(val, shape[-1], check=True)
-            for val in vals)
-    elif nested_len(vals) == shape:
-        pass
-    else:
-        raise ValueError('Incompatible `vals` and `scales`.')
+    vals = stretch(vals, shape)
     if callable(combine):
         combined = combine(scales)
         result = tuple(
