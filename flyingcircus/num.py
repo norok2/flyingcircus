@@ -3184,9 +3184,14 @@ def const_padding(
          [9 9 9 9 9 9 1 2 3 9 9 9 9 9 9]
          [9 9 9 9 9 9 4 5 6 9 9 9 9 9 9]
          [9 9 9 9 9 9 9 9 9 9 9 9 9 9 9]]
-        >>> np.all(const_padding(arr, 5) == np.pad(arr, 5, 'constant'))
+        >>> arr = arange_nd((5, 7, 11)) + 1
+        >>> np.all(const_padding(arr, 17) == np.pad(arr, 17, 'constant'))
         True
 
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
         >>> new_arr = const_padding(arr, 2, ((1, 2), (3, 4)))
         >>> print(new_arr)
         [[3 3 1 1 1 4 4]
@@ -3211,11 +3216,11 @@ def const_padding(
          [1 1 4 5 6 2 2]
          [1 1 2 2 2 2 2]
          [1 1 2 2 2 2 2]]
-
-        >>> vals = ((1, 2), (3, 4))
+        >>> arr = arange_nd((5, 7, 11)) + 1
+        >>> vals = ((1, 2), (3, 4), (5, 6))
         >>> np.all(
-        ...     const_padding(arr, 5, vals)
-        ...     == np.pad(arr, 5, 'constant', constant_values=vals))
+        ...     const_padding(arr, 17, vals)
+        ...     == np.pad(arr, 17, 'constant', constant_values=vals))
         True
     """
     width = util.multi_scale_to_int(width, arr.shape)
@@ -3309,8 +3314,8 @@ def edge_padding(
          [4 4 4 4 5 6 6 6 6 6]
          [4 4 4 4 5 6 6 6 6 6]
          [4 4 4 4 5 6 6 6 6 6]]
-        >>> arr = arange_nd((2, 3, 4)) + 1
-        >>> np.all(edge_padding(arr, 5) == np.pad(arr, 5, 'edge'))
+        >>> arr = arange_nd((5, 7, 11)) + 1
+        >>> np.all(edge_padding(arr, 17) == np.pad(arr, 17, 'edge'))
         True
     """
     width = util.multi_scale_to_int(width, arr.shape)
@@ -3356,6 +3361,9 @@ def cyclic_padding(
 
     Examples:
         >>> arr = arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
         >>> new_arr = cyclic_padding(arr, (1, 2))
         >>> print(new_arr)
         [[5 6 4 5 6 4 5]
@@ -3378,6 +3386,9 @@ def cyclic_padding(
          [4 5 6 4 5 6]
          [1 2 3 1 2 3]
          [4 5 6 4 5 6]]
+        >>> arr = arange_nd((5, 7, 11)) + 1
+        >>> np.all(cyclic_padding(arr, 17) == np.pad(arr, 17, 'wrap'))
+        True
     """
     width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
@@ -3420,7 +3431,35 @@ def symmetric_padding(
         result (np.ndarray): The padded array.
 
     Examples:
-        >>> TODO
+        >>> arr = arange_nd((2, 3)) + 1
+        >>> print(arr)
+        [[1 2 3]
+         [4 5 6]]
+        >>> new_arr = symmetric_padding(arr, (1, 2))
+        >>> print(new_arr)
+        [[2 1 1 2 3 3 2]
+         [2 1 1 2 3 3 2]
+         [5 4 4 5 6 6 5]
+         [5 4 4 5 6 6 5]]
+        >>> new_arr = symmetric_padding(arr, ((0, 1), 2))
+        >>> print(new_arr)
+        [[2 1 1 2 3 3 2]
+         [5 4 4 5 6 6 5]
+         [5 4 4 5 6 6 5]]
+        >>> new_arr = symmetric_padding(arr, ((1, 0), 2))
+        >>> print(new_arr)
+        [[2 1 1 2 3 3 2]
+         [2 1 1 2 3 3 2]
+         [5 4 4 5 6 6 5]]
+        >>> new_arr = symmetric_padding(arr, ((0, 1.0),))
+        >>> print(new_arr)
+        [[1 2 3 3 2 1]
+         [4 5 6 6 5 4]
+         [4 5 6 6 5 4]
+         [1 2 3 3 2 1]]
+        >>> arr = arange_nd((5, 7, 11)) + 1
+        >>> np.all(symmetric_padding(arr, 17) == np.pad(arr, 17, 'symmetric'))
+        True
     """
     width = util.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
@@ -3431,13 +3470,33 @@ def symmetric_padding(
             tuple(
                 slice(
                     max((i - (1 if low % dim else 0)) * dim + low % dim, 0),
-                    min((i + 1 - (1 if low % dim else 0)) * dim + low % dim, low + dim + up))
+                    min((i + 1 - (1 if low % dim else 0)) * dim + low % dim,
+                        low + dim + up))
                 for i in range(
                     util.div_ceil(low, dim) + util.div_ceil(up, dim) + 1))
             for dim, (low, up) in zip(arr.shape, width))
+        len_target_slices = tuple(len(items) for items in target_slices)
+        parities = tuple(
+            util.div_ceil(low, dim) % 2
+            for dim, (low, up) in zip(arr.shape, width))
         for i, target_slicing in enumerate(itertools.product(*target_slices)):
-            print(i, target_slicing)
-        raise NotImplementedError
+            ij = np.unravel_index(i, len_target_slices)
+            source_slicing = []
+            for idx, target_slice, parity, dim in \
+                    zip(ij, target_slicing, parities, arr.shape):
+                step = 1 if idx % 2 == parity else -1
+                start = stop = None
+                span = target_slice.stop - target_slice.start
+                if span != dim:
+                    if target_slice.start == 0:
+                        start = \
+                            (dim - span) if idx % 2 == parity else (span - 1)
+                    else:
+                        stop = \
+                            span if idx % 2 == parity else (dim - span - 1)
+                source_slicing.append(slice(start, stop, step))
+            source_slicing = tuple(source_slicing)
+            result[target_slicing] = arr[source_slicing]
     else:
         result = arr
     return result
@@ -3525,8 +3584,8 @@ def padding(
             result = edge_padding(arr, width)
         elif mode in ('cyclic', 'wrap'):
             result = cyclic_padding(arr, width)
-        # elif mode == 'symmetric':
-        #     result = symmetric_padding(arr, width)
+        elif mode == 'symmetric':
+            result = symmetric_padding(arr, width)
         else:
             result = np.pad(arr, width, mode, **kws)
     else:
