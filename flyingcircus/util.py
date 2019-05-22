@@ -800,7 +800,7 @@ def transpose(
 
 
 # ======================================================================
-def complement_slice(
+def complement(
         items,
         slice_,
         container=None):
@@ -819,65 +819,65 @@ def complement_slice(
         >>> items = tuple(range(10))
 
         >>> s = slice(None)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 1, 2, 3, 4, 5, 6, 7, 8, 9) ()
 
         >>> s = slice(None, None, 2)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 2, 4, 6, 8) (1, 3, 5, 7, 9)
 
         >>> s = slice(None, None, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 3, 6, 9) (1, 2, 4, 5, 7, 8)
 
         >>> s = slice(2, None, None)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (2, 3, 4, 5, 6, 7, 8, 9) (0, 1)
 
         >>> s = slice(None, 7, None)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 1, 2, 3, 4, 5, 6) (7, 8, 9)
 
         >>> s = slice(2, None, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (2, 5, 8) (0, 1, 3, 4, 6, 7, 9)
 
         >>> s = slice(None, 7, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 3, 6) (1, 2, 4, 5, 7, 8, 9)
 
         >>> s = slice(2, 7, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (2, 5) (0, 1, 3, 4, 6, 7, 8, 9)
 
         >>> s = slice(None, None, -3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (9, 6, 3, 0) (8, 7, 5, 4, 2, 1)
 
         >>> s = slice(2, None, -3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (2,) (9, 8, 7, 6, 5, 4, 3, 1, 0)
 
         >>> s = slice(None, 7, -3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (9,) (8, 7, 6, 5, 4, 3, 2, 1, 0)
 
         >>> s = slice(2, 7, -3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         () (9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
         >>> s = slice(7, 2, -3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (7, 4) (9, 8, 6, 5, 3, 2, 1, 0)
 
         >>> items = tuple(1 for i in range(10))
         >>> s = slice(None, None, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (1, 1, 1, 1) (1, 1, 1, 1, 1, 1)
 
         >>> items = tuple(i % 2 for i in range(10))
         >>> s = slice(None, None, 3)
-        >>> print(items[s], tuple(complement_slice(items, s)))
+        >>> print(items[s], tuple(complement(items, s)))
         (0, 1, 0, 1) (1, 0, 0, 1, 1, 0)
 
         >>> ll = list(range(1000))
@@ -887,7 +887,7 @@ def complement_slice(
         (3, 5, 7, 17, 101, -3, -5, -7, -17, -101, None)
         >>> sls = [slice(*x) for x in itertools.product(vals, vals, vals)]
         >>> all([
-        ...     set(complement_slice(ll, sl)).intersection(ll[sl]) == set()
+        ...     set(complement(ll, sl)).intersection(ll[sl]) == set()
         ...     for sl in sls])
         True
     """
@@ -5022,8 +5022,8 @@ def zopen(filepath, mode='rb', *args, **kwargs):
             head = file_obj.read(16)
             gz_by_header = head[:2] == b'\x1f\x8b'
             bz2_by_header = (
-                    head[:2] == b'BZ' and head[2:3] == b'h' and head[
-                                                                3:4].isdigit()
+                    head[:2] == b'BZ' and head[2:3] == b'h'
+                    and head[3:4].isdigit()
                     and head[4:10] == b'\x31\x41\x59\x26\x53\x59')
             xz_by_header = head[:1] == b'\xfd7zXz\x00'
         except io.UnsupportedOperation:
