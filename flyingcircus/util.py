@@ -6114,12 +6114,11 @@ def multi_scale_to_int(
             If None, uses the corresponding scale from the scales.
 
     Returns:
-        pad_width (int|tuple[tuple[int]]): The absolute `pad_width`.
-            If input `pad_width` is not Iterable, result is not Iterable.
+        vals (int|tuple[tuple[int]]): The scaled value(s).
 
     See Also:
-        - np.pad()
-        - flyingcircus.num.padding()
+        - flyingcircus.util.stretch()
+        - flyingcircus.util.scale_to_int()
 
     Examples:
         >>> scales = (10, 20, 30)
