@@ -5469,7 +5469,8 @@ def reframe(
          [3 1 2 3 1]]
     """
     width = width_from_shapes(arr.shape, shape, position)
-    result, mask = padding(arr, width, None, mode, pad_kws)
+    pad_kws = dict(pad_kws) if pad_kws else {}
+    result, mask = padding(arr, width, None, mode, **pad_kws)
     return result
 
 
