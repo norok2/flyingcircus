@@ -208,6 +208,107 @@ def ndim_slice(
 
 
 # ======================================================================
+def multi_slicing(
+        arr,
+        slicing):
+    """
+    Apply auto-broadcasted multi-slicing to array.
+
+    This is useful to ensure that Iterable elements of the slicing are
+    automatically broadcasted together.
+
+    Args:
+        arr (np.ndarray): The input array.
+        slicing (Iterable[slice|int|Iterable[int]]): A sequence of slices.
+            The slicing is applied such that `int` or `tuple` elements
+            are automatically broadcasted together.
+
+    Returns:
+        result (np.ndarray): The multi-sliced array.
+
+    Examples:
+        >>> arr = arange_nd((3, 4, 5))
+        >>> slicing = (slice(None), (0, 2, 3), (0, 2, 3, 4))
+        >>> new_arr = multi_slicing(arr, slicing)
+        >>> print(new_arr.shape)
+        (3, 3, 4)
+        >>> np.all(
+        ...     multi_slicing(arr, slicing)
+        ...     == arr[:, (0, 2, 3), :][:, :, (0, 2, 3, 4)])
+        True
+
+        >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
+        >>> new_arr = multi_slicing(arr, slicing)
+        >>> print(new_arr.shape)
+        (2, 3, 4)
+        >>> np.all(
+        ...     multi_slicing(arr, slicing)
+        ...     == arr[:2, (0, 2, 3), :][:2, :, (0, 2, 3, 4)])
+        True
+
+        >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
+        >>> new_arr = multi_slicing(arr, slicing)
+        >>> print(new_arr.shape)
+        (2, 1, 4)
+        >>> np.all(
+        ...     multi_slicing(arr, slicing)
+        ...     == arr[:2, (0,), :][:2, :, (0, 2, 3, 4)])
+        True
+
+        >>> slicing = (slice(2), 1, (0, 2, 3, 4))
+        >>> new_arr = multi_slicing(arr, slicing)
+        >>> print(new_arr.shape)
+        (2, 4)
+        >>> np.all(
+        ...     multi_slicing(arr, slicing)
+        ...     == arr[:2, 1, :][:2, (0, 2, 3, 4)])
+        True
+    """
+    if sum(1 for obj in slicing if not isinstance(obj, (slice, int))) > 1:
+        # # : alternate method / using `np.ix_()`
+        # indexes, objs = tuple(zip(*(
+        #     (i, obj if not isinstance(obj, int) else (obj,))
+        #     for i, obj in enumerate(slicing) if not isinstance(obj, slice))))
+        # broadcasted = np.ix_(*objs)
+        # true_slicing = list(slicing)
+        # for j, i in enumerate(indexes):
+        #     true_slicing[i] = broadcasted[j]
+        # result = arr[tuple(true_slicing)]
+        # true_shape = tuple(
+        #     dim for dim, obj in zip(result.shape, slicing)
+        #     if not isinstance(obj, int))
+        # result = result.reshape(true_shape)
+
+        # # : alternate method / reshape at the end
+        # result = arr
+        # base_slicing = [slice(None) for obj_ in slicing]
+        # for i, obj in enumerate(slicing):
+        #     base_slicing[i] = obj \
+        #         if not isinstance(obj, int) else slice(obj, obj + 1)
+        #     result = result[tuple(base_slicing)]
+        #     base_slicing[i] = slice(None)
+        # true_shape = tuple(
+        #     dim for dim, obj in zip(result.shape, slicing)
+        #     if not isinstance(obj, int))
+        # result = result.reshape(true_shape)
+
+        result = arr
+        base_slicing = [slice(None) for obj_ in slicing]
+        i = 0
+        for obj in slicing:
+            base_slicing[i] = obj
+            result = result[tuple(base_slicing)]
+            if isinstance(obj, int):
+                del base_slicing[i]
+            else:
+                base_slicing[i] = slice(None)
+                i += 1
+    else:
+        result = arr[slicing]
+    return result
+
+
+# ======================================================================
 def nbytes(arr):
     """
     Determine the actual memory consumption of a NumPy array.
