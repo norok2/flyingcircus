@@ -212,6 +212,19 @@ def ix_broadcast(*slicing):
     """
     Automatically broadcast multiple-indexes for N-dim multi-slicing.
 
+    The recommended usage pattern is:
+
+    .. code:: python
+
+        ixb = ix_broadcast
+        arr[ixb(a, b, c)]
+
+    in place of:
+
+    .. code:: python
+
+        arr[a, b, c]
+
     Args:
         slicing (Iterable[slice|int|Iterable[int]]): A sequence of slices.
             The slicing is applied such that non-int and non-slice elements
@@ -225,36 +238,37 @@ def ix_broadcast(*slicing):
 
     Examples:
         >>> arr = arange_nd((3, 4, 5))
+        >>> ixb = ix_broadcast  # recommended usage
         >>> slicing = (slice(None), (0, 2, 3), (0, 2, 3, 4))
-        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> new_arr = arr[ixb(*slicing)]
         >>> print(new_arr.shape)
         (3, 3, 4)
 
         >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
-        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> new_arr = arr[ixb(*slicing)]
         >>> print(new_arr.shape)
         (2, 3, 4)
 
         >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
-        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> new_arr = arr[ixb(*slicing)]
         >>> print(new_arr.shape)
         (2, 1, 4)
 
         >>> slicing = (slice(2), 1, (0, 2, 3, 4))
-        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> new_arr = arr[ixb(*slicing)]
         >>> print(new_arr.shape)
         (2, 4)
 
         >>> slicing = ((0, 1), slice(3), (0, 3, 4))
-        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> new_arr = arr[ixb(*slicing)]
         >>> print(new_arr.shape)
         (2, 3, 3)
 
-        >>> new_arr = arr[ix_broadcast(0, 0, slice(3))]
+        >>> new_arr = arr[ixb(0, 0, slice(3))]
         >>> print(new_arr.shape)
         (3,)
 
-        >>> new_arr = arr[ix_broadcast(0, 0, 0)]
+        >>> new_arr = arr[ixb(0, 0, 0)]
         >>> print(new_arr.shape)
         ()
 
