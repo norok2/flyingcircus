@@ -208,11 +208,103 @@ def ndim_slice(
 
 
 # ======================================================================
+def ix_broadcast(*slicing):
+    """
+    Automatically broadcast multiple-indexes for N-dim multi-slicing.
+
+    Args:
+        slicing (Iterable[slice|int|Iterable[int]]): A sequence of slices.
+            The slicing is applied such that non-int and non-slice elements
+            are automatically broadcasted together.
+
+    Returns:
+        result (tuple[slice|int|tuple[int]]: The broadcasted indexes.
+
+    See Also:
+        - flyingcircus.num.multi_slicing()
+
+    Examples:
+        >>> arr = arange_nd((3, 4, 5))
+        >>> slicing = (slice(None), (0, 2, 3), (0, 2, 3, 4))
+        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> print(new_arr.shape)
+        (3, 3, 4)
+
+        >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
+        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> print(new_arr.shape)
+        (2, 3, 4)
+
+        >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
+        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> print(new_arr.shape)
+        (2, 1, 4)
+
+        >>> slicing = (slice(2), 1, (0, 2, 3, 4))
+        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> print(new_arr.shape)
+        (2, 4)
+
+        >>> slicing = ((0, 1), slice(3), (0, 3, 4))
+        >>> new_arr = arr[ix_broadcast(*slicing)]
+        >>> print(new_arr.shape)
+        (2, 3, 3)
+
+        >>> new_arr = arr[ix_broadcast(0, 0, slice(3))]
+        >>> print(new_arr.shape)
+        (3,)
+
+        >>> new_arr = arr[ix_broadcast(0, 0, 0)]
+        >>> print(new_arr.shape)
+        ()
+
+        >>> slicing = (slice(0, 1), slice(3), (0, 1))
+        >>> new_slicing = ix_broadcast(*slicing)
+        >>> print(new_slicing)
+        (slice(0, 1, None), slice(None, 3, None), array([0, 1]))
+        >>> new_arr = arr[slicing]
+        >>> print(new_arr.shape)
+        (1, 3, 2)
+        >>> new_arr = arr[new_slicing]
+        >>> print(new_arr.shape)
+        (1, 3, 2)
+
+        >>> slicing = (0, slice(3), (0, 1))
+        >>> new_slicing = ix_broadcast(*slicing)
+        >>> print(new_slicing)
+        (0, slice(None, 3, None), array([0, 1]))
+        >>> new_arr = arr[slicing]
+        >>> print(new_arr.shape)
+        (2, 3)
+        >>> new_arr = arr[new_slicing]
+        >>> print(new_arr.shape)
+        (2, 3)
+
+    """
+    try:
+        # : always keep dims
+        # indexes, objs = tuple(zip(*(
+        #     (i, obj if not isinstance(obj, int) else (obj,))
+        #     for i, obj in enumerate(slicing) if not isinstance(obj, slice))))
+        indexes, objs = tuple(zip(*(
+            (i, obj) for i, obj in enumerate(slicing)
+            if not isinstance(obj, (int, slice)))))
+        broadcasted = np.ix_(*objs)
+    except ValueError:
+        result = slicing
+    else:
+        result = list(slicing)
+        for j, i in enumerate(indexes):
+            result[i] = broadcasted[j]
+    return tuple(result)
+
+
+# ======================================================================
 def multi_slicing(
         arr,
         slicing):
     """
-    Apply auto-broadcasted multi-slicing to array.
+    Slice an array object with automatically broadcasted multiple indexes.
 
     This is useful to ensure that Iterable elements of the slicing are
     automatically broadcasted together.
@@ -220,7 +312,7 @@ def multi_slicing(
     Args:
         arr (np.ndarray): The input array.
         slicing (Iterable[slice|int|Iterable[int]]): A sequence of slices.
-            The slicing is applied such that `int` or `tuple` elements
+            The slicing is applied such that non-int and non-slice elements
             are automatically broadcasted together.
 
     Returns:
@@ -236,6 +328,9 @@ def multi_slicing(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:, (0, 2, 3), :][:, :, (0, 2, 3, 4)])
         True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        True
 
         >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
         >>> new_arr = multi_slicing(arr, slicing)
@@ -244,6 +339,9 @@ def multi_slicing(
         >>> np.all(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:2, (0, 2, 3), :][:2, :, (0, 2, 3, 4)])
+        True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
         True
 
         >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
@@ -254,6 +352,9 @@ def multi_slicing(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:2, (0,), :][:2, :, (0, 2, 3, 4)])
         True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        True
 
         >>> slicing = (slice(2), 1, (0, 2, 3, 4))
         >>> new_arr = multi_slicing(arr, slicing)
@@ -263,23 +364,12 @@ def multi_slicing(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:2, 1, :][:2, (0, 2, 3, 4)])
         True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        True
     """
     if sum(1 for obj in slicing if not isinstance(obj, (slice, int))) > 1:
-        # # : alternate method / using `np.ix_()`
-        # indexes, objs = tuple(zip(*(
-        #     (i, obj if not isinstance(obj, int) else (obj,))
-        #     for i, obj in enumerate(slicing) if not isinstance(obj, slice))))
-        # broadcasted = np.ix_(*objs)
-        # true_slicing = list(slicing)
-        # for j, i in enumerate(indexes):
-        #     true_slicing[i] = broadcasted[j]
-        # result = arr[tuple(true_slicing)]
-        # true_shape = tuple(
-        #     dim for dim, obj in zip(result.shape, slicing)
-        #     if not isinstance(obj, int))
-        # result = result.reshape(true_shape)
-
-        # # : alternate method / reshape at the end
+        # # : alternate method with reshape at the end
         # result = arr
         # base_slicing = [slice(None) for obj_ in slicing]
         # for i, obj in enumerate(slicing):
