@@ -225,6 +225,15 @@ def ix_broadcast(*slicing):
 
         arr[a, b, c]
 
+    Note that, due to the way NumPy deals with mixed simple and advanced
+    indexing this is, in general, not equivalent to:
+
+    .. code:: python
+
+        arr[a, :, :][:, b, :][:, :, c]
+
+    To obtain the above use `flyingcircus.num.multi_slicing()`.
+
     Args:
         slicing (Iterable[slice|int|Iterable[int]]): A sequence of slices.
             The slicing is applied such that non-int and non-slice elements
@@ -294,12 +303,22 @@ def ix_broadcast(*slicing):
         >>> print(new_arr.shape)
         (2, 3)
 
+        >>> print(
+        ...     np.all(arr[ixb(slice(None), (0, 1), (0, 1))]
+        ...     == arr[:, :2, :2]))
+        True
+
+        >>> print(
+        ...     np.all(arr[ixb((0, 1), slice(2), (0, 1))]
+        ...     == arr[:2, :2, :2]))
+        True
     """
     try:
         # : always keep dims
         # indexes, objs = tuple(zip(*(
         #     (i, obj if not isinstance(obj, int) else (obj,))
         #     for i, obj in enumerate(slicing) if not isinstance(obj, slice))))
+        # : relies on default NumPy behavior for mixed indices
         indexes, objs = tuple(zip(*(
             (i, obj) for i, obj in enumerate(slicing)
             if not isinstance(obj, (int, slice)))))
@@ -377,6 +396,21 @@ def multi_slicing(
         >>> np.all(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:2, 1, :][:2, (0, 2, 3, 4)])
+        True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        True
+
+        >>> slicing = ((0, 1), slice(3), (0, 1, 2, 3))
+        >>> new_arr = multi_slicing(arr, slicing)
+        >>> print(new_arr.shape)
+        (2, 3, 4)
+        >>> np.all(
+        ...     multi_slicing(arr, slicing) == arr[:2, :3, :4])
+        True
+        >>> np.all(
+        ...     multi_slicing(arr, slicing)
+        ...     == arr[:2, :, :][:, :3, :][:, :, :4])
         True
         >>> np.all(
         ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
