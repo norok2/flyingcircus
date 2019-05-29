@@ -5838,7 +5838,8 @@ def zoom(
         window=None,
         interp_order=0,
         extra_dim=True,
-        fill_dim=True):
+        fill_dim=True,
+        cx_mode='cartesian'):
     """
     Zoom the array with a specified magnification factor.
 
@@ -5860,6 +5861,8 @@ def zoom(
             0: nearest. Accepted range: [0, 5].
         extra_dim (bool): Force extra dimensions in the zoom parameters.
         fill_dim (bool): Dimensions not specified are left untouched.
+        cx_mode (str): Complex calculation mode.
+            This is passed as `mode` to `flyingcircus.num.filter_cx()`.
 
     Returns:
         result (np.ndarray): The output array.
@@ -5867,9 +5870,16 @@ def zoom(
     factors, shape = zoom_prepare(factors, arr.shape, extra_dim, fill_dim)
     if window is None:
         window = [round(1.0 / (2.0 * x)) for x in factors]
-    arr = sp.ndimage.uniform_filter(arr, window)
-    arr = sp.ndimage.zoom(
-        arr.reshape(shape), factors, order=interp_order)
+    if np.issubdtype(arr.dtype, np.complexfloating):
+        arr = filter_cx(
+            arr, sp.ndimage.uniform_filter, (window,), mode=cx_mode)
+        arr = filter_cx(
+            arr.reshape(shape), sp.ndimage.zoom, (factors,),
+            dict(order=interp_order), mode=cx_mode)
+    else:
+        arr = sp.ndimage.uniform_filter(arr, window)
+        arr = sp.ndimage.zoom(
+            arr.reshape(shape), factors, order=interp_order)
     return arr
 
 
@@ -5881,7 +5891,8 @@ def resample(
         window=None,
         interp_order=0,
         extra_dim=True,
-        fill_dim=True):
+        fill_dim=True,
+        cx_mode='cartesian'):
     """
     Reshape the array to a new shape (different resolution / pixel size).
 
@@ -5901,6 +5912,8 @@ def resample(
             0: nearest. Accepted range: [0, 5].
         extra_dim (bool): Force extra dimensions in the zoom parameters.
         fill_dim (bool): Dimensions not specified are left untouched.
+        cx_mode (str): Complex calculation mode.
+            This is passed as `mode` to `flyingcircus.num.filter_cx()`.
 
     Returns:
         arr (np.ndarray): The output array.
@@ -5911,7 +5924,9 @@ def resample(
     factors = shape2zoom(arr.shape, new_shape, aspect)
     factors, shape = zoom_prepare(
         factors, arr.shape, extra_dim, fill_dim)
-    arr = zoom(arr, factors, window=window, interp_order=interp_order)
+    arr = zoom(
+        arr, factors, window=window, interp_order=interp_order,
+        cx_mode=cx_mode)
     return arr
 
 
