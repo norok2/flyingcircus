@@ -804,6 +804,41 @@ def transpose(
 
 
 # ======================================================================
+def reverse(
+        slice_,
+        force_step=False):
+    """
+    Reverse a slice.
+
+    This is achieved by swapping its `start` and `stop` attributes.
+
+    If `step` is specified, `-step` is used as new `step`.
+
+    Args:
+        slice_ (slice): The input slice.
+        force_step (bool): Force producing a slice with an explicit step.
+            If True, `1` is used as `step` in place of `None`.
+
+    Returns:
+        slice_ (slice): The output slice.
+
+    Examples:
+        >>> reverse(slice(10, 20))
+        slice(20, 10, None)
+        >>> reverse(slice(10, 20, 2))
+        slice(20, 10, -2)
+        >>> reverse(slice(10, 20), True)
+        slice(20, 10, -1)
+        >>> reverse(slice(20, 10), True)
+        slice(10, 20, -1)
+    """
+    step = 1 if slice_.step is None and force_step else slice_.step
+    if step is not None:
+        step = -step
+    return slice(slice_.stop, slice_.start, step)
+
+
+# ======================================================================
 def complement(
         items,
         slice_,

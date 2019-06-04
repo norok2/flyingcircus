@@ -823,31 +823,6 @@ def nd_windowing(
 
 
 # ======================================================================
-def slice_reverse(a_slice):
-    """
-    Reverse a slice.
-
-    This is achieved by swapping its `start` and `stop` attributes.
-
-    If `step` is specified, `-step` is used as new `step`.
-
-    Args:
-        a_slice (slice): The input slice.
-
-    Returns:
-        r_slice (slice): The output slice.
-
-    Examples:
-        >>> slice_reverse(slice(10, 20))
-        slice(20, 10, None)
-        >>> slice_reverse(slice(10, 20, 2))
-        slice(20, 10, -2)
-    """
-    return slice(
-        a_slice.stop, a_slice.start, -a_slice.step if a_slice.step else None)
-
-
-# ======================================================================
 def compute_edge_weights(
         arr,
         weighting=lambda x, y: x + y,
@@ -966,10 +941,10 @@ def compute_edge_weights(
                 **weighting_kws),
             weighting(
                 arr[tuple(
-                    slice(None) if i != j else slice_reverse(windows[0])
+                    slice(None) if i != j else util.reverse(windows[0])
                     for j in range(arr.ndim))],
                 arr[tuple(
-                    slice(None) if i != j else slice_reverse(windows[1])
+                    slice(None) if i != j else util.reverse(windows[1])
                     for j in range(arr.ndim))],
                 **weighting_kws)
             if circular else
@@ -987,7 +962,7 @@ def compute_edge_weights(
                     slice(None) if i != j else window
                     for j in range(idx_arr.ndim))],
                 idx_arr[tuple(
-                    slice(None) if i != j else slice_reverse(window)
+                    slice(None) if i != j else util.reverse(window)
                     for j in range(idx_arr.ndim))]
                 if circular else
                 np.full(tuple(
