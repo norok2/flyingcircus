@@ -805,37 +805,53 @@ def transpose(
 
 # ======================================================================
 def reverse(
-        slice_,
+        obj,
         force_step=False):
     """
-    Reverse a slice.
+    Reverse a slice or range.
 
     This is achieved by swapping its `start` and `stop` attributes.
 
     If `step` is specified, `-step` is used as new `step`.
 
     Args:
-        slice_ (slice): The input slice.
+        obj (slice|range): The input slice/range.
         force_step (bool): Force producing a slice with an explicit step.
             If True, `1` is used as `step` in place of `None`.
 
     Returns:
-        slice_ (slice): The output slice.
+        obj (slice|range): The output slice/range.
 
     Examples:
         >>> reverse(slice(10, 20))
         slice(20, 10, None)
         >>> reverse(slice(10, 20, 2))
         slice(20, 10, -2)
+        >>> reverse(slice(20, 10, -2))
+        slice(10, 20, 2)
         >>> reverse(slice(10, 20), True)
         slice(20, 10, -1)
+        >>> reverse(slice(20, 10))
+        slice(10, 20, None)
         >>> reverse(slice(20, 10), True)
         slice(10, 20, -1)
+        >>> reverse(range(10, 20))
+        range(20, 10, -1)
+        >>> reverse(range(10, 20, 2))
+        range(20, 10, -2)
+        >>> reverse(range(20, 10, -2))
+        range(10, 20, 2)
+        >>> reverse(range(10, 20), True)
+        range(20, 10, -1)
+        >>> reverse(range(20, 10))
+        range(10, 20, -1)
+        >>> reverse(range(20, 10), True)
+        range(10, 20, -1)
     """
-    step = 1 if slice_.step is None and force_step else slice_.step
+    step = 1 if obj.step is None and force_step else obj.step
     if step is not None:
         step = -step
-    return slice(slice_.stop, slice_.start, step)
+    return type(obj)(obj.stop, obj.start, step)
 
 
 # ======================================================================
