@@ -174,22 +174,22 @@ def span(
     allows).
 
     Args:
-        first (int): The first value of the range.
-            Must be non-negative.
-            If `second == None` this is the `stop` value is included
-            if `step` is a multiple of the length of the sequence.
-            Otherwise, this is the start value and is included.
-            If `first < second` the sequence is yielded backwards.
+        first (int): The first value of the span.
+            If `second == None` this is the `stop` value (the `start` value
+            being `1`) and it is included if `step` is a multiple of the
+            length of the sequence.
+            Otherwise, this is the `start` value and it is always included.
         second (int|None): The second value of the range.
             If None, the start value is 1.
             Otherwise, this is the stop value and is included
             if `step` is a multiple of the length of the sequence.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
-            If start > stop, the step parameter should be negative in order
+            If `start > stop`, the step parameter should be negative in order
             to obtain a non-empty range.
             If None, this is computed automatically based on `first` and
-            `second`, such that a non-empty sequence is avoided, if possible.
+            `second`, such that a non-empty sequence is avoided, if possible,
+            i.e. `step == 1` if `start <= stop` else `step == -1`.
 
     Returns:
         result (range): The spanned range.
@@ -197,6 +197,10 @@ def span(
     Examples:
         >>> print(list(span(10)))
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> print(list(span(-10)))
+        [1, 0, -1, -2, -3, -4, -5, -6, -7, -8, -9, -10]
+        >>> print(list(span(1)))
+        [1]
         >>> print(list(span(1, 10)))
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         >>> print(list(span(-1, 10)))
@@ -219,7 +223,7 @@ def span(
     else:
         start, stop = first, second
     if not step:
-        step = 1 if start < stop else -1
+        step = 1 if start <= stop else -1
     stop = stop + (step if (start - stop) % step == 0 else 0)
     return range(start, stop, step)
 
