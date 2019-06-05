@@ -308,10 +308,10 @@ def ix_broadcast(*slicing):
         ...     == arr[:, :2, :2]))
         True
 
-        >>> print(
+        >>> print(  # False -> reordering in mixed simple/advanced indexing
         ...     np.all(arr[ixb((0, 1), slice(2), (0, 1))]
         ...     == arr[:2, :2, :2]))
-        True
+        False
     """
     try:
         # : always keep dims
@@ -412,9 +412,9 @@ def multi_slicing(
         ...     multi_slicing(arr, slicing)
         ...     == arr[:2, :, :][:, :3, :][:, :, :4])
         True
-        >>> np.all(
+        >>> np.all(  # False -> reordering in mixed simple/advanced indexing
         ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
-        True
+        False
     """
     if sum(1 for obj in slicing if not isinstance(obj, (slice, int))) > 1:
         # # : alternate method with reshape at the end
@@ -941,10 +941,10 @@ def compute_edge_weights(
                 **weighting_kws),
             weighting(
                 arr[tuple(
-                    slice(None) if i != j else util.reverse(windows[0])
+                    slice(None) if i != j else util.flip(windows[0])
                     for j in range(arr.ndim))],
                 arr[tuple(
-                    slice(None) if i != j else util.reverse(windows[1])
+                    slice(None) if i != j else util.flip(windows[1])
                     for j in range(arr.ndim))],
                 **weighting_kws)
             if circular else
@@ -962,7 +962,7 @@ def compute_edge_weights(
                     slice(None) if i != j else window
                     for j in range(idx_arr.ndim))],
                 idx_arr[tuple(
-                    slice(None) if i != j else util.reverse(window)
+                    slice(None) if i != j else util.flip(window)
                     for j in range(idx_arr.ndim))]
                 if circular else
                 np.full(tuple(
@@ -5456,7 +5456,7 @@ def apply_mask(
             broadcastable through `np.broadcast_to()`, or unsqueezable using
             `flyingcircus.num.unsqueeze()`.
             If None, no masking is performed.
-        borders (int|float|Iterable[int|float]|None): The border size(s).
+        borders (int|float|Sequence[int|float]|None): The border size(s).
             If None, the border is not modified.
             Otherwise, a border is added to the masked array.
             If int, this is in units of pixels.
@@ -5489,20 +5489,21 @@ def apply_mask(
             old_shape = mask.shape
             mask = unsqueeze(mask, shape=arr.shape)
             if isinstance(borders, (int, float)):
-                borders = [borders if dim != 1 else 0 for dim in mask.shape]
+                borders = [0 if dim == 1 else borders for dim in mask.shape]
             elif borders is not None and len(borders) == len(old_shape):
-                borders = list(
-                    util.replace_iter(
-                        mask.shape, lambda x: x == 1, borders))
+                iter_borders = iter(borders)
+                borders = [
+                    next(iter_borders) if dim == 1 else dim
+                    for dim in mask.shape]
         arr = arr.copy()
         if arr.shape != mask.shape:
             mask = np.broadcast_to(mask, arr.shape)
         if arr.shape == mask.shape:
             arr[~mask] = background
             if borders is not None:
-                container = sp.ndimage.find_objects(mask.astype(int))[0]
-                if container:
-                    arr = arr[container]
+                slicing = tuple(sp.ndimage.find_objects(mask.astype(int))[0])
+                if slicing:
+                    arr = arr[slicing]
                 arr = frame(arr, borders, background)
         else:
             raise ValueError(
@@ -5562,7 +5563,7 @@ def frame(
         width=0.05,
         mode=0,
         combine=max,
-        pad_kws=None):
+        **pad_kws):
     """
     Add a background frame to an array specifying the borders.
 
@@ -5598,7 +5599,7 @@ def frame(
          [0 4 5 6 0]
          [0 0 0 0 0]]
     """
-    result, mask = padding(arr, width, combine, mode, pad_kws)
+    result, mask = padding(arr, width, combine, mode, **pad_kws)
     return result
 
 
@@ -6082,19 +6083,31 @@ def angles2linear(
         - itertools.combinations()
 
     Examples:
-        >>> np.round(angles2linear([90.0]), 6)
-        array([[ 0., -1.],
-               [ 1.,  0.]])
-        >>> np.round(angles2linear([-30.0]), 3)
-        array([[ 0.866,  0.5  ],
-               [-0.5  ,  0.866]])
-        >>> np.round(angles2linear([30.0]), 3)
-        array([[ 0.866, -0.5  ],
-               [ 0.5  ,  0.866]])
-        >>> np.round(angles2linear([30.0, 0.0, -30.0]), 3)
-        array([[ 0.866, -0.433, -0.25 ],
-               [ 0.5  ,  0.75 ,  0.433],
-               [ 0.   , -0.5  ,  0.866]])
+        >>> print(np.round(angles2linear([90.0]), 6))
+        [[ 0. -1.]
+         [ 1.  0.]]
+        >>> print(np.round(angles2linear([-30.0]), 3))
+        [[ 0.866  0.5  ]
+         [-0.5    0.866]]
+        >>> print(np.round(angles2linear([30.0]), 3))
+        [[ 0.866 -0.5  ]
+         [ 0.5    0.866]]
+        >>> print(np.round(angles2linear([30.0, 0.0, -30.0]), 3))
+        [[ 0.866 -0.433 -0.25 ]
+         [ 0.5    0.75   0.433]
+         [ 0.    -0.5    0.866]]
+        >>> print(np.round(angles2linear([30.0, -30.0, 0.0]), 3))
+        [[ 0.75  -0.5    0.433]
+         [ 0.433  0.866  0.25 ]
+         [-0.5    0.     0.866]]
+        >>> print(np.round(angles2linear([30.0, 45.0, -30.0]), 3))
+        [[ 0.612 -0.127 -0.78 ]
+         [ 0.354  0.927  0.127]
+         [ 0.707 -0.354  0.612]]
+        >>> print(np.round(angles2linear([30.0], 3), 3))
+        [[ 0.866 -0.5    0.   ]
+         [ 0.5    0.866  0.   ]
+         [ 0.     0.     1.   ]]
     """
     if n_dim is None:
         # this is the number of cartesian orthogonal planes of rotations
@@ -6114,7 +6127,7 @@ def angles2linear(
         rotation[axes[0], axes[1]] = -np.sin(angle)
         rotation[axes[1], axes[0]] = np.sin(angle)
         lin_mat = np.dot(lin_mat, rotation)
-    # :: check that this is a rotation matrix
+    # : check that this is a rotation matrix
     det = np.linalg.det(lin_mat)
     if not atol:
         atol = lin_mat.ndim ** 4 * np.finfo(np.double).eps
@@ -6875,6 +6888,7 @@ def rolling_window_nd(
     Returns:
         result (np.ndarray): The windowing array.
     """
+    pad_kws = dict(pad_kws) if pad_kws else {}
     window = util.auto_repeat(window, arr.ndim, check=True)
     as_view = (out_mode == 'view')
     width = 0  # for both 'valid' and 'view' output modes
@@ -6883,7 +6897,7 @@ def rolling_window_nd(
     elif out_mode == 'full':
         width = tuple((size - 1, size - 1) for size in window)
     if width:
-        arr, mask = padding(arr, width, mode=pad_mode, pad_kws=pad_kws)
+        arr, mask = padding(arr, width, mode=pad_mode, **pad_kws)
     return nd_windowing(
         arr, window, steps, window_steps, as_view, writeable, shape_mode)
 

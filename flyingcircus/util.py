@@ -39,6 +39,7 @@ import random  # Generate pseudo-random numbers
 import hashlib  # Secure hashes and message digests
 import base64  # Base16, Base32, Base64, Base85 Data Encodings
 import pickle  # Python object serialization
+import string  # Common string operations
 
 # :: External Imports
 
@@ -342,6 +343,8 @@ def is_deep(
     Args:
         obj (Any): The object to test.
         avoid (tuple|None): Data types to skip.
+            Note that recursive objects (i.e. `obj == next(iter(obj))`)
+            are always considered not deep.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -357,6 +360,8 @@ def is_deep(
         >>> is_deep('ciao', avoid=None)
         True
         >>> is_deep('ciao')
+        False
+        >>> is_deep('c', avoid=None)
         False
     """
     try:
@@ -509,7 +514,8 @@ def nested_len(
             next_level = combine(next_level)
         else:
             next_level = nested_len(
-                obj[0], deep, avoid, max_depth - 1, combine, check_same)
+                next(iter(obj)), deep, avoid, max_depth - 1, combine,
+                check_same)
         return (len(obj),) + tuple(x for x in next_level if x)
 
 
@@ -529,8 +535,8 @@ def auto_repeat(
 
     Args:
         obj: The object to operate with.
-        n (int|Iterable[int]): The length(s) of the output object.
-            If Iterable, multiple nested tuples will be generated.
+        n (int|Sequence[int]): The length(s) of the output object.
+            If Sequence, multiple nested tuples will be generated.
         force (bool): Force the repetition, even if the object is Iterable.
             If True, the nested length of the result is equal to `n` plus the
             length of the input, otherwise it is equal to `n` (but the last
@@ -633,7 +639,7 @@ def stretch(
 
     Args:
         items (Any|Iterable): The input items.
-        shape (Iterable[int]): The target shape (nested lengths).
+        shape (Sequence[int]): The target shape (nested lengths).
 
     Returns:
         result (tuple): The values stretched to match the target shape.
@@ -804,7 +810,7 @@ def transpose(
 
 
 # ======================================================================
-def reverse(
+def flip(
         obj,
         force_step=False):
     """
@@ -824,29 +830,29 @@ def reverse(
         obj (slice|range): The output slice/range.
 
     Examples:
-        >>> reverse(slice(10, 20))
+        >>> flip(slice(10, 20))
         slice(20, 10, None)
-        >>> reverse(slice(10, 20, 2))
+        >>> flip(slice(10, 20, 2))
         slice(20, 10, -2)
-        >>> reverse(slice(20, 10, -2))
+        >>> flip(slice(20, 10, -2))
         slice(10, 20, 2)
-        >>> reverse(slice(10, 20), True)
+        >>> flip(slice(10, 20), True)
         slice(20, 10, -1)
-        >>> reverse(slice(20, 10))
+        >>> flip(slice(20, 10))
         slice(10, 20, None)
-        >>> reverse(slice(20, 10), True)
+        >>> flip(slice(20, 10), True)
         slice(10, 20, -1)
-        >>> reverse(range(10, 20))
+        >>> flip(range(10, 20))
         range(20, 10, -1)
-        >>> reverse(range(10, 20, 2))
+        >>> flip(range(10, 20, 2))
         range(20, 10, -2)
-        >>> reverse(range(20, 10, -2))
+        >>> flip(range(20, 10, -2))
         range(10, 20, 2)
-        >>> reverse(range(10, 20), True)
+        >>> flip(range(10, 20), True)
         range(20, 10, -1)
-        >>> reverse(range(20, 10))
+        >>> flip(range(20, 10))
         range(10, 20, -1)
-        >>> reverse(range(20, 10), True)
+        >>> flip(range(20, 10), True)
         range(10, 20, -1)
     """
     if hasattr(obj, 'step'):
@@ -861,18 +867,16 @@ def reverse(
 # ======================================================================
 def complement(
         items,
-        slice_,
-        container=None):
+        slice_):
     """
     Extract the elements not matching a given slice.
 
     Args:
         items (Sequence): The input items.
         slice_ (slice): The slice to be complemented.
-        container (callable): The container for the result.
 
-    Returns:
-        result (Sequence): The items not matching the slice pattern.
+    Yields:
+        item (Any): The next item not matching the slice pattern.
 
     Examples:
         >>> items = tuple(range(10))
@@ -950,13 +954,18 @@ def complement(
         ...     for sl in sls])
         True
     """
-    if container is None:
-        container = type(items)
     to_exclude = set(range(len(items))[slice_])
     step = slice_.step if slice_.step else 1
-    result = container(
-        item for i, item in enumerate(items) if i not in to_exclude)
-    return result if step > 0 else result[::-1]
+    if step > 0:
+        for i, item in enumerate(items):
+            if i not in to_exclude:
+                yield item
+    else:
+        num_items = len(items)
+        items = reversed(items)
+        for i, item in enumerate(items):
+            if (num_items - i - 1) not in to_exclude:
+                yield item
 
 
 # ======================================================================
@@ -999,6 +1008,7 @@ def conditional_apply(
 def deep_map(
         func,
         items,
+        container=None,
         avoid=(str, bytes),
         max_depth=-1):
     """
@@ -1010,6 +1020,9 @@ def deep_map(
         func (callable): The function to apply to the individual item.
             Must have the following signature: func(Any) -> Any.
         items (Iterable): The input items.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
         avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
@@ -1024,17 +1037,26 @@ def deep_map(
         [1.0, 2.0, [3.0, 4.0, 5.0], 2.0, (3.0, [4.0, 5.0])]
         >>> print(deep_map(lambda x: x, items))
         [1, 2, [3, 4, 5], 2, (3, [4, 5])]
+        >>> print(deep_map(lambda x: x, items, tuple))
+        (1, 2, (3, 4, 5), 2, (3, (4, 5)))
     """
-    # : alternate implementation
-    # if is_deep(items, avoid, max_depth):
-    #     return type(items)(
-    #         deep_map(func, item, avoid, max_depth - 1) for item in items)
-    # else:
-    #     return func(items)
+    final_container = type(items) if container is None else container
+    if not callable(final_container):
+        final_container = tuple
 
-    # : alternate implementation
-    # return type(items)(
-    #     deep_map(func, item, avoid, max_depth - 1)
+    # note: this cannot be rewritten as generator because of recursion!
+
+    # : alternate implementation (slower)
+    # if is_deep(items, avoid, max_depth):
+    #     return final_container(
+    #         deep_map(func, item, container, avoid, max_depth - 1)
+    #         for item in items)
+    # else:
+    #     return final_container(func(items))
+
+    # : alternate implementation (slower)
+    # return final_container(
+    #     deep_map(func, item, container, avoid, max_depth - 1)
     #     if is_deep(item, avoid, max_depth) else func(item)
     #     for item in items)
 
@@ -1042,16 +1064,17 @@ def deep_map(
     for item in items:
         if is_deep(item, avoid, max_depth):
             new_items.append(
-                deep_map(func, item, avoid, max_depth - 1))
+                deep_map(func, item, container, avoid, max_depth - 1))
         else:
             new_items.append(func(item))
-    return type(items)(new_items)
+    return final_container(new_items)
 
 
 # ======================================================================
 def deep_filter(
         func,
         items,
+        container=None,
         avoid=(str, bytes),
         max_depth=-1):
     """
@@ -1063,6 +1086,9 @@ def deep_filter(
         func (callable): The condition function to include the individual item.
             Must have the following signature: func(Any) -> bool
         items (Iterable): The input items.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
         avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
@@ -1078,18 +1104,24 @@ def deep_filter(
         >>> print(deep_filter(lambda _: True, items))
         [1, 2, [3, 4, 5], 2, (3, [4, 5])]
     """
-    # : alternate implementation
+    final_container = type(items) if container is None else container
+    if not callable(final_container):
+        final_container = tuple
+
+    # note: this cannot be rewritten as generator because of recursion!
+
+    # : alternate implementation (slower)
     # if is_deep(items, avoid, max_depth):
-    #     return type(items)(
-    #         deep_filter(func, item, avoid, max_depth - 1)
+    #     return final_container(
+    #         deep_filter(func, item, container, avoid, max_depth - 1)
     #         for item in items
     #         if is_deep(item, avoid, max_depth) or func(item))
     # else:
-    #     return items
+    #     return final_container(items)
 
-    # : alternate implementation
-    # return type(items)(
-    #     deep_filter(func, item, avoid, max_depth - 1)
+    # : alternate implementation (slower)
+    # return final_container(
+    #     deep_filter(func, item, container, avoid, max_depth - 1)
     #     if is_deep(item, avoid, max_depth) else item
     #     for item in items if is_deep(item, avoid, max_depth) or func(item))
 
@@ -1097,11 +1129,11 @@ def deep_filter(
     for item in items:
         if is_deep(item, avoid, max_depth):
             new_items.append(
-                deep_filter(func, item, avoid, max_depth - 1))
+                deep_filter(func, item, container, avoid, max_depth - 1))
         else:
             if func(item):
                 new_items.append(item)
-    return type(items)(new_items)
+    return final_container(new_items)
 
 
 # ======================================================================
@@ -1135,7 +1167,17 @@ def deep_convert(
         (1, 2, (3, 4, 5), 2, (3, (4, 5), ('c', 'i', 'a', 'o')))
         >>> deep_convert(None, items)
         [1, 2, [3, 4, 5], 2, (3, [4, 5], 'ciao')]
+        >>> print(
+        ...     deep_map(lambda x: x, items, tuple)
+        ...     == deep_convert(tuple, items))
+        True
+        >>> print(
+        ...     deep_filter(lambda x: True, items, tuple)
+        ...     == deep_convert(tuple, items))
+        True
     """
+    # note: this cannot be rewritten as generator because of recursion!
+
     if container is not None:
         new_items = []
         for item in items:
@@ -1185,9 +1227,9 @@ def deep_filter_map(
 
     If some of the parameters of `deep_filter_map()` can be set to None, the
     equivalent expression can be simplified.
-    However, if the call to `deep_filter_map()` would require at least two of
-    `deep_map()`, `deep_filter()`, `deep_convert()`, then
-    `deep_filter_map()` is generally much more performing.
+    However, if the call to `deep_filter_map()` would require both
+    `deep_map()` and `deep_filter()`, then `deep_filter_map()` is generally
+    (and typically also substantially) more performing.
 
     Args:
         items (Iterable): The input items.
@@ -1203,6 +1245,9 @@ def deep_filter_map(
             Must have the following signature:
             container(Iterable) -> container.
             If None, the original container is retained.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
         avoid (tuple|None): Data types to skip.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
@@ -1261,6 +1306,12 @@ def deep_filter_map(
         ...    == deep_convert(tuple, items))
         True
     """
+    final_container = type(items) if container is None else container
+    if not callable(final_container):
+        final_container = tuple
+
+    # note: this cannot be rewritten as generator because of recursion!
+
     if func is None:
         def func(x): return x
     if map_condition is None:
@@ -1281,9 +1332,7 @@ def deep_filter_map(
                 deep_filter_map(
                     item, func, map_condition, filter_condition, container,
                     avoid, max_depth - 1))
-    if container is None:
-        container = type(items)
-    return container(new_items)
+    return final_container(new_items)
 
 
 # ======================================================================
@@ -1386,70 +1435,16 @@ def uniques(items):
 
 
 # ======================================================================
-def replace_iter(
-        items,
-        condition,
-        replace=None,
-        cycle=True):
-    """
-    Replace items matching a specific condition.
-
-    Args:
-        items (Iterable):
-        condition (callable):
-        replace (any|Iterable|callable): The replacement.
-            If Iterable, its elements are used for replacement.
-            If callable, it is applied to the elements matching `condition`.
-            Otherwise,
-        cycle (bool): Cycle through the replace.
-            If True and `replace` is Iterable, its elements are cycled through.
-            Otherwise `items` beyond last replacement are lost.
-
-    Yields:
-        item: The next item from items or its replacement.
-
-    Examples:
-        >>> ll = list(range(10))
-        >>> list(replace_iter(ll, lambda x: x % 2 == 0))
-        [None, 1, None, 3, None, 5, None, 7, None, 9]
-        >>> list(replace_iter(ll, lambda x: x % 2 == 0, lambda x: x ** 2))
-        [0, 1, 4, 3, 16, 5, 36, 7, 64, 9]
-        >>> list(replace_iter(ll, lambda x: x % 2 == 0, 100))
-        [100, 1, 100, 3, 100, 5, 100, 7, 100, 9]
-        >>> list(replace_iter(ll, lambda x: x % 2 == 0, range(10, 0, -1)))
-        [10, 1, 9, 3, 8, 5, 7, 7, 6, 9]
-        >>> list(replace_iter(ll, lambda x: x % 2 == 0, range(10, 8, -1)))
-        [10, 1, 9, 3, 10, 5, 9, 7, 10, 9]
-        >>> list(replace_iter(
-        ...     ll, lambda x: x % 2 == 0, range(10, 8, -1), False))
-        [10, 1, 9, 3]
-    """
-    if not callable(replace):
-        try:
-            replace = iter(replace)
-        except TypeError:
-            replace = (replace,)
-            cycle = True
-        if cycle:
-            replace = itertools.cycle(replace)
-    for item in items:
-        if not condition(item):
-            yield item
-        else:
-            yield replace(item) if callable(replace) else next(replace)
-
-
-# ======================================================================
 def combine_iter_len(
         items,
         combine=max,
-        scalar_len=1):
+        non_seq_len=1):
     """
     Combine the length of each item within items.
 
-    For each item within items, determine if the item is iterable and then
+    For each item within items, determine if the item has a length and then
     use a given combination function to combine the multiple extracted length.
-    If an item is not iterable, its length is assumed to be 0.
+    If an item is not a sequence, its length is assumed to be 0.
 
     A useful application is to determine the longest item.
 
@@ -1458,7 +1453,7 @@ def combine_iter_len(
         combine (callable): The combination method.
             Must have the following signature: combine(int, int) -> int.
             The lengths are combined incrementally.
-        scalar_len (int): The length of non-iterable items.
+        non_seq_len (int): The length of non-sequence items.
             Typical choices are `0` or `1` depending on the application.
 
     Returns:
@@ -1480,7 +1475,7 @@ def combine_iter_len(
         try:
             new_num = len(val)
         except TypeError:
-            new_num = scalar_len
+            new_num = non_seq_len
         finally:
             if num is None:
                 num = new_num
@@ -1601,14 +1596,14 @@ def grouping(
     Note that for integer splits, `group_by()` is a faster alternative.
 
     Args:
-        items (Iterable): The input items.
-        splits (int|Iterable[int]): Grouping information.
-            If Iterable, each group has the number of elements specified.
+        items (Sequence): The input items.
+        splits (int|Sequence[int]): Grouping information.
+            If Sequence, each group has the number of elements specified.
             If int, all groups have the same number of elements.
             The last group will have the remaing items (if any).
 
     Yields:
-        group (Iterable): The items from the grouping.
+        group (Sequence): The items from the grouping.
             Its container matches the one of `items`.
 
     Examples:
@@ -1654,7 +1649,7 @@ def chunks(
     are determined depending on the values of `balanced`
 
     Args:
-        items (Iterable): The input items.
+        items (Sequence): The input items.
         n (int): Approximate number of chunks.
             The exact number depends on the value of `mode`.
         mode (str): Determine which approximation to use.
@@ -1670,7 +1665,7 @@ def chunks(
             This has no effect if the number of items is a multiple of `n`.
 
     Returns:
-        groups (tuple[Iterable]): Grouped items from the source.
+        groups (Generator): Grouped items from the source.
 
     Examples:
         >>> l = list(range(10))
@@ -1716,18 +1711,20 @@ def chunks(
 def partitions(
         items,
         k,
-        container=tuple):
+        container=None):
     """
     Generate all k-partitions for the items.
 
     Args:
-        items (Iterable): The input items.
+        items (Sequence): The input items.
         k (int): The number of splitting partitions.
             Each group has exactly `k` elements.
-        container (callable): The group container.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
 
     Yields:
-        partition (tuple[Iterable]]): The grouped items.
+        partition (Sequence[Sequence]]): The grouped items.
             Each partition contains `k` grouped items from the source.
 
     Examples:
@@ -1737,25 +1734,37 @@ def partitions(
         (((0,), (1,), (2,)),)
         >>> tuple(partitions(tuple(range(4)), 3))
         (((0,), (1,), (2, 3)), ((0,), (1, 2), (3,)), ((0, 1), (2,), (3,)))
+        >>> tuple(partitions(list(range(4)), 3))
+        ([[0], [1], [2, 3]], [[0], [1, 2], [3]], [[0, 1], [2], [3]])
     """
+    if container is None:
+        container = type(items)
+    if not callable(container):
+        container = tuple
     num = len(items)
     indexes = tuple(
         (0,) + tuple(index) + (num,)
         for index in itertools.combinations(range(1, num), k - 1))
     for index in indexes:
-        yield tuple(
-            container(
-                items[index[i]:index[i + 1]] for i in range(k)))
+        yield container(container(
+            items[index[i]:index[i + 1]] for i in range(k)))
 
 
 # ======================================================================
-def random_unique_combinations_k(items, k, pseudo=False):
+def random_unique_combinations_k(
+        items,
+        k,
+        container=None,
+        pseudo=False):
     """
     Obtain a number of random unique combinations of a sequence of sequences.
 
     Args:
         items (Sequence[Sequence]): The input sequence of sequences.
         k (int): The number of random unique combinations to obtain.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
         pseudo (bool): Generate random combinations somewhat less randomly.
             If True, the memory requirements for intermediate steps will
             be significantly lower (but still all `k` items are required to
@@ -1767,7 +1776,8 @@ def random_unique_combinations_k(items, k, pseudo=False):
     Examples:
         >>> import string
         >>> max_lens = list(range(2, 10))
-        >>> items = [string.ascii_lowercase[:max_len] for max_len in max_lens]
+        >>> items = tuple(
+        ...     string.ascii_lowercase[:max_len] for max_len in max_lens)
         >>> random.seed(0)
         >>> num = 10
         >>> for i in random_unique_combinations_k(items, num):
@@ -1783,7 +1793,8 @@ def random_unique_combinations_k(items, k, pseudo=False):
         ('a', 'c', 'b', 'b', 'a', 'e', 'b', 'g')
         ('a', 'c', 'c', 'b', 'e', 'b', 'f', 'e')
         >>> max_lens = list(range(2, 4))
-        >>> items = [string.ascii_uppercase[:max_len] for max_len in max_lens]
+        >>> items = tuple(
+        ...     string.ascii_uppercase[:max_len] for max_len in max_lens)
         >>> random.seed(0)
         >>> num = 10
         >>> for i in random_unique_combinations_k(items, num):
@@ -1795,6 +1806,10 @@ def random_unique_combinations_k(items, k, pseudo=False):
         ('A', 'B')
         ('A', 'C')
     """
+    if container is None:
+        container = type(items)
+    if not callable(container):
+        container = tuple
     if pseudo:
         # randomize generators
         comb_gens = list(items)
@@ -1804,7 +1819,7 @@ def random_unique_combinations_k(items, k, pseudo=False):
         combinations = list(itertools.islice(itertools.product(*comb_gens), k))
         random.shuffle(combinations)
         for combination in itertools.islice(combinations, k):
-            yield tuple(combination)
+            yield container(combination)
     else:
         max_lens = [len(list(item)) for item in items]
         max_k = prod(max_lens)
@@ -1814,7 +1829,7 @@ def random_unique_combinations_k(items, k, pseudo=False):
                 for max_len in max_lens:
                     indexes.append(num % max_len)
                     num = num // max_len
-                yield tuple(item[i] for i, item in zip(indexes, items))
+                yield container(item[i] for i, item in zip(indexes, items))
         except OverflowError:
             # use `set` to ensure uniqueness
             index_combs = set()
@@ -1829,30 +1844,32 @@ def random_unique_combinations_k(items, k, pseudo=False):
             index_combs = list(index_combs)
             random.shuffle(index_combs)
             for index_comb in itertools.islice(index_combs, k):
-                yield tuple(item[i] for i, item in zip(index_comb, items))
+                yield container(item[i] for i, item in zip(index_comb, items))
 
 
 # ======================================================================
 def unique_permutations(
         items,
-        container=tuple):
+        container=None):
     """
     Yield unique permutations of items in an efficient way.
 
     Args:
-        items (Iterable): The input items.
-        container (callable): The group container.
+        items (Sequence): The input items.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
 
     Yields:
-        items (Iterable): The next unique permutation of the items.
+        items (Sequence): The next unique permutation of the items.
 
     Examples:
         >>> list(unique_permutations([0, 0, 0]))
-        [(0, 0, 0)]
+        [[0, 0, 0]]
         >>> list(unique_permutations([0, 0, 2]))
-        [(0, 0, 2), (0, 2, 0), (2, 0, 0)]
+        [[0, 0, 2], [0, 2, 0], [2, 0, 0]]
         >>> list(unique_permutations([0, 1, 2]))
-        [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
+        [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
         >>> p1 = sorted(unique_permutations((0, 1, 2, 3, 4)))
         >>> p2 = sorted(itertools.permutations((0, 1, 2, 3, 4)))
         >>> p1 == p2
@@ -1862,13 +1879,14 @@ def unique_permutations(
         - Donald Knuth, The Art of Computer Programming, Volume 4, Fascicle
           2: Generating All Permutations.
     """
+    if container is None:
+        container = type(items)
+    if not callable(container):
+        container = tuple
     indexes = range(len(items) - 1, -1, -1)
     items = sorted(items)
     while True:
-        if callable(container):
-            yield container(items)
-        else:
-            yield items.copy()
+        yield container(items)
 
         for k in indexes[1:]:
             if items[k] < items[k + 1]:
@@ -1888,108 +1906,237 @@ def unique_permutations(
 # ======================================================================
 def unique_partitions(
         items,
-        k):
+        k,
+        container=None):
     """
     Generate all k-partitions for all unique permutations of the items.
 
     Args:
-        items (Iterable): The input items.
+        items (Sequence): The input items.
         k (int): The number of splitting partitions.
             Each group has exactly `k` elements.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
 
     Yields:
-        partitions (Iterable[Iterable[Iterable]]]): The items partitions.
+        partitions (Sequence[Sequence[Sequence]]]): The items partitions.
             More precisely, all partitions of size `num` for each unique
             permutations of `items`.
 
     Examples:
         >>> list(unique_partitions([0, 1], 2))
-        [(((0,), (1,)),), (((1,), (0,)),)]
-
+        [[[[0], [1]]], [[[1], [0]]]]
+        >>> tuple(unique_partitions((0, 1), 2))
+        ((((0,), (1,)),), (((1,), (0,)),))
     """
+    if container is None:
+        container = type(items)
+    if not callable(container):
+        container = tuple
     for permutations in unique_permutations(items):
-        yield tuple(partitions(tuple(permutations), k))
+        yield container(partitions(container(permutations), k))
 
 
 # ======================================================================
-def listdict2dictlist(
-        listdict,
-        labels=None,
-        d_val=None):
+def latin_square(
+        items,
+        shuffle=True,
+        cyclic=True,
+        forward=True):
     """
-    Convert tabular data from a list of dicts to a dict of lists.
+    Generate a latin square.
 
     Args:
-        listdict (Iterable[dict]): The tabular data as a list of dicts.
-        labels (Iterable|None): The labels of the tabular data.
-            If Iterable, all elements should be present as keys of the dicts.
+        items (Sequence): The input items.
+        shuffle (bool): Shuffle the output "rows".
+        cyclic (bool): Generate cyclic permutations only.
+        forward (bool): Determine how to advance through permutations.
+            Note that for cyclic permutations (`cyclic == True`), this means
+            that the cycling is moving forward (or not),
+            whereas for non-cyclic permutations (`cyclic == False`), this is
+            equivalent to reversing the items order prior to generating the
+            permutations, i.e.
+            `tuple(itertools.permutations(reversed(items)))
+             == tuple(reversed(tuple(itertools.permutations(items))))`.
+
+    Returns:
+        result (list[Sequence]): The latin square.
+
+    Examples:
+        >>> random.seed(0)
+        >>> latin_square(list(range(4)))
+        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
+
+        >>> latin_square(list(range(4)), False, False, False)
+        [(3, 2, 1, 0), (2, 3, 0, 1), (1, 0, 3, 2), (0, 1, 2, 3)]
+        >>> latin_square(list(range(4)), False, True, False)
+        [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]]
+        >>> latin_square(list(range(4)), False, False, True)
+        [(0, 1, 2, 3), (1, 0, 3, 2), (2, 3, 0, 1), (3, 2, 1, 0)]
+        >>> latin_square(list(range(4)), False, True, True)
+        [[0, 1, 2, 3], [3, 0, 1, 2], [2, 3, 0, 1], [1, 2, 3, 0]]
+
+        >>> random.seed(0)
+        >>> latin_square(list(range(4)), True, False, False)
+        [(1, 0, 3, 2), (3, 2, 1, 0), (2, 3, 0, 1), (0, 1, 2, 3)]
+        >>> random.seed(0)
+        >>> latin_square(list(range(4)), True, True, False)
+        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
+        >>> random.seed(0)
+        >>> latin_square(list(range(4)), True, False, True)
+        [(2, 3, 0, 1), (0, 1, 2, 3), (1, 0, 3, 2), (3, 2, 1, 0)]
+        >>> random.seed(0)
+        >>> latin_square(list(range(4)), True, True, True)
+        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
+
+        >>> random.seed(0)
+        >>> latin_square(tuple(range(4)))
+
+    """
+    if cyclic:
+        sign = -1 if forward else 1
+        result = [
+            items[sign * i:] + items[:sign * i] for i in range(len(items))]
+    else:
+        result = []
+        # note: reversed(permutations(items)) == permutations(reversed(items))
+        if not forward:
+            items = items[::-1]
+        for elems in itertools.permutations(items):
+            valid = True
+            for i, elem in enumerate(elems):
+                orthogonals = [x[i] for x in result] + [elem]
+                if len(set(orthogonals)) < len(orthogonals):
+                    valid = False
+                    break
+            if valid:
+                result.append(elems)
+    if shuffle:
+        random.shuffle(result)
+    return result
+
+
+# ======================================================================
+def seqmap2mapseq(
+        data,
+        labels=None,
+        d_val=None,
+        mapping_container=None,
+        sequence_container=None):
+    """
+    Convert tabular data from a Sequence of Mappings to a Mapping of Sequences.
+
+    Args:
+        data (Sequence[Mapping]): The input tabular data.
+        labels (Sequence|None): The labels of the tabular data.
+            If Sequence, all elements should be present as keys of the dicts.
             If the dicts contain keys not specified in `labels` they will be
             ignored.
             If None, the `labels` are guessed from the data.
         d_val (Any): The default value to use for incomplete dicts.
             This will be inserted in the lists to keep track of missing data.
+        mapping_container (callable|None): The mapping container.
+            If None, this is inferred from `data` if possible, otherwise
+            uses `dict`.
+        sequence_container (callable|None): The sequence container.
+            If None, this is inferred from `data` if possible, otherwise
+            uses `list`.
 
     Returns:
-        dictlist (dict[Any:list]): The tabular data as a dict of lists.
+        result (Mapping[Sequence]): The output tabular data.
             All list will have the same size.
 
     Examples:
-        >>> ld = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a': 5, 'b': 6}]
-        >>> tuple(listdict2dictlist(ld).items())
+        >>> data = [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}, {'a': 5, 'b': 6}]
+        >>> tuple(seqmap2mapseq(data).items())
         (('a', [1, 3, 5]), ('b', [2, 4, 6]))
-        >>> ld = [{'a': 1}, {'b': 4}, {'b': 6}]
-        >>> tuple(listdict2dictlist(ld).items())
+        >>> data == mapseq2seqmap((seqmap2mapseq(data)))
+        True
+
+        >>> data = [{'a': 1}, {'b': 4}, {'b': 6}]
+        >>> tuple(seqmap2mapseq(data).items())
         (('a', [1, None, None]), ('b', [None, 4, 6]))
-        >>> ld == dictlist2listdict((listdict2dictlist(ld)))
+        >>> data == mapseq2seqmap((seqmap2mapseq(data)))
         True
     """
+    if mapping_container is None:
+        mapping_container = type(next(iter(data)))
+    if not callable(mapping_container):
+        mapping_container = dict
+    if sequence_container is None:
+        sequence_container = type(data)
+    if not callable(sequence_container):
+        sequence_container = list
+
     if not labels:
         labels = sorted(functools.reduce(
-            lambda x, y: x.union(y), [set(x.keys()) for x in listdict]))
-    dictlist = {
-        label: [item[label] if label in item else d_val for item in listdict]
-        for label in labels}
-    return dictlist
+            lambda x, y: x.union(y), [set(x.keys()) for x in data]))
+    return mapping_container(
+        (label,
+         sequence_container(
+             item[label] if label in item else d_val for item in data))
+        for label in labels)
 
 
 # ======================================================================
-def dictlist2listdict(
-        dictlist,
+def mapseq2seqmap(
+        data,
         labels=None,
-        d_val=None):
+        d_val=None,
+        mapping_container=None,
+        sequence_container=None):
     """
-    Convert tabular data from a dict of lists to a list of dicts.
+    Convert tabular data from a Mapping of Sequences to a Sequence of Mappings.
 
     Args:
-        dictlist (Iterable[dict): The tabular data as a dict of lists.
+        data (Mapping[Sequence]): The input tabular data.
             All lists must have the same length.
         labels (Iterable|None): The labels of the tabular data.
             If None, the `labels` are guessed from the data.
         d_val (Any): The default value to be used for reducing dicts.
             The values matching `d_val` are not included in the dicts.
+        mapping_container (callable|None): The mapping container.
+            If None, this is inferred from `data` if possible, otherwise
+            uses `dict`.
+        sequence_container (callable|None): The sequence container.
+            If None, this is inferred from `data` if possible, otherwise
+            uses `list`.
 
     Returns:
-        dictlist (dict[Any:list]): The tabular data as a dict of lists.
+        result (dict[Any:list]): The tabular data as a dict of lists.
             All list will have the same size.
 
     Examples:
-        >>> dl = {'a': [1, 3, 5], 'b': [2, 4, 6]}
-        >>> [sorted(d.items()) for d in dictlist2listdict(dl)]
+        >>> data = {'a': [1, 3, 5], 'b': [2, 4, 6]}
+        >>> [sorted(d.items()) for d in mapseq2seqmap(data)]
         [[('a', 1), ('b', 2)], [('a', 3), ('b', 4)], [('a', 5), ('b', 6)]]
-        >>> dl = {'a': [1, None, None], 'b': [None, 4, 6]}
-        >>> [sorted(d.items()) for d in dictlist2listdict(dl)]
+        >>> data == seqmap2mapseq((mapseq2seqmap(data)))
+        True
+
+        >>> data = {'a': [1, None, None], 'b': [None, 4, 6]}
+        >>> [sorted(d.items()) for d in mapseq2seqmap(data)]
         [[('a', 1)], [('b', 4)], [('b', 6)]]
-        >>> dl == listdict2dictlist((dictlist2listdict(dl)))
+        >>> data == seqmap2mapseq((mapseq2seqmap(data)))
         True
     """
+    if mapping_container is None:
+        mapping_container = type(data)
+    if not callable(mapping_container):
+        mapping_container = dict
+    if sequence_container is None:
+        sequence_container = type(data[next(iter(data))])
+    if not callable(sequence_container):
+        sequence_container = list
+
     if not labels:
-        labels = tuple(dictlist.keys())
-    num_elems = len(dictlist[labels[0]])
-    listdict = [
-        {label: dictlist[label][i] for label in labels
-         if dictlist[label][i] is not d_val}
-        for i in range(num_elems)]
-    return listdict
+        labels = tuple(data.keys())
+    num_elems = len(data[next(iter(labels))])
+    return sequence_container(
+        mapping_container(
+            (label, data[label][i]) for label in labels
+            if data[label][i] is not d_val)
+        for i in range(num_elems))
 
 
 # ======================================================================
@@ -2186,9 +2333,10 @@ def pascal_triangle_range(
             If None, this is computed automatically based on `first` and
             `second`, such that a non-empty sequence is avoided, if possible.
         container (callable): The row container.
+            This should be a Sequence constructor.
 
     Yields:
-        row (Iterable[int]): The rows of the Pascal's triangle.
+        row (Sequence[int]): The rows of the Pascal's triangle.
 
     Examples:
         >>> tuple(pascal_triangle_range(5))
@@ -2467,12 +2615,12 @@ def get_gen_fibonacci(
     Args:
         max_count (int): The maximum number of values to yield.
             If `max_count == -1`, the generation proceeds indefinitely.
-        values (int|Iterable[int]): The initial numbers of the sequence.
+        values (int|Sequence[int]): The initial numbers of the sequence.
             If int, the value is repeated for the number of `weights`, and
-            `weights` must be an iterable.
-        weights (int|Iterable[int]): The weights for the linear combination.
+            `weights` must be a sequence.
+        weights (int|Sequence[int]): The weights for the linear combination.
             If int, the value is repeated for the number of `values`, and
-            `values` must be an iterable.
+            `values` must be a sequence.
 
     Yields:
         value (int): The next number of the sequence.
@@ -3427,6 +3575,10 @@ def num_align(
         0
         >>> num_align(6, 'pow2', mode=0)
         8
+        >>> num_align(6543, 'pow10', mode=0)
+        10000
+        >>> num_align(1543, 'pow10', mode=0)
+        1000
         >>> num_align(128, 128, mode=1)
         128
         >>> num_align(123.37, 0.5, mode=1)
@@ -3634,19 +3786,19 @@ def common_subseq_2(
         sorting=None):
     """
     Find the longest common consecutive subsequence(s).
-    This version works for two Iterables.
+    This version works for two Sequences.
 
     This is known as the `longest common substring` problem, or LCS for short.
 
     Args:
-        seq1 (Iterable): The first input sequence.
+        seq1 (Sequence): The first input sequence.
             Must be of the same type as seq2.
-        seq2 (Iterable): The second input sequence.
+        seq2 (Sequence): The second input sequence.
             Must be of the same type as seq1.
         sorting (callable): Sorting function passed to 'sorted' via `key` arg.
 
     Returns:
-        commons (list[Iterable]): The longest common subsequence(s).
+        commons (list[Sequence]): The longest common subsequence(s).
 
     Examples:
         >>> common_subseq_2('academy','abracadabra')
@@ -3685,17 +3837,17 @@ def common_subseq(
         sorting=None):
     """
     Find the longest common consecutive subsequence(s).
-    This version works for an Iterable of Iterables.
+    This version works for an Iterable of Sequences.
 
     This is known as the `longest common substring` problem, or LCS for short.
 
     Args:
-        seqs (Iterable[Iterable]): The input sequences.
+        seqs (Iterable[Sequence]): The input sequences.
             All the items must be of the same type.
         sorting (callable): Sorting function passed to 'sorted' via `key` arg.
 
     Returns:
-        commons (list[Iterable]): The longest common subsequence(s).
+        commons (list[Sequence]): The longest common subsequence(s).
 
     Examples:
         >>> common_subseq(['academy', 'abracadabra', 'cadet'])
@@ -3709,8 +3861,9 @@ def common_subseq(
         >>> common_subseq([(1, 2, 3, 4, 5), (1, 2, 3), (0, 1, 2)])
         [(1, 2)]
     """
-    commons = [seqs[0]]
-    for text in seqs[1:]:
+    seqs = iter(seqs)
+    commons = [next(seqs)]
+    for text in seqs:
         tmps = []
         for common in commons:
             tmp = common_subseq_2(common, text, sorting)
@@ -4258,7 +4411,7 @@ def which(args):
 
 # ======================================================================
 def execute(
-        command,
+        cmd,
         in_pipe=None,
         mode='call',
         timeout=None,
@@ -4277,7 +4430,7 @@ def execute(
     may be more appropriate.
 
     Args:
-        command (str|Iterable[str]): The command to execute.
+        cmd (str|Iterable[str]): The command to execute.
             If str, must be a shell-compatible invocation.
             If Iterable, each token must be a separate argument.
         in_pipe (str|None): Input data to be used as stdin of the process.
@@ -4302,12 +4455,12 @@ def execute(
     """
     ret_code, p_stdout, p_stderr = None, None, None
 
-    command, is_valid = which(command)
+    cmd, is_valid = which(cmd)
     if is_valid:
-        msg('{} {}'.format('$$' if dry else '>>', ' '.join(command)),
+        msg('{} {}'.format('$$' if dry else '>>', ' '.join(cmd)),
             verbose, D_VERB_LVL if dry else VERB_LVL['medium'])
     else:
-        msg('W: `{}` is not in available in $PATH.'.format(command[0]))
+        msg('W: `{}` is not in available in $PATH.'.format(next(iter(cmd))))
 
     if not dry and is_valid:
         if in_pipe is not None:
@@ -4315,7 +4468,7 @@ def execute(
                 verbose, VERB_LVL['highest'])
 
         proc = subprocess.Popen(
-            command,
+            cmd,
             stdin=subprocess.PIPE if in_pipe and not mode == 'flush' else None,
             stdout=subprocess.PIPE if mode != 'spawn' else None,
             stderr=subprocess.PIPE if mode == 'call' else subprocess.STDOUT,
@@ -4349,7 +4502,7 @@ def execute(
             msg('E: mode `{}` and `in_pipe` not supported.'.format(mode))
 
         if log:
-            name = os.path.basename(command[0])
+            name = os.path.basename(cmd[0])
             pid = proc.pid
             for stream, source in ((p_stdout, 'out'), (p_stderr, 'err')):
                 if stream:
@@ -4361,7 +4514,7 @@ def execute(
 
 # ======================================================================
 def parallel_execute(
-        commands,
+        cmds,
         pool_size=None,
         poll_interval=60,
         callback=None,
@@ -4372,7 +4525,7 @@ def parallel_execute(
     Spawn parallel processes and wait until all processes are completed.
 
     Args:
-        commands (Iterable[str|Iterable[str]): The commands to execute.
+        cmds (Sequence[str|Iterable[str]): The commands to execute.
             Each item must be a separate command.
             If the item is a str, it must be a shell-compatible invocation.
             If the item is an Iterable, each token must be a separate argument.
@@ -4394,11 +4547,11 @@ def parallel_execute(
     callback_kws = dict(callback_args) if callback_kws is not None else {}
     if not pool_size:
         pool_size = multiprocessing.cpu_count() + 1
-    num_total = len(commands)
+    num_total = len(cmds)
     num_processed = 0
     begin_dt = datetime.datetime.now()
     procs = [
-        subprocess.Popen(cmd, shell=True) for cmd in commands[:pool_size]]
+        subprocess.Popen(cmd, shell=True) for cmd in cmds[:pool_size]]
     for proc in procs:
         msg('{} {}'.format('>>', ' '.join(proc.args)),
             verbose, VERB_LVL['medium'])
@@ -4413,7 +4566,7 @@ def parallel_execute(
             num_processed += num_done
             new_procs = [
                 subprocess.Popen(cmd, shell=True)
-                for cmd in commands[num_submitted:num_submitted + num_done]]
+                for cmd in cmds[num_submitted:num_submitted + num_done]]
             for proc in new_procs:
                 msg('{} {}'.format('>>', ' '.join(proc.args)),
                     verbose, VERB_LVL['medium'])
@@ -4565,12 +4718,15 @@ def flistdir(
 
 
 # ======================================================================
-def add_extsep(ext):
+def add_extsep(
+        ext,
+        extsep=os.path.extsep):
     """
     Add a extsep char to a filename extension, if it does not have one.
 
     Args:
         ext (str|None): Filename extension to which the dot has to be added.
+        extsep (str): The string to use a filename extension separator.
 
     Returns:
         ext (str): Filename extension with a prepending dot.
@@ -4585,11 +4741,9 @@ def add_extsep(ext):
         >>> add_extsep(None)
         '.'
     """
-    ext = (
-            ('' if ext and ext.startswith(
-                os.path.extsep) else os.path.extsep) +
-            (ext if ext else ''))
-    return ext
+    if ext is None:
+        ext = ''
+    return ('' if ext.startswith(extsep) else extsep) + ext
 
 
 # ======================================================================
@@ -4618,6 +4772,7 @@ def split_ext(
             If True, include multiple extensions.
             If False, only the last extension is detected.
             If `ext` is not None or empty, it has no effect.
+        extsep (str): The string to use a filename extension separator.
 
     Returns:
         result (tuple): The tuple
@@ -4783,7 +4938,7 @@ def join_path(*args):
     Note that this is the inverse of `split_path()`.
 
     Args:
-        *args (*Iterable[str]): The path elements to be concatenated.
+        *args (*Sequence[str]): The path elements to be concatenated.
             The last item is treated as the file extension.
 
     Returns:
@@ -4990,8 +5145,8 @@ def auto_open(filepath, *args, **kwargs):
 
     Args:
         filepath (str): The file path.
-        *args (Iterable): Positional arguments passed to `open()`.
-        **kwargs (dict): Keyword arguments passed to `open()`.
+        *args (Sequence): Positional arguments passed to `open()`.
+        **kwargs (Mapping): Keyword arguments passed to `open()`.
 
     Returns:
         file_obj: A file object.
@@ -5045,8 +5200,8 @@ def zopen(filepath, mode='rb', *args, **kwargs):
             See `open()` for more info.
             If the `t` mode is not specified, `b` mode is assumed.
             If `t` mode is specified, the file cannot be compressed.
-        *args (Iterable): Positional arguments passed to `open()`.
-        **kwargs (dict): Keyword arguments passed to `open()`.
+        *args (Sequence): Positional arguments passed to `open()`.
+        **kwargs (Mapping): Keyword arguments passed to `open()`.
 
     Returns:
         file_obj: A file object.
@@ -5236,8 +5391,8 @@ def to_bool(
     Args:
         text (str|Any): The input value.
             If not string, attempt the built-in `bool()` casting.
-        mappings (Iterable[Iterable]): The string values to map as boolean.
-            Each item consists of an iterable. Within the inner iterable,
+        mappings (Sequence[Sequence]): The string values to map as boolean.
+            Each item consists of an Sequence. Within the inner Sequence,
             the first element is mapped to False and all other elements map
             to True.
         case_sensitive (bool): Perform case-sensitive comparison.
@@ -5575,7 +5730,7 @@ def guess_numerical_sequence(
     Guess a compact expression for a numerical sequence.
 
     Args:
-        items (Iterable[Number]): The input items.
+        items (Sequence[Number]): The input items.
         rounding (int|None): The maximum number of decimals to show.
 
     Returns:
@@ -5586,7 +5741,6 @@ def guess_numerical_sequence(
                Note that both float and complex number will be detected
                (contrarily to Python's `range()`).
              - geometric sequences: 'base ** range(start, stop, step)'
-
 
     Examples:
         >>> items = [1.0] * 10
@@ -5966,10 +6120,12 @@ def is_increasing(
         >>> is_increasing([-2, -2, 1, 30, 5, 7, 8, 9])
         False
     """
+    others = iter(items)
+    next(others)
     if strict:
-        result = all(x < y for x, y in zip(items, items[1:]))
+        result = all(x < y for x, y in zip(items, others))
     else:
-        result = all(x <= y for x, y in zip(items, items[1:]))
+        result = all(x <= y for x, y in zip(items, others))
     return result
 
 
@@ -6001,10 +6157,12 @@ def is_decreasing(
         >>> is_decreasing([312, 5, 53, 7, 3, -5, -100])
         False
     """
+    others = iter(items)
+    next(others)
     if strict:
-        result = all(x > y for x, y in zip(items, items[1:]))
+        result = all(x > y for x, y in zip(items, others))
     else:
-        result = all(x >= y for x, y in zip(items, items[1:]))
+        result = all(x >= y for x, y in zip(items, others))
     return result
 
 
@@ -6154,19 +6312,19 @@ def multi_scale_to_int(
     Ensure values scaling of multiple values.
 
     Args:
-        vals (int|float|Iterable[int|float|Iterable]): The input value(s)
-            If Iterable, a value for each scale must be specified.
-            If not Iterable, all pairs will have the same value.
+        vals (int|float|Sequence[int|float|Sequence]): The input value(s)
+            If Sequence, a value for each scale must be specified.
+            If not Sequence, all pairs will have the same value.
             If any value is int, it is not scaled further.
             If any value is float, it is scaled to the corresponding scale,
             if `combine` is None, otherwise it is scaled to a combined scale
             according to the result of `combine(scales)`.
-        scales (Iterable[int]): The scale sizes for the pairs.
-        shape (Iterable[int|None]): The shape of the output.
+        scales (Sequence[int]): The scale sizes for the pairs.
+        shape (Sequence[int|None]): The shape of the output.
             It must be a 2-tuple of int or None.
             None entries are replaced by `len(scales)`.
         combine (callable|None): The function for combining pad width scales.
-            Must accept: combine(Iterable[int]) -> int|float
+            Must accept: combine(Sequence[int]) -> int|float
             This is used to compute a reference scaling value for the
             float to int conversion, using `combine(scales)`.
             For the int values of `width`, this parameter has no effect.

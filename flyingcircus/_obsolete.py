@@ -200,6 +200,100 @@ def interval_size(interval):
 
 
 # ======================================================================
+def replace_iter(
+        items,
+        condition,
+        replace=None,
+        cycle=True):
+    """
+    Replace items matching a specific condition.
+
+    This is fairly useless:
+
+    If `replace` is callable:
+        replace_iter(items, condition, replace)
+    becomes:
+        [replace(x) if condition(x) else x for x in items]
+
+    If `replace` is not Iterable:
+        list(replace_iter(items, condition, replace))
+    becomes:
+        [replace if condition(x) else x for x in items]
+
+    If `replace` is Iterable and cycle == False:
+        list(replace_iter(items, condition, replace))
+    becomes:
+        iter_replace = iter(replace)
+        [next(iter_replace) if condition(x) else x for x in items]
+
+    If `replace` is Iterable and cycle == True:
+        list(replace_iter(items, condition, replace))
+    becomes:
+        iter_replace = itertools.cycle(replace)
+        [next(iter_replace) if condition(x) else x for x in items]
+
+
+    Args:
+        items (Iterable): The input items.
+        condition (callable): The condition for the replacement.
+        replace (any|Iterable|callable): The replacement.
+            If Iterable, its elements are used for replacement.
+            If callable, it is applied to the elements matching `condition`.
+            Otherwise, the object itself is used.
+        cycle (bool): Cycle through the replace.
+            If True and `replace` is Iterable, its elements are cycled through.
+            Otherwise `items` beyond last replacement are lost.
+
+    Yields:
+        item: The next item from items or its replacement.
+
+    Examples:
+        >>> ll = list(range(10))
+        >>> list(replace_iter(ll, lambda x: x % 2 == 0))
+        [None, 1, None, 3, None, 5, None, 7, None, 9]
+        >>> list(replace_iter(ll, lambda x: x % 2 == 0, lambda x: x ** 2))
+        [0, 1, 4, 3, 16, 5, 36, 7, 64, 9]
+        >>> list(replace_iter(ll, lambda x: x % 2 == 0, 100))
+        [100, 1, 100, 3, 100, 5, 100, 7, 100, 9]
+        >>> list(replace_iter(ll, lambda x: x % 2 == 0, range(10, 0, -1)))
+        [10, 1, 9, 3, 8, 5, 7, 7, 6, 9]
+        >>> list(replace_iter(ll, lambda x: x % 2 == 0, range(10, 8, -1)))
+        [10, 1, 9, 3, 10, 5, 9, 7, 10, 9]
+        >>> list(replace_iter(
+        ...     ll, lambda x: x % 2 == 0, range(10, 8, -1), False))
+        [10, 1, 9, 3]
+
+        >>> ll = list(range(10))
+        >>> (list(replace_iter(ll, lambda x: x % 2 == 0, lambda x: x ** 2))
+        ...     == [x ** 2 if x % 2 == 0 else x for x in ll])
+        True
+        >>> (list(replace_iter(ll, lambda x: x % 2 == 0, 'X'))
+        ...     == ['X' if x % 2 == 0 else x for x in ll])
+        True
+        >>> iter_ascii_letters = iter(string.ascii_letters)
+        >>> (list(replace_iter(ll, lambda x: x % 2 == 0, string.ascii_letters))
+        ...     == [next(iter_ascii_letters) if x % 2 == 0 else x for x in ll])
+        True
+    """
+    if not callable(replace):
+        try:
+            replace = iter(replace)
+        except TypeError:
+            replace = (replace,)
+            cycle = True
+        if cycle:
+            replace = itertools.cycle(replace)
+    for item in items:
+        if not condition(item):
+            yield item
+        else:
+            try:
+                yield replace(item) if callable(replace) else next(replace)
+            except StopIteration:
+                return
+
+
+# ======================================================================
 def binomial_coeff(
         n,
         k):
