@@ -811,6 +811,7 @@ def reverse(
     Reverse a slice or range.
 
     This is achieved by swapping its `start` and `stop` attributes.
+    It works for any object implementing `start` and `stop` attributes.
 
     If `step` is specified, `-step` is used as new `step`.
 
@@ -848,10 +849,13 @@ def reverse(
         >>> reverse(range(20, 10), True)
         range(10, 20, -1)
     """
-    step = 1 if obj.step is None and force_step else obj.step
-    if step is not None:
-        step = -step
-    return type(obj)(obj.stop, obj.start, step)
+    if hasattr(obj, 'step'):
+        step = 1 if obj.step is None and force_step else obj.step
+        if step is not None:
+            step = -step
+        return type(obj)(obj.stop, obj.start, step)
+    else:
+        return type(obj)(obj.stop, obj.start)
 
 
 # ======================================================================
