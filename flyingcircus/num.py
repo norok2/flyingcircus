@@ -1020,6 +1020,45 @@ def shuffle_on_axis(arr, axis=-1):
 
 
 # ======================================================================
+def is_broadcastable(*items):
+    """
+    Check if some arrays (or their shapes) can be broadcasted together.
+
+    Two (or more) arrays can be broadcasted together if their dims
+    (starting from the last) are either the same or one of the is 1.
+
+    Args:
+        items (*Sequence[Sequence|np.ndarray]): The shapes to test.
+            Each item is either a NumPy array (more precisely any object
+            with a `shape` attribute) or a Sequence representing the shape
+            of an array.
+
+    Returns:
+        result (bool): The result of the broadcastability test.
+
+    Examples:
+        >>> is_broadcastable((2, 3, 1), (4,))
+        True
+        >>> is_broadcastable((8, 1, 6, 1), (7, 1, 5))
+        True
+        >>> is_broadcastable((2, 1), (8, 4, 3))
+        False
+        >>> is_broadcastable((8, 1, 6, 1), (7, 1, 5), (7, 6, 5), (8, 1, 1, 1))
+        True
+        >>> is_broadcastable(np.zeros((4, 3, 2, 1)), (3, 1, 5))
+        True
+        >>> is_broadcastable((8, 4, 3), np.zeros((2, 1)))
+        False
+    """
+    shapes = tuple(
+        item.shape if hasattr(item, 'shape') else item
+        for item in items)
+    return all(
+        util.all_equal(dim for dim in dims if dim > 1)
+        for dims in zip(*tuple(shape[::-1] for shape in shapes)))
+
+
+# ======================================================================
 def unsqueezing(
         source_shape,
         target_shape):
