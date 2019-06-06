@@ -377,6 +377,44 @@ def is_deep(
 
 
 # ======================================================================
+def all_equal(items):
+    """
+    Check if all items are equal.
+
+    Args:
+        items (Iterable): The input items.
+
+    Returns:
+        result (bool): The result of the equality test.
+
+    Examples:
+        >>> all_equal([1, 1, 1, 1, 1, 1, 1, 1, 1])
+        True
+        >>> all_equal([1, 1, 1, 1, 0, 1, 1, 1, 1])
+        False
+        >>> all_equal('xxxxx')
+        True
+        >>> all_equal('xxxxy')
+        False
+        >>> all_equal({0})
+        True
+        >>> all_equal({0, 1})
+        False
+        >>> all(all_equal(x) for x in ((), [], {}, set()))
+        True
+    """
+    if isinstance(items, collections.Sequence):
+        return items[1:] == items[:-1]
+    else:
+        iter_items = iter(items)
+        try:
+            first = next(iter_items)
+        except StopIteration:
+            return True
+        return all(first == item for item in iter_items)
+
+
+# ======================================================================
 def nesting_level(
         obj,
         deep=True,
@@ -506,7 +544,7 @@ def nested_len(
                 nested_len(
                     x, deep, avoid, max_depth - 1, combine, check_same)
                 for x in obj)
-            if check_same and any(x != next_level[0] for x in next_level):
+            if check_same and not all_equal(next_level):
                 raise ValueError(
                     'Same nesting level items with different length.')
             if not callable(combine):
