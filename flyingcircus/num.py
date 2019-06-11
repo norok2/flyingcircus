@@ -34,7 +34,7 @@ import scipy as sp  # SciPy (signal and image processing library)
 import scipy.optimize  # SciPy: Optimization Algorithms
 # import scipy.integrate  # SciPy: Integrations facilities
 # import scipy.constants  # SciPy: Mathematal and Physical Constants
-# import scipy.stats  # SciPy: Statistical functions
+import scipy.stats  # SciPy: Statistical functions
 import scipy.signal  # SciPy: Signal processing
 import scipy.ndimage  # SciPy: ND-image Manipulation
 import scipy.special  # SciPy: Special functions
@@ -43,7 +43,7 @@ from numpy.fft import fftshift, ifftshift
 from numpy.fft import fftn, ifftn
 
 # :: Local Imports
-import flyingcircus as fc
+import flyingcircus as fc  # Everything you always wanted to have in Python.*
 from flyingcircus import util
 
 from flyingcircus import INFO, PATH
@@ -431,7 +431,7 @@ def multi_slicing(
         # result = result.reshape(true_shape)
 
         result = arr
-        base_slicing = [slice(None) for obj_ in slicing]
+        base_slicing = [slice(None)] * len(slicing)
         i = 0
         for obj in slicing:
             base_slicing[i] = obj
@@ -1131,9 +1131,10 @@ def unsqueezing(
             shape.append(dim if dim == source_shape[j] else 1)
             if i + 1 < len(target_shape) and dim == source_shape[j] \
                     and dim != 1 and dim in target_shape[i + 1:]:
-                text = ('Multiple positions (e.g. {} and {})'
-                        ' for source shape element {}.'.format(
-                    i, target_shape[i + 1:].index(dim) + (i + 1), dim))
+                text = (
+                    'Multiple positions (e.g. {} and {})'
+                    ' for source shape element {}.'.format(
+                        i, target_shape[i + 1:].index(dim) + (i + 1), dim))
                 warnings.warn(text)
             if dim == source_shape[j] or source_shape[j] == 1:
                 j += 1
@@ -1382,7 +1383,7 @@ def mdot(*arrs):
 
     Returns:
         arr (np.ndarray|None): The result of the dot product.
-            None is returned if *args magic is invalid.
+            None is returned if *_args magic is invalid.
 
     Examples:
         >>> arrs = [i + np.arange(4).reshape((2, 2)) for i in range(6)]
@@ -1488,7 +1489,7 @@ def alternating_array(
 
     Args:
         size (int): The size of the resulting array.
-        values (Iterable|np.ndarray): The values to alternate.
+        values (Sequence|np.ndarray): The values to alternate.
         dtype (np.dtype|None): The data type of the resulting array.
 
     Returns:
@@ -2900,8 +2901,8 @@ def grid_coord(
 # ======================================================================
 def grid_transform(
         xx,
-        linear,
-        shift=None,
+        lin_mat,
+        off_vec=None,
         is_dense=None):
     """
     Apply a linear or affine transform to a mesh-grid.
@@ -2918,9 +2919,9 @@ def grid_transform(
             Specifically, the result is a list of `np.ndarray` each array
             has the same number of dims, and has singlets in all but one
             dimension.
-        linear (Iterable|np.ndarray): The linear transformation.
+        lin_mat (Sequence|np.ndarray): The linear transformation matrix.
             This must be a `n` by `n` matrix where `n` is the number of dims.
-        shift (Iterable|np.ndarray): The shift vector in px.
+        off_vec (Sequence|np.ndarray): The offset vector in px.
             This must be a `n` sized array.
         is_dense (bool|None): The type (dense or sparse) of the mesh-grid.
             If bool, this is explicitly specified.
@@ -2935,24 +2936,24 @@ def grid_transform(
         >>> shape = (2, 3)
         >>> grid = tuple(slice(0, dim) for dim in shape)
         >>> xx = np.ogrid[grid]
-        >>> linear = [[0, 2], [2, 1]]
-        >>> shift = [10, 20]
+        >>> lin_mat = [[0, 2], [2, 1]]
+        >>> off_vec = [10, 20]
         >>> xx
         [array([[0],
                [1]]), array([[0, 1, 2]])]
-        >>> ogrid2mgrid(xx)
-        array([[[0, 0, 0],
-                [1, 1, 1]],
+        >>> print(ogrid2mgrid(xx))
+        [[[0 0 0]
+          [1 1 1]]
         <BLANKLINE>
-               [[0, 1, 2],
-                [0, 1, 2]]])
-        >>> grid_transform(xx, linear)
+         [[0 1 2]
+          [0 1 2]]]
+        >>> grid_transform(xx, lin_mat)
         array([[[0, 2, 4],
                 [0, 2, 4]],
         <BLANKLINE>
                [[0, 1, 2],
                 [2, 3, 4]]])
-        >>> grid_transform(xx, linear, shift)
+        >>> grid_transform(xx, lin_mat, off_vec)
         array([[[10, 12, 14],
                 [10, 12, 14]],
         <BLANKLINE>
@@ -2966,17 +2967,17 @@ def grid_transform(
         raise ValueError(text)
     if is_dense is None:
         is_dense = isinstance(xx, np.ndarray)
-    linear = np.array(linear)
-    assert (linear.shape == (n_dim, n_dim))
+    lin_mat = np.array(lin_mat)
+    assert (lin_mat.shape == (n_dim, n_dim))
     xx = np.einsum(
         '{i}{j}, {i}{indexes} -> {j}{indexes}'.format(
             i=string.ascii_letters[-2], j=string.ascii_letters[-1],
             indexes=string.ascii_letters[:n_dim]),
-        linear, xx if is_dense else ogrid2mgrid(xx))
-    if shift is not None:
-        shift = np.array(shift)
-        assert (shift.size == xx.shape[0])
-        xx += shift.reshape((-1,) + tuple(1 for x in xx.shape[1:]))
+        lin_mat, xx if is_dense else ogrid2mgrid(xx))
+    if off_vec is not None:
+        off_vec = np.array(off_vec)
+        assert (off_vec.size == xx.shape[0])
+        xx += off_vec.reshape((-1,) + (1,) * len(xx.shape[1:]))
     return xx
 
 
@@ -3579,8 +3580,8 @@ def edge_padding(
         target_slices = tuple(
             (slice(0, low), slice(low, dim - up), slice(dim - up, dim))
             for dim, (low, up) in zip(shape, width))
-        source_slices = tuple(
-            (slice(0, 1), slice(None), slice(-1, None)) for dim in shape)
+        source_slices = \
+            ((slice(0, 1), slice(None), slice(-1, None)),) * len(shape)
         for target_slicing, source_slicing in zip(
                 itertools.product(*target_slices),
                 itertools.product(*source_slices)):
@@ -3761,7 +3762,7 @@ def padding(
         width=0,
         combine=None,
         mode=0,
-        **kws):
+        **_kws):
     """
     Pad an array using different padding strategies.
 
@@ -3797,8 +3798,7 @@ def padding(
             If str, this is passed directly to `np.pad()`, unless a
             specialized function from this module is available.
             See `np.pad()` for more details.
-        kwargs (dict|Iterable[Iterable]): Keyword parameters for padding.
-            These are passed to `np.pad()`.
+        **_kws: Keyword parameters for `np.pad()`.
 
     Returns:
         result (tuple): The tuple
@@ -3829,10 +3829,10 @@ def padding(
         width = util.multi_scale_to_int(width, arr.shape, combine=combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
-            kws['constant_values'] = mode
+            _kws['constant_values'] = mode
             mode = 'constant'
         if mode == 'constant':
-            result = const_padding(arr, width, values=kws['constant_values'])
+            result = const_padding(arr, width, values=_kws['constant_values'])
         elif mode == 'edge':
             result = edge_padding(arr, width)
         elif mode in ('cyclic', 'wrap'):
@@ -3840,7 +3840,7 @@ def padding(
         elif mode == 'symmetric':
             result = symmetric_padding(arr, width)
         else:
-            result = np.pad(arr, width, mode, **kws)
+            result = np.pad(arr, width, mode, **_kws)
     else:
         mask = (slice(None),) * arr.ndim
         result = arr
@@ -4061,7 +4061,7 @@ def auto_bin(
     if method == 'auto':
         num = max(auto_bin(arr, 'fd', dim), auto_bin(arr, 'sturges', dim))
     elif method == 'sqrt':
-        num = int(np.ceil((arr.size) ** 0.5))
+        num = int(np.ceil(arr.size ** 0.5))
     elif method == 'sturges':
         num = int(np.ceil(1 + np.log2(arr.size)))
     elif method == 'rice':
@@ -4445,7 +4445,7 @@ def mutual_information(
         h2 = entropy(hist2, base)
         mi = h1 + h2 - h12
     else:
-        norm_mutual_information(arr1, arr2, bins=bins)
+        mi = norm_mutual_information(arr1, arr2, bins=bins)
 
     # absolute value to fix rounding errors
     return abs(mi)
@@ -4680,19 +4680,19 @@ def cartesian2polar(real, imag):
 # ======================================================================
 def filter_cx(
         arr,
-        filter_func,
-        filter_args=None,
-        filter_kws=None,
+        func,
+        args=None,
+        kws=None,
         mode='cartesian'):
     """
     Calculate a non-complex function on a complex input array.
 
     Args:
         arr (np.ndarray): The input array.
-        filter_func (callable): The function used to filter the input.
+        func (callable): The function used to filter the input.
             Requires the first arguments to be an `np.ndarray`.
-        filter_args (tuple|None): Positional arguments of `filter_func`.
-        filter_kws (dict|None): Keyword arguments of `filter_func`.
+        args (Sequence|None): Positional arguments for `func`.
+        kws (Mappable|None): Keyword arguments for `func`.
         mode (str): Complex calculation mode.
             Available:
              - 'cartesian': apply to real and imaginary separately.
@@ -4708,40 +4708,26 @@ def filter_cx(
     """
     if mode:
         mode = mode.lower()
-    if not filter_args:
-        filter_args = ()
-    if not filter_kws:
-        filter_kws = {}
+    args = tuple(args) if args else ()
+    kws = dict(kws) if kws else {}
     if mode == 'cartesian':
-        arr = (
-                filter_func(arr.real, *filter_args, **filter_kws) +
-                1j * filter_func(arr.imag, *filter_args, **filter_kws))
+        arr = func(arr.real, *args, **kws) \
+              + 1j * func(arr.imag, *args, **kws)
     elif mode == 'polar':
-        arr = (
-                filter_func(np.abs(arr), *filter_args, **filter_kws) *
-                np.exp(
-                    1j * filter_func(
-                        np.angle(arr), *filter_args, **filter_kws)))
+        arr = func(np.abs(arr), *args, **kws) \
+              * np.exp(1j * func(np.angle(arr), *args, **kws))
     elif mode == 'real':
-        arr = (
-                filter_func(
-                    arr.real, *filter_args, **filter_kws) + 1j * arr.imag)
+        arr = func(arr.real, *args, **kws) + 1j * arr.imag
     elif mode == 'imag':
-        arr = (
-                arr.real + 1j * filter_func(
-            arr.imag, *filter_args, **filter_kws))
+        arr = arr.real + 1j * func(arr.imag, *args, **kws)
     elif mode == 'mag':
-        arr = (
-                filter_func(np.abs(arr), *filter_args, **filter_kws) *
-                np.exp(1j * np.angle(arr)))
+        arr = func(np.abs(arr), *args, **kws) * np.exp(1j * np.angle(arr))
     elif mode == 'phs':
-        arr = (
-                np.abs(arr) * np.exp(
-            1j * filter_func(np.angle(arr), *filter_args, **filter_kws)))
+        arr = np.abs(arr) * np.exp(1j * func(np.angle(arr), *args, **kws))
     else:
         warnings.warn(
             'Mode `{}` not known'.format(mode) + ' Using default.')
-        arr = filter_cx(arr, filter_func, filter_args, filter_kws)
+        arr = filter_cx(arr, func, args, kws)
     return arr
 
 
@@ -5433,21 +5419,21 @@ def calc_stats(
         val_list = []
         for label in label_list:
             val_list.append(util.compact_num_str(stats_dict[label]))
-    if save_path:
-        with open(save_path, 'wb') as csv_file:
-            csv_writer = csv.writer(
-                csv_file, delimiter=str(util.CSV_DELIMITER))
-            csv_writer.writerow(label_list)
-            csv_writer.writerow(val_list)
-    if title:
-        print_str = title + ': '
-        for label in label_list:
-            if compact:
-                print_str += '{}={}, '.format(
-                    label, util.compact_num_str(stats_dict[label]))
-            else:
-                print_str += '{}={}, '.format(label, stats_dict[label])
-        print(print_str)
+        if save_path:
+            with open(save_path, 'wb') as csv_file:
+                csv_writer = csv.writer(
+                    csv_file, delimiter=str(util.CSV_DELIMITER))
+                csv_writer.writerow(label_list)
+                csv_writer.writerow(val_list)
+        if title:
+            print_str = title + ': '
+            for label in label_list:
+                if compact:
+                    print_str += '{}={}, '.format(
+                        label, util.compact_num_str(stats_dict[label]))
+                else:
+                    print_str += '{}={}, '.format(label, stats_dict[label])
+            print(print_str)
     return stats_dict
 
 
@@ -5540,7 +5526,8 @@ def apply_mask(
         if arr.shape == mask.shape:
             arr[~mask] = background
             if borders is not None:
-                slicing = tuple(sp.ndimage.find_objects(mask.astype(int))[0])
+                slicing = tuple(
+                    tuple(sp.ndimage.find_objects(mask.astype(int)))[0])
                 if slicing:
                     arr = arr[slicing]
                 arr = frame(arr, borders, background)
@@ -5602,7 +5589,7 @@ def frame(
         width=0.05,
         mode=0,
         combine=max,
-        **pad_kws):
+        **_kws):
     """
     Add a background frame to an array specifying the borders.
 
@@ -5617,8 +5604,7 @@ def frame(
             Passed to `flyingcircus.util.padding()`.
         combine (callable|None): The function for combining pad width values.
             Passed to `flyingcircus.util.padding()`.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
-            Passed to `flyingcircus.util.padding()`.
+        **_kws: Keyword parameters for `flyingcircus.util.padding()`.
 
     Returns:
         result (np.ndarray): The padded array.
@@ -5638,7 +5624,7 @@ def frame(
          [0 4 5 6 0]
          [0 0 0 0 0]]
     """
-    result, mask = padding(arr, width, combine, mode, **pad_kws)
+    result, mask = padding(arr, width, combine, mode, **_kws)
     return result
 
 
@@ -5648,7 +5634,7 @@ def reframe(
         shape,
         position=0.5,
         mode=0,
-        pad_kws=None):
+        **_kws):
     """
     Add a frame to an array by centering the input array into a new shape.
 
@@ -5661,8 +5647,7 @@ def reframe(
             Passed as `position` to `fc.num.shape_to_pad_width()`.
         mode (str|Number): The padding mode.
             This is passed to `fc.num.padding()`.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
-            These are passed to `fc.num.padding()`.
+        **_kws: Keyword parameters for `flyingcircus.util.padding()`.
 
     Returns:
         result (np.ndarray): The result array with added borders.
@@ -5723,8 +5708,7 @@ def reframe(
          [3 1 2 3 1]]
     """
     width = width_from_shapes(arr.shape, shape, position)
-    pad_kws = dict(pad_kws) if pad_kws else {}
-    result, mask = padding(arr, width, None, mode, **pad_kws)
+    result, mask = padding(arr, width, None, mode, **_kws)
     return result
 
 
@@ -6022,61 +6006,61 @@ def multi_resample(
 
 
 # ======================================================================
-def decode_affine(affine):
+def decode_affine(aff_mat):
     """
     Decompose the affine matrix into a linear transformation and a translation.
 
     Args:
-        affine (Iterable|np.ndarray): The affine matrix.
+        aff_mat (Sequence|np.ndarray): The affine matrix.
             This must be an `n + 1` by `m + 1` matrix.
 
     Returns:
         result (tuple): The tuple
             contains:
-             - linear (np.ndarray): The linear transformation.
+             - linear (np.ndarray): The linear transformation matrix.
                This must be a `n` by `m` matrix where `n` is the number of
                dims of the domain and `m` is the number of dims of the
                co-domain.
-             - shift (np.ndarray): The shift vector in px.
+             - off_vec (np.ndarray): The offset vector in px.
                 This must be a `m` sized array.
     """
-    affine = np.ndarray(affine)
-    assert (affine.ndim == 2)
-    linear = affine[:affine.shape[0] - 1, :affine.shape[1] - 1]
-    shift = affine[:-1, -1]
-    return linear, shift
+    aff_mat = np.ndarray(aff_mat)
+    assert (aff_mat.ndim == 2)
+    lin_mat = aff_mat[:aff_mat.shape[0] - 1, :aff_mat.shape[1] - 1]
+    off_vec = aff_mat[:-1, -1]
+    return lin_mat, off_vec
 
 
 # ======================================================================
 def encode_affine(
-        linear,
-        shift):
+        lin_mat,
+        off_vec):
     """
     Combine a linear transformation and a translation into the affine matrix.
 
     Args:
-        linear (Iterable|np.ndarray): The linear transformation.
+        lin_mat (Sequence|np.ndarray): The linear transformation matrix.
             This must be a `n` by `m` matrix where `n` is the number of
             dims of the domain and `m` is the number of dims of the co-domain.
-        shift (Iterable|np.ndarray): The shift vector in px.
+        off_vec (Sequence|np.ndarray): The offset vector in px.
             This must be a `m` sized array.
 
     Returns:
         affine (np.ndarray): The affine matrix.
             This is an `n + 1` by `m + 1` matrix.
     """
-    linear = np.array(linear)
-    shift = np.array(shift)
-    assert (linear.ndim == 2)
-    assert (linear.shape[1] == shift.size)
-    affine = np.eye(linear.shape[0] + 1)
-    affine[:linear.shape[0], :linear.shape[1]] = linear
-    affine[:-1, -1] = shift
+    lin_mat = np.array(lin_mat)
+    off_vec = np.array(off_vec)
+    assert (lin_mat.ndim == 2)
+    assert (lin_mat.shape[1] == off_vec.size)
+    affine = np.eye(lin_mat.shape[0] + 1)
+    affine[:lin_mat.shape[0], :lin_mat.shape[1]] = lin_mat
+    affine[:-1, -1] = off_vec
     return affine
 
 
 # ======================================================================
-def angles2linear(
+def angles2rotation(
         angles,
         n_dim=None,
         axes_list=None,
@@ -6114,7 +6098,7 @@ def angles2linear(
             transformation matrix: `dim ** 4 * np.finfo(np.double).eps`.
 
     Returns:
-        linear (np.ndarray): The rotation matrix as defined by the angles.
+        lin_mat (np.ndarray): The rotation matrix as defined by the angles.
 
     See Also:
         - flyingcircus.num.square_size_to_num_tria(),
@@ -6122,28 +6106,28 @@ def angles2linear(
         - itertools.combinations()
 
     Examples:
-        >>> print(np.round(angles2linear([90.0]), 6))
+        >>> print(np.round(angles2rotation([90.0]), 6))
         [[ 0. -1.]
          [ 1.  0.]]
-        >>> print(np.round(angles2linear([-30.0]), 3))
+        >>> print(np.round(angles2rotation([-30.0]), 3))
         [[ 0.866  0.5  ]
          [-0.5    0.866]]
-        >>> print(np.round(angles2linear([30.0]), 3))
+        >>> print(np.round(angles2rotation([30.0]), 3))
         [[ 0.866 -0.5  ]
          [ 0.5    0.866]]
-        >>> print(np.round(angles2linear([30.0, 0.0, -30.0]), 3))
+        >>> print(np.round(angles2rotation([30.0, 0.0, -30.0]), 3))
         [[ 0.866 -0.433 -0.25 ]
          [ 0.5    0.75   0.433]
          [ 0.    -0.5    0.866]]
-        >>> print(np.round(angles2linear([30.0, -30.0, 0.0]), 3))
+        >>> print(np.round(angles2rotation([30.0, -30.0, 0.0]), 3))
         [[ 0.75  -0.5    0.433]
          [ 0.433  0.866  0.25 ]
          [-0.5    0.     0.866]]
-        >>> print(np.round(angles2linear([30.0, 45.0, -30.0]), 3))
+        >>> print(np.round(angles2rotation([30.0, 45.0, -30.0]), 3))
         [[ 0.612 -0.127 -0.78 ]
          [ 0.354  0.927  0.127]
          [ 0.707 -0.354  0.612]]
-        >>> print(np.round(angles2linear([30.0], 3), 3))
+        >>> print(np.round(angles2rotation([30.0], 3), 3))
         [[ 0.866 -0.5    0.   ]
          [ 0.5    0.866  0.   ]
          [ 0.     0.     1.   ]]
@@ -6177,16 +6161,24 @@ def angles2linear(
 
 
 # ======================================================================
-def linear2angles(
-        linear,
+def rotation2angles(
+        lin_mat,
+        axes_list=None,
         use_degree=True):
     """
     Compute the rotation angles compatible with the proposed linear.
 
-    The decomposition is not unique.
+    The decomposition is not, in general, unique.
+    The algorithm may fail if any of the angles is half the full circle
+    (i.e. pi rad or 180 deg).
+    If the transformation is 2D and the angle is 180 deg, it will fail.
+    For higher dimensions, a solution without the 180 deg rotation may be
+    found (if exists).
 
     Args:
-        linear (np.ndarray): The rotation matrix.
+        lin_mat (np.ndarray): The rotation matrix.
+        axes_list (Iterable[Iterable[int]]|None): The axes of rotation planes.
+            See `flyingcircus.num.angles2rotation()` for more details.
         use_degree (bool): Interpret angles as expressed in degree.
             Otherwise, use radians.
 
@@ -6194,41 +6186,150 @@ def linear2angles(
         angles (tuple[float]): The angles generating the rotation matrix.
             Units are degree if `use_degre == True` else they are radians.
 
-    Examples:
-        >>> angles = [30.0, 0.0, -30.0]
-        >>> linear = angles2linear(angles)
-        >>> linear2angles(linear)
+    Raises:
+        ValueError: If the estimated angles do not match the rotation matrix.
 
+    Examples:
+        >>> angles = [90.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [90.0]
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        True
+
+        >>> angles = [30.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [30.0]
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        True
+
+        >>> angles = [270.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [-90.0]
+        >>> print(np.all(np.isclose(angles, np.array(est_angles) % 360)))
+        True
+
+        >>> # Fails for angle == 180.0
+        >>> angles = [180.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        Traceback (most recent call last):
+            ...
+        ValueError: Rotation angles estimation failed! One angle is 180 deg?
+
+        >>> angles = [30.0, 0.0, -30.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [30.0, -0.0, -30.0]
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        True
+
+        >>> angles = [30.0, 45.0, -30.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [30.0, 45.0, -30.0]
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        True
+
+        >>> angles = [15.0, -20.0, 75.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [15.0, -20.0, 75.0]
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        True
+
+        >>> angles = [15.0, 180.0, 75.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [-165.0, 0.0, -105.0]
+        >>> # not the same as the input, but the rotation matrix is the same
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        False
+        >>> print(np.all(np.isclose(angles2rotation(est_angles), lin_mat)))
+        True
+
+        >>> angles = [180.0, 180.0, 0.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        Traceback (most recent call last):
+            ...
+        ValueError: Rotation angles estimation failed! One angle is 180 deg?
+
+        >>> angles = [180.0, 180.0, 180.0]
+        >>> lin_mat = angles2rotation(angles)
+        >>> est_angles = rotation2angles(lin_mat)
+        >>> print([round(x, 3) for x in est_angles])
+        [-0.0, 0.0, -0.0]
+        >>> # not the same as the input, but the rotation matrix is the same
+        >>> print(np.all(np.isclose(angles, est_angles)))
+        False
+        >>> print(np.all(np.isclose(angles2rotation(est_angles), lin_mat)))
+        True
+
+        >>> result = []
+        >>> for x in np.arange(360):
+        ...     if x == 180: continue  # fails for this value!
+        ...     angles = [x]
+        ...     lin_mat = angles2rotation(angles)
+        ...     est_angles = rotation2angles(lin_mat)
+        ...     res = np.all(np.isclose(angles, np.array(est_angles) % 360))
+        ...     if not res: print(angles, est_angles)
+        ...     result.append(res)
+        >>> print(np.all(result))
+        True
     """
-    raise NotImplementedError
-    assert (linear.shape[0] == linear.shape[1] and linear.ndim == 2)
-    n_dim = linear.shape[0]
+    assert (lin_mat.shape[0] == lin_mat.shape[1] and lin_mat.ndim == 2)
+    n_dim = lin_mat.shape[0]
     n_angles = square_size_to_num_tria(n_dim)
-    axes_list = list(itertools.combinations(range(n_dim), 2))
-    if use_degree:
-        angles = tuple(np.rad2deg(angles))
-    return angles
+    angles = np.zeros(n_angles)
+    res = sp.optimize.root(
+        lambda x: np.ravel(
+            fc.num.angles2rotation(
+                x, n_dim=n_dim, axes_list=axes_list, use_degree=use_degree)
+            - lin_mat),
+        angles, method='lm')
+    result = res.x
+    est_lin_mat = fc.num.angles2rotation(
+        result, n_dim=n_dim, axes_list=axes_list, use_degree=use_degree)
+    if np.all(np.isclose(lin_mat, est_lin_mat)):
+        return result.tolist()
+    else:
+        raise ValueError(
+            'Rotation angles estimation failed! One angle is 180 deg?')
 
 
 # ======================================================================
 def prepare_affine(
         shape,
         lin_mat,
-        shift=None,
+        off_vec=None,
         origin=None):
     """
     Prepare parameters to be used with `scipy.ndimage.affine_transform()`.
 
     In particular, it computes the linear matrix and the offset implementing
-    an affine transformation followed by a translation on the array.
+    an affine transformation (applied at the origin) followed by a translation
+    on the array coordinates.
 
     The result can be passed directly as `matrix` and `offset` parameters of
     `scipy.ndimage.affine_transform()`.
+    Using `scipy.ndimage.affine_transform()` naming conventions,
+    `matrix`/`i_lin_mat` and `i_vec_off` describe the *pull* transform,
+    while `lin_mat` and `off_vec` describe the *push* tranform.
 
     Args:
         shape (Iterable): The shape of the array to be transformed.
         lin_mat (np.ndarray): The N-sized linear square matrix.
-        shift (np.ndarray|None): The shift along each axis in px.
+        off_vec (np.ndarray|None): The offset vector in px.
             If None, no shift is performed.
         origin (np.ndarray|None): The origin of the linear transformation.
             If None, uses the center of the array.
@@ -6236,19 +6337,20 @@ def prepare_affine(
     Returns:
         result (tuple): The tuple
             contains:
-             - lin_mat (np.ndarray): The N-sized linear square matrix.
-             - offset (np.ndarray): The offset along each axis in px.
+             - i_lin_mat (np.ndarray): The N-sized linear square matrix.
+             - i_off_vec (np.ndarray): The offset vector in px.
 
     See Also:
         - scipy.ndimage.affine_transform()
     """
     ndim = len(shape)
-    if shift is None:
-        shift = 0
+    if off_vec is None:
+        off_vec = 0
     if origin is None:
         origin = np.array(coord(shape, (0.5,) * ndim, use_int=False))
-    offset = origin - np.dot(lin_mat, origin + shift)
-    return lin_mat, offset
+    i_lin_mat = np.linalg.pinv(lin_mat)
+    i_off_vec = origin - np.dot(i_lin_mat, origin + off_vec)
+    return i_lin_mat, i_off_vec
 
 
 # ======================================================================
@@ -6496,8 +6598,8 @@ def auto_rotation(
             If None, the weighted center is used.
 
     Returns:
-        lin_mat (np.ndarray): The linear matrix for the rotation.
-        offset (np.ndarray): The offset for the translation.
+        i_lin_mat (np.ndarray): The linear matrix for the rotation.
+        i_vec_off (np.ndarray): The offset for the translation.
 
     See Also:
         - scipy.ndimage.center_of_mass()
@@ -6511,8 +6613,7 @@ def auto_rotation(
         - flyingcircus.num.realigning()
     """
     lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
-    lin_mat, offset = prepare_affine(arr.shape, lin_mat, origin=origin)
-    return lin_mat, offset
+    return prepare_affine(arr.shape, lin_mat, origin=origin)
 
 
 # ======================================================================
@@ -6543,8 +6644,8 @@ def auto_shifting(
             If None, the weighted center is used.
 
     Returns:
-        lin_mat (np.ndarray): The linear matrix for the rotation.
-        offset (np.ndarray): The offset for the translation.
+        i_lin_mat (np.ndarray): The linear matrix for the rotation.
+        i_off_vec (np.ndarray): The offset for the translation.
 
     See Also:
         - scipy.ndimage.center_of_mass()
@@ -6559,8 +6660,7 @@ def auto_shifting(
     """
     lin_mat = np.eye(arr.ndim)
     com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
-    lin_mat, offset = prepare_affine(arr.shape, lin_mat, com, origin)
-    return lin_mat, offset
+    return prepare_affine(arr.shape, lin_mat, com, origin)
 
 
 # ======================================================================
@@ -6592,8 +6692,8 @@ def realigning(
             If None, the weighted center is used.
 
     Returns:
-        lin_mat (np.ndarray): The linear matrix for the rotation.
-        offset (np.ndarray): The offset for the translation.
+        i_lin_mat (np.ndarray): The linear matrix for the rotation.
+        i_off_vec (np.ndarray): The offset for the translation.
 
     See Also:
         - scipy.ndimage.center_of_mass()
@@ -6608,8 +6708,7 @@ def realigning(
     """
     com = np.array(sp.ndimage.center_of_mass(arr, labels, index))
     lin_mat = rotation_axes_to_matrix(rotation_axes(arr, labels, index, True))
-    lin_mat, offset = prepare_affine(arr.shape, lin_mat, com, origin)
-    return lin_mat, offset
+    return prepare_affine(arr.shape, lin_mat, com, origin)
 
 
 # ======================================================================
@@ -6620,53 +6719,53 @@ def rotation_3d_from_vector(
     Compute the rotation matrix of a given angle around a specified vector.
 
     Args:
-        normal (Iterable|np.ndarray): The vector around which to rotate.
+        normal (Sequence|np.ndarray): The vector around which to rotate.
             If Iterable or np.ndarray must have a length of 3.
             If its norm is 0, the identity matrix is returned.
         angle (int|float|None): The angle of rotation in deg.
             If None, the angle is inferred from the norm of the normal vector.
 
     Returns:
-        rot_matrix (np.ndarray): The rotation matrix.
+        rot_mat (np.ndarray): The rotation matrix.
 
     Examples:
-        >>> rot_matrix = rotation_3d_from_vector([1, 0, 0])
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([1, 0, 0])
+        >>> np.round(rot_mat, 3)
         array([[ 1.,  0.,  0.],
                [ 0.,  0., -1.],
                [ 0.,  1.,  0.]])
-        >>> rot_matrix = rotation_3d_from_vector([1, 1, 0])
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([1, 1, 0])
+        >>> np.round(rot_mat, 3)
         array([[ 0.955,  0.045,  0.293],
                [ 0.045,  0.955, -0.293],
                [-0.293,  0.293,  0.91 ]])
-        >>> rot_matrix = rotation_3d_from_vector([1, 1, 0], 90)
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([1, 1, 0], 90)
+        >>> np.round(rot_mat, 3)
         array([[ 0.5  ,  0.5  ,  0.707],
                [ 0.5  ,  0.5  , -0.707],
                [-0.707,  0.707,  0.   ]])
-        >>> rot_matrix = rotation_3d_from_vector([0, 1, 0], 30)
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([0, 1, 0], 30)
+        >>> np.round(rot_mat, 3)
         array([[ 0.866,  0.   ,  0.5  ],
                [ 0.   ,  1.   ,  0.   ],
                [-0.5  ,  0.   ,  0.866]])
-        >>> rot_matrix = rotation_3d_from_vector([1, 0, 0], 0.0)
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([1, 0, 0], 0.0)
+        >>> np.round(rot_mat, 3)
         array([[1., 0., 0.],
                [0., 1., 0.],
                [0., 0., 1.]])
-        >>> rot_matrix = rotation_3d_from_vector([0, 0, 0], 90.0)
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([0, 0, 0], 90.0)
+        >>> np.round(rot_mat, 3)
         array([[1., 0., 0.],
                [0., 1., 0.],
                [0., 0., 1.]])
-        >>> rot_matrix = rotation_3d_from_vector([0, 0, 0], 0.0)
-        >>> np.round(rot_matrix, 3)
+        >>> rot_mat = rotation_3d_from_vector([0, 0, 0], 0.0)
+        >>> np.round(rot_mat, 3)
         array([[1., 0., 0.],
                [0., 1., 0.],
                [0., 0., 1.]])
     """
-    rot_matrix = np.eye(3)
+    rot_mat = np.eye(3)
     norm = np.linalg.norm(normal)
     if norm:
         normal = np.array(normal) / norm
@@ -6676,10 +6775,10 @@ def rotation_3d_from_vector(
             signs = np.array([-1., 1., -1.])
             v_matrix = to_self_adjoint_matrix(normal[::-1] * signs, skew=True)
             w_matrix = np.outer(normal, normal)
-            rot_matrix = \
-                rot_matrix * np.cos(angle) + v_matrix * np.sin(angle) + \
+            rot_mat = \
+                rot_mat * np.cos(angle) + v_matrix * np.sin(angle) + \
                 w_matrix * (1 - np.cos(angle))
-    return rot_matrix
+    return rot_mat
 
 
 # ======================================================================
@@ -6693,9 +6792,9 @@ def rotation_3d_from_vectors(
     rotation matrix :math:`R` such that: :math:`\\vec{v}_2 = R \\vec{v}_1`.
 
     Args:
-        vector1 (Iterable|np.ndarray): The first vector.
+        vector1 (Sequence|np.ndarray): The first vector.
             If Iterable or np.ndarray must have a length of 3.
-        vector2 (Iterable|np.ndarray): The second vector.
+        vector2 (Sequence|np.ndarray): The second vector.
             If Iterable or np.ndarray must have a length of 3.
 
     Returns:
@@ -6916,7 +7015,7 @@ def rolling_window_nd(
         pad_mode (Number|str): The padding mode.
             If `out_mode` is `valid` or `view` this parameter is ignored.
             This is passed as `mode` to `fc.num.padding()`.
-        pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
+        pad_kws (Mappable): Keyword parameters for padding.
             If `out_mode` is `valid` or `view` this parameter is ignored.
             This is passed as `mode` to `fc.num.padding()`.
         writeable (bool): Determine if the result entries can be overwritten.
@@ -6985,7 +7084,7 @@ def moving_mean(
 def moving_average(
         arr,
         weights=1,
-        **kws):
+        **_kws):
     """
     Calculate the moving average (with optional weights).
 
@@ -7003,7 +7102,7 @@ def moving_average(
             The size of the weights array len(weights) must be such that
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
-        **kws (dict): Keyword arguments passed to `scipy.signal.convolve()`.
+        **_kws: Keyword arguments for `scipy.signal.convolve()`.
 
     Returns:
         arr (np.ndarray): The output array.
@@ -7035,9 +7134,9 @@ def moving_average(
         weights = np.array(weights)[::-1]
     num = len(weights) if isinstance(weights, np.ndarray) else 0
     if len(arr) >= num > 1:
-        if 'mode' not in kws:
-            kws['mode'] = 'valid'
-        arr = sp.signal.convolve(arr, weights / len(weights), **kws)
+        if 'mode' not in _kws:
+            _kws['mode'] = 'valid'
+        arr = sp.signal.convolve(arr, weights / len(weights), **_kws)
         arr *= len(weights) / np.sum(weights)
     return arr
 
@@ -7047,8 +7146,8 @@ def moving_apply(
         arr,
         weights=1,
         func=np.mean,
-        func_args=None,
-        func_kws=None,
+        args=None,
+        kws=None,
         mode='valid',
         borders=None):
     """
@@ -7073,8 +7172,8 @@ def moving_apply(
             flattened array is returned.
         func (callable): Function to calculate in the 'moving' window.
             Must accept an `axis` parameter, which will be set to -1.
-        func_args (tuple|None): Positional arguments passed to `func`.
-        func_kws (dict|None): Keyword arguments passed to `func`.
+        args (tuple|None): Positional arguments passed to `func`.
+        kws (dict|None): Keyword arguments passed to `func`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
@@ -7156,8 +7255,8 @@ def moving_apply(
         # calculate the running stats
         arr = func(
             gen * w_gen,
-            *(func_args if func_args else ()), axis=-1,
-            **(func_kws if func_kws else {}))
+            *(args if args else ()), axis=-1,
+            **(kws if kws else {}))
         arr *= len(weights) / np.sum(weights)
 
         # adjust output according to mode
@@ -7174,8 +7273,8 @@ def running_apply(
         arr,
         weights=1,
         func=np.mean,
-        func_args=None,
-        func_kws=None,
+        args=None,
+        kws=None,
         mode='valid',
         borders=None):
     """
@@ -7200,8 +7299,8 @@ def running_apply(
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
         func (callable): Function to calculate in the 'running' axis.
-        func_args (tuple|None): Positional arguments passed to `func`.
-        func_kws (dict|None): Keyword arguments passed to `func`.
+        args (tuple|None): Positional arguments passed to `func`.
+        kws (dict|None): Keyword arguments passed to `func`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
@@ -7273,8 +7372,8 @@ def running_apply(
         for i in range(len(arr)):
             arr[i] = func(
                 gen[i:i + num] * weights,
-                *(func_args if func_args else ()),
-                **(func_kws if func_kws else {}))
+                *(args if args else ()),
+                **(kws if kws else {}))
         arr *= len(weights) / np.sum(weights)
 
         # adjust output according to mode
@@ -7296,8 +7395,8 @@ def rolling_apply_nd(
         pad_mode=0,
         pad_kws=None,
         func=np.mean,
-        func_args=None,
-        func_kws=None):
+        args=None,
+        kws=None):
     """
     Compute a function on a rolling N-dim window of the array.
 
@@ -7322,13 +7421,13 @@ def rolling_apply_nd(
             This is passed as `mode` to `fc.num.rolling_window_nd()`.
         func (callable): The function to apply.
             Must have the following signature:
-            func(np.ndarray, axis=Iterable[int], *func_args, **func_kws)
+            func(np.ndarray, axis=Iterable[int], *_args, **_kws)
             -> np.ndarray
             The result of `func` must be an array with the dimensions specified
             in `axis` collapsed, e.g. `np.mean()`, `np.min()`, `np.max()`, etc.
             Note that the `axis` parameter must be accepted.
-        func_args (tuple|None): Positional arguments of `func`.
-        func_kws (dict|None): Keyword arguments of `func`.
+        args (tuple|None): Positional arguments of `func`.
+        kws (dict|None): Keyword arguments of `func`.
 
     Returns:
         result (np.ndarray): The rolling function.
@@ -7394,14 +7493,14 @@ def rolling_apply_nd(
          [25.5 26.  27.  28.  29.  30.  31.  31.5]
          [29.  29.5 30.5 31.5 32.5 33.5 34.5 35. ]]
     """
-    func_args = tuple(func_args) if func_args else ()
-    func_kws = dict(func_kws) if func_kws else {}
+    args = tuple(args) if args else ()
+    kws = dict(kws) if kws else {}
     arr = rolling_window_nd(
         arr, window, steps, window_steps, out_mode, pad_mode, pad_kws,
         False, 'end')
     axes = tuple(range(arr.ndim // 2, arr.ndim))
-    func_kws['axis'] = axes
-    return func(arr, *func_args, **func_kws)
+    kws['axis'] = axes
+    return func(arr, *args, **kws)
 
 
 # ======================================================================
@@ -7474,7 +7573,7 @@ def euclid_dist(
         array([-1.41421356, -2.82842712, -4.24264069, -5.65685425, -7.07106781,
                -8.48528137])
     """
-    arr = (arr2 - arr1) / (2.0) ** 0.5
+    arr = (arr2 - arr1) / 2.0 ** 0.5
     if unsigned:
         arr = np.abs(arr)
     return arr

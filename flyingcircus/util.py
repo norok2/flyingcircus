@@ -18,6 +18,7 @@ import math  # Mathematical functions
 import time  # Time access and conversions
 import itertools  # Functions creating iterators for efficient looping
 import functools  # Higher-order functions and operations on callable objects
+import operator  # Standard operators as functions
 import collections  # Container datatypes
 import subprocess  # Subprocess management
 import multiprocessing  # Process-based parallelism
@@ -31,7 +32,7 @@ import gzip  # Support for gzip files
 import bz2  # Support for bzip2 compression
 # import lzma  # Compression using the LZMA algorithm
 # import json  # JSON encoder and decoder [JSON: JavaScript Object Notation]
-import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
+# import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
 import struct  # Interpret strings as packed binary data
 import re  # Regular expression operations
 import fnmatch  # Unix filename pattern matching
@@ -160,6 +161,101 @@ def _is_special(stats_mode):
         not stat.S_ISDIR(stats_mode) and \
         not stat.S_ISLNK(stats_mode)
     return is_special
+
+
+# ======================================================================
+def multi_at(
+        items,
+        indexes,
+        container=None):
+    """
+    Extract selected items according to the specified indexes.
+
+    Note that this is mostly equivalent to (but faster than)
+    `flyingcircus.util.iter_at()`.
+
+    Args:
+        items (Sequence): The input items.
+        indexes (Iterable[int|slice]): The items to select.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Returns:
+        result: The selected items.
+
+    Examples:
+        >>> items = [x ** 2 for x in range(20)]
+        >>> print(multi_at(items, (0, 6, 7, 0, 1, 3)))
+        [0, 36, 49, 0, 1, 9]
+        >>> indexes = (0, 6, 7, slice(1, 3))
+        >>> print(multi_at(items, (12, 4, 11, slice(1, 3))))
+        [144, 16, 121, [1, 4]]
+        >>> print(multi_at(items, 19))
+        361
+        >>> print(multi_at(items, slice(3, 9, 2)))
+        [9, 25, 49]
+
+    See Also:
+        - flyingcircus.util.iter_at()
+    """
+    try:
+        iter(indexes)
+    except TypeError:
+        return items[indexes]
+    else:
+        if container is None:
+            container = type(items)
+        if not callable(container):
+            container = tuple
+        return container(operator.itemgetter(*indexes)(items))
+
+
+# ======================================================================
+def iter_at(
+        items,
+        indexes):
+    """
+    Iterate over selected items according to the specified indexes.
+
+    Note that this is mostly equivalent to `flyingcircus.util.multi_at()`
+    except that this yields a generator.
+
+    Args:
+        items (Sequence): The input items.
+        indexes (Iterable[int|slice]): The items to select.
+
+    Yields:
+        item: The selected item.
+
+    Examples:
+        >>> items = [x ** 2 for x in range(20)]
+        >>> print(list(iter_at(items, (0, 6, 7, 0, 1, 3))))
+        [0, 36, 49, 0, 1, 9]
+        >>> indexes = (0, 6, 7, slice(1, 3))
+        >>> print(list(iter_at(items, (12, 4, 11, slice(1, 3)))))
+        [144, 16, 121, [1, 4]]
+        >>> print(list(iter_at(items, 19)))
+        [361]
+        >>> print(list(iter_at(items, slice(3, 9, 2))))
+        [9, 25, 49]
+
+    See Also:
+        - flyingcircus.util.multi_at()
+    """
+    try:
+        iter(indexes)
+    except TypeError:
+        try:
+            iter(items[indexes])
+        except TypeError:
+            yield items[indexes]
+        else:
+            for item in items[indexes]:
+                yield item
+    else:
+        for index in indexes:
+            yield items[index]
 
 
 # ======================================================================
@@ -457,9 +553,9 @@ def nesting_level(
         >>> nesting_level(
         ...     [1, [[[[[[[[[[[[[[[[[[[[[5]]]]]]]]]]]]]]]]]]]]]], False)
         1
-        >>> nesting_level(((1, 2), (1), (1, (2, 3))), True)
+        >>> nesting_level(((1, 2), 1, (1, (2, 3))), True)
         3
-        >>> nesting_level(((1, 2), (1), (1, (2, 3))), True, combine=min)
+        >>> nesting_level(((1, 2), 1, (1, (2, 3))), True, combine=min)
         1
     """
     if not is_deep(obj, avoid, max_depth):
@@ -1374,14 +1470,17 @@ def deep_filter_map(
 
 
 # ======================================================================
-def prod(items):
+def prod(
+        items,
+        start=1):
     """
-    Calculate the cumulative product of arbitrary items.
+    Calculate the product of arbitrary items.
 
     This is similar to `sum`, but uses product instead of addition.
 
     Args:
         items (Iterable): The input items.
+        start (Any|None): The initial value.
 
     Returns:
         result: The cumulative product of `items`.
@@ -1390,11 +1489,16 @@ def prod(items):
         >>> prod([2] * 10)
         1024
     """
-    return functools.reduce(lambda x, y: x * y, items)
+    for item in items:
+        start *= item
+    return start
 
 
 # ======================================================================
-def diff(items):
+def pairwise_map(
+        items,
+        func,
+        flip_args=False):
     """
     Calculate the pairwise difference of arbitrary items.
 
@@ -1402,6 +1506,8 @@ def diff(items):
 
     Args:
         items (Iterable): The input items.
+        func (callable): The pairwise operator to apply.
+        flip_args (bool): Flips the order of the arguments in `func()`.
 
     Yields:
         value: The next pairwise difference.
@@ -1412,13 +1518,46 @@ def diff(items):
     """
     items = iter(items)
     last_item = next(items)
-    for i, item in enumerate(items):
-        yield item - last_item
-        last_item = item
+    # : condition is before the loop for performance
+    if not flip_args:
+        for i, item in enumerate(items):
+            yield func(item, last_item)
+            last_item = item
+    else:
+        for i, item in enumerate(items):
+            yield func(last_item, item)
+            last_item = item
 
 
 # ======================================================================
-def div(items):
+def diff(
+        items,
+        flip=False):
+    """
+    Calculate the pairwise difference of arbitrary items.
+
+    This is similar to `div`, but uses subtraction instead of division.
+
+    Args:
+        items (Iterable): The input items.
+
+    Yields:
+        value: The next pairwise difference.
+        flip (bool): Flips the order of the operands.
+
+    Examples:
+        >>> list(diff(range(10)))
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        >>> list(diff(range(10), True))
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1]
+    """
+    return pairwise_map(items, operator.sub, flip_args=flip)
+
+
+# ======================================================================
+def div(
+        items,
+        flip=False):
     """
     Calculate the pairwise division of arbitrary items.
 
@@ -1426,9 +1565,10 @@ def div(items):
 
     Args:
         items (Iterable): The input items.
+        flip (bool): Flips the order of the operands.
 
     Yields:
-        value: The next pairwise difference.
+        value: The next pairwise division.
 
     Examples:
         >>> items = [2 ** x for x in range(10)]
@@ -1436,12 +1576,10 @@ def div(items):
         [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
         >>> list(div(items))
         [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        >>> list(div(items, True))
+        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     """
-    items = iter(items)
-    last_item = next(items)
-    for i, item in enumerate(items):
-        yield item / last_item
-        last_item = item
+    return pairwise_map(items, operator.truediv, flip_args=flip)
 
 
 # ======================================================================
@@ -1510,10 +1648,11 @@ def combine_iter_len(
     """
     num = None
     for val in items:
+        new_num = non_seq_len
         try:
             new_num = len(val)
         except TypeError:
-            new_num = non_seq_len
+            pass
         finally:
             if num is None:
                 num = new_num
@@ -1523,13 +1662,16 @@ def combine_iter_len(
 
 
 # ======================================================================
-def window(
+def slide(
         items,
         size=2,
-        step=None,
+        step=1,
+        truncate=True,
         fill=None):
     """
-    Generate a sliding window across the items.
+    Generate a sliding grouping / window across the items.
+
+    The number of elements for each yield is fixed.
 
     This can be used, for example, to compute running/moving/rolling statics.
 
@@ -1538,62 +1680,75 @@ def window(
         size (int): The windowing size.
         step (int|None): The windowing step.
             If int, must be larger than 0.
-            If None, uses a step equal to 1 and will not go beyond last item.
-        fill: The value to use to fill in window past the end of items.
-            This is used only if step is not None.
+        truncate (bool): Determine how to handle uneven splits.
+            If True, last groups are skipped if smaller than `size`.
+        fill (Any): Value to use for filling the last group.
+            This is only used when `truncate` is False.
 
     Returns:
         result (zip|itertools.zip_longest): Iterable of items within window.
 
     Examples:
-        >>> tuple(window(range(8), 2))
+        >>> tuple(slide(range(8), 2))
         ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7))
-        >>> tuple(window(range(8), 3))
+        >>> tuple(slide(range(8), 3))
         ((0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6), (5, 6, 7))
-        >>> tuple(window(range(8), 3, 2))
-        ((0, 1, 2), (2, 3, 4), (4, 5, 6), (6, 7, None))
-        >>> tuple(
-        ...     x for x in window(range(8), 3, 2)
-        ...     if not any([y is None for y in x]))
+
+        >>> tuple(slide(range(8), 3, 2))
         ((0, 1, 2), (2, 3, 4), (4, 5, 6))
-        >>> tuple(window(range(8), 2, 1))
-        ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (7, None))
-        >>> tuple(window(range(8), 1))
+        >>> tuple(slide(range(8), 3, 2, False))
+        ((0, 1, 2), (2, 3, 4), (4, 5, 6), (6, 7, None))
+        >>> tuple(slide(range(8), 3, 2, False, -1))
+        ((0, 1, 2), (2, 3, 4), (4, 5, 6), (6, 7, -1))
+
+        >>> tuple(slide(range(5), 3, 1))
+        ((0, 1, 2), (1, 2, 3), (2, 3, 4))
+        >>> tuple(slide(range(5), 3, 1, False))
+        ((0, 1, 2), (1, 2, 3), (2, 3, 4), (3, 4, None), (4, None, None))
+
+        >>> tuple(slide(range(8), 2, 1))
+        ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7))
+        >>> tuple(slide(range(8), 1, 1))
         ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
-        >>> tuple(window(range(8), 1, 1))
-        ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
+        >>> tuple(slide(range(8), 1, 2))
+        ((0,), (2,), (4,), (6,))
     """
-    # : alternate (slightly faster, but less flexible: no step) implementation
-    # def consumed(iterator, n):
-    #     next(itertools.islice(iterator, n, n), None)
-    #     return iterator
-    # iterators = [consumed(iter(items), i) for i in range(size)]
-    iterators = [
-        itertools.islice(iter(items), i, None, step) for i in range(size)]
-    if step:
-        return itertools.zip_longest(*iterators, fillvalue=fill)
+    if step > 1:
+        iters = [
+            itertools.islice(iter(items), i, None, step) for i in range(size)]
     else:
-        return zip(*iterators)
+        # : alternate (slightly faster, but less flexible) implementation
+        def consumed(iterator, n):
+            next(itertools.islice(iterator, n, n), None)
+            return iterator
+
+        iters = [consumed(iter(items), i) for i in range(size)]
+    if truncate:
+        return zip(*iters)
+    else:
+        return itertools.zip_longest(*iters, fillvalue=fill)
 
 
 # ======================================================================
 def group_by(
         items,
-        n,
+        size,
         truncate=False,
         fill=None):
     """
     Generate grouped items (with constant group size).
 
+    The number of elements for each yield is fixed.
+
     For different handling of the last group for uneven splits, see
-    `flyingcircus.util.grouping()`.
+    `flyingcircus.util.split()`.
 
     Args:
         items (Iterable): The input items.
-        n (int): Number of elements to group together.
+        size (int): Number of elements to group together.
         truncate (bool): Determine how to handle uneven splits.
-            If True, last group is skipped if its length is smaller than `n`.
-        fill (Any): Value to use for fill group.
+            If True, last group is skipped if smaller than `size`.
+        fill (Any): Value to use for filling the last group.
             This is only used when `truncate` is False.
 
     Returns:
@@ -1617,7 +1772,7 @@ def group_by(
     # : alternate (slower) implementations
     # iterators = tuple(items[i::n] for i in range(n))
     # iterators = tuple(itertools.islice(items, i, None, n) for i in range(n))
-    iterators = [iter(items)] * n
+    iterators = [iter(items)] * size
     if truncate:
         return zip(*iterators)
     else:
@@ -1625,20 +1780,21 @@ def group_by(
 
 
 # ======================================================================
-def grouping(
+def split(
         items,
-        splits):
+        size):
     """
-    Generate grouped items (with varying grouping size)
+    Split items into groups according to size(s).
 
-    Note that for integer splits, `group_by()` is a faster alternative.
+    The number of elements for each group can vary.
+    Note that for integer splits, `group_by()` can be faster alternative.
 
     Args:
         items (Sequence): The input items.
-        splits (int|Sequence[int]): Grouping information.
+        size (int|Sequence[int]): The size of each group.
             If Sequence, each group has the number of elements specified.
             If int, all groups have the same number of elements.
-            The last group will have the remaing items (if any).
+            The last group will have the remaining items (if any).
 
     Yields:
         group (Sequence): The items from the grouping.
@@ -1646,29 +1802,29 @@ def grouping(
 
     Examples:
         >>> l = list(range(10))
-        >>> tuple(grouping(l, 4))
+        >>> tuple(split(l, 4))
         ([0, 1, 2, 3], [4, 5, 6, 7], [8, 9])
-        >>> tuple(grouping(l, (2, 3)))
+        >>> tuple(split(l, (2, 3)))
         ([0, 1], [2, 3, 4], [5, 6, 7, 8, 9])
-        >>> tuple(grouping(l, (2, 4, 1)))
+        >>> tuple(split(l, (2, 4, 1)))
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
-        >>> tuple(grouping(l, (2, 4, 1, 20)))
+        >>> tuple(split(l, (2, 4, 1, 20)))
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
-        >>> tuple(grouping(tuple(l), 4))
+        >>> tuple(split(tuple(l), 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9))
-        >>> tuple(grouping(tuple(l), 2)) == tuple(group_by(l, 2))
+        >>> tuple(split(tuple(l), 2)) == tuple(group_by(l, 2))
         True
 
     See Also:
         flyingcircus.util.group_by()
     """
-    if isinstance(splits, int):
-        splits = auto_repeat(splits, len(items) // splits)
+    if isinstance(size, int):
+        size = auto_repeat(size, len(items) // size)
 
     num_items = len(items)
-    if sum(splits) >= num_items:
-        splits = splits[:-1]
-    index = (0,) + tuple(itertools.accumulate(splits)) + (num_items,)
+    if sum(size) >= num_items:
+        size = size[:-1]
+    index = (0,) + tuple(itertools.accumulate(size)) + (num_items,)
     num = len(index) - 1
     for i in range(num):
         yield items[index[i]:index[i + 1]]
@@ -1681,10 +1837,10 @@ def chunks(
         mode='+',
         balanced=True):
     """
-    Yield items into approximately N equally sized chunks.
+    Split items into groups according to the number desired.
 
-    If the number of items does not allow chunks of the same size, the chunks
-    are determined depending on the values of `balanced`
+    If the number of items does not allow groups (chunks) of the same size,
+    the chunks are determined depending on the values of `balanced`
 
     Args:
         items (Sequence): The input items.
@@ -1693,7 +1849,7 @@ def chunks(
         mode (str): Determine which approximation to use.
             If str, valid inputs are:
              - 'upper', '+': at most `n` chunks are generated.
-             - 'lower', '-': at least `n` chunks are genereated.
+             - 'lower', '-': at least `n` chunks are generated.
              - 'closest', '~': the number of chunks is `n` or `n + 1`
                depending on which gives the most evenly distributed chunks
                sizes.
@@ -1737,12 +1893,12 @@ def chunks(
     else:
         raise ValueError('Invalid mode `{mode}`'.format(mode=mode))
     n = max(1, n)
-    split = int(approx(len(items) / n))
-    if balanced and 0 < len(items) % split <= split // 2:
-        k = len(items) // split + 1
-        q = -len(items) % split
-        split = (split,) * (k - q) + (split - 1,) * q
-    return grouping(items, split)
+    size = int(approx(len(items) / n))
+    if balanced and 0 < len(items) % size <= size // 2:
+        k = len(items) // size + 1
+        q = -len(items) % size
+        size = (size,) * (k - q) + (size - 1,) * q
+    return split(items, size)
 
 
 # ======================================================================
@@ -1908,6 +2064,8 @@ def unique_permutations(
         [[0, 0, 2], [0, 2, 0], [2, 0, 0]]
         >>> list(unique_permutations([0, 1, 2]))
         [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
+        >>> list(unique_permutations([]))
+        [[]]
         >>> p1 = sorted(unique_permutations((0, 1, 2, 3, 4)))
         >>> p2 = sorted(itertools.permutations((0, 1, 2, 3, 4)))
         >>> p1 == p2
@@ -1936,6 +2094,8 @@ def unique_permutations(
         for i in indexes:
             if k_val < items[i]:
                 break
+        else:
+            i = 0
 
         items[k], items[i] = items[i], items[k]
         items[k + 1:] = items[-1:k:-1]
@@ -2030,7 +2190,7 @@ def latin_square(
 
         >>> random.seed(0)
         >>> latin_square(tuple(range(4)))
-
+        [(2, 3, 0, 1), (0, 1, 2, 3), (3, 0, 1, 2), (1, 2, 3, 0)]
     """
     if cyclic:
         sign = -1 if forward else 1
@@ -3011,7 +3171,7 @@ def factorize_k(
                 groups[0].append(factor)
             groups = sorted(groups, key=prod, reverse=True)
         if not groups:
-            groups = chunks(factors, k, mode='+', balanced=True)
+            groups = chunks(factors, k, mode='+', balanced=balanced)
         factorization = tuple(
             functools.reduce(lambda x, y: x * y, j) for j in groups)
     else:
@@ -3096,7 +3256,7 @@ def gcd(*nums):
     Find the greatest common divisor (GCD) of a list of numbers.
 
     Args:
-        *nums (*Iterable[int]): The input numbers.
+        *nums (*Iterable[float]): The input numbers.
 
     Returns:
         gcd_val (int): The value of the greatest common divisor (GCD).
@@ -3140,6 +3300,66 @@ def lcm(*nums):
     for num in nums[1:]:
         lcm_val = lcm_val * num // math.gcd(lcm_val, num)
     return lcm_val
+
+
+# ======================================================================
+def sliding(
+        func,
+        items,
+        size,
+        step=1,
+        truncate=True,
+        fill=None,
+        star=False):
+    """
+    Apply a function to a sliding grouping / window of the items.
+
+    Args:
+        func (callable): The function to apply.
+        items (Iterable): The input items.
+        size (int): The windowing size.
+        step (int|None): The windowing step.
+            If int, must be larger than 0.
+        truncate (bool): Determine how to handle uneven splits.
+            If True, last groups are skipped if smaller than `size`.
+        fill (Any): Value to use for filling the last group.
+            This is only used when `truncate` is False.
+        star(bool): Pass arguments to func using star magic.
+
+    Yields:
+        result: The function applied to the slided items.
+
+    Examples:
+        >>> items = list(range(10))
+        >>> print(items)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> print(list(sliding(sum, items, 2)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17]
+        >>> print(list(sliding(sum, items, 3)))
+        [3, 6, 9, 12, 15, 18, 21, 24]
+        >>> print(list(sliding(sum, items, 3, 2)))
+        [3, 9, 15, 21]
+
+        >>> print(list(sliding(sum, items, 3, 2, False, 0)))
+        [3, 9, 15, 21, 17]
+        >>> print(list(sliding(sum, items, 3, 2, False)))
+        Traceback (most recent call last):
+            ...
+        TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'
+
+        >>> print(list(sliding(operator.add, items, 2, star=True)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17]
+        >>> print(list(sliding(operator.add, items, 2)))
+        Traceback (most recent call last):
+            ...
+        TypeError: add expected 2 arguments, got 1
+    """
+    if star:
+        for batch in slide(items, size, step, truncate, fill):
+            yield func(*batch)
+    else:
+        for batch in slide(items, size, step, truncate, fill):
+            yield func(batch)
 
 
 # ======================================================================
@@ -3849,20 +4069,20 @@ def common_subseq_2(
         [(1, 2)]
     """
     # note: [[0] * (len(seq2) + 1)] * (len(seq1) + 1) will not work!
-    counter = [[0 for j in range(len(seq2) + 1)] for i in range(len(seq1) + 1)]
+    counter = [[0 for _ in range(len(seq2) + 1)] for _ in range(len(seq1) + 1)]
     longest = 0
     commons = []
-    for i, item in enumerate(seq1):
-        for j, jtem in enumerate(seq2):
-            if item == jtem:
-                tmp = counter[i][j] + 1
-                counter[i + 1][j + 1] = tmp
+    for i1, item1 in enumerate(seq1):
+        for i2, item2 in enumerate(seq2):
+            if item1 == item2:
+                tmp = counter[i1][i2] + 1
+                counter[i1 + 1][i2 + 1] = tmp
                 if tmp > longest:
                     commons = []
                     longest = tmp
-                    commons.append(seq1[i - tmp + 1:i + 1])
+                    commons.append(seq1[i1 - tmp + 1:i1 + 1])
                 elif tmp == longest:
-                    commons.append(seq1[i - tmp + 1:i + 1])
+                    commons.append(seq1[i1 - tmp + 1:i1 + 1])
     if sorting is None:
         return commons
     else:
@@ -4084,20 +4304,20 @@ def blocks_r(
 # ======================================================================
 def xopen(
         the_file,
-        *args,
-        **kwargs):
+        *_args,
+        **_kws):
     """
     Ensure that `the_file` is a file object, if a file path is provided.
 
     Args:
         the_file (str|bytes|file): The input file.
-        *args: Positional arguments passed to `open()`.
-        **kwargs: Keyword arguments passed to `open()`.
+        *_args: Positional arguments passed to `open()`.
+        **_kws: Keyword arguments passed to `open()`.
 
     Returns:
         the_file (file):
     """
-    return open(the_file, *args, **kwargs) \
+    return open(the_file, *_args, **_kws) \
         if isinstance(the_file, (str, bytes)) else the_file
 
 
@@ -4186,7 +4406,7 @@ def hash_object(
 # ======================================================================
 def from_cached(
         func,
-        func_kws=None,
+        kws=None,
         dirpath=None,
         filename='{hash_key}.p',
         save_func=pickle.dump,
@@ -4197,7 +4417,7 @@ def from_cached(
 
     Args:
         func (callable): The computation to perform.
-        func_kws (dict|None): Keyword arguments passed to `func`.
+        kws (dict|None): Keyword arguments passed to `func`.
         dirpath (str): The path of the caching directory.
         filename (str): The filename of the caching file.
             This is processed by `format` with `locals()`.
@@ -4213,13 +4433,13 @@ def from_cached(
     Returns:
         result (Any): The result of the cached computation.
     """
-    func_kws = dict(func_kws) if func_kws else {}
-    hash_key = hash_object((func, func_kws))
+    kws = dict(kws) if kws else {}
+    hash_key = hash_object((func, kws))
     filepath = os.path.join(dirpath, filename.format(**locals()))
     if os.path.isfile(filepath) and not force:
         result = load_func(open(filepath, 'rb'))
     else:
-        result = func(**func_kws)
+        result = func(**kws)
         save_func(open(filepath, 'wb'), result)
     return result
 
@@ -4810,7 +5030,6 @@ def split_ext(
             If True, include multiple extensions.
             If False, only the last extension is detected.
             If `ext` is not None or empty, it has no effect.
-        extsep (str): The string to use a filename extension separator.
 
     Returns:
         result (tuple): The tuple
@@ -4902,7 +5121,8 @@ def split_path(
         ('/path/to', 'file', '')
 
     See Also:
-        util.join_path(), util.multi_split_path()
+        - flyingcircus.util.join_path()
+        - flyingcircus.util.multi_split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -4952,7 +5172,8 @@ def multi_split_path(
         ('/', 'path', 'to', 'file', '')
 
     See Also:
-        util.join_path(), util.split_path()
+        - flyingcircus.util.join_path()
+        - flyingcircus.util.split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -4966,7 +5187,7 @@ def multi_split_path(
 
 
 # ======================================================================
-def join_path(*args):
+def join_path(*texts):
     """
     Join a list of items into a filepath.
 
@@ -4976,7 +5197,7 @@ def join_path(*args):
     Note that this is the inverse of `split_path()`.
 
     Args:
-        *args (*Sequence[str]): The path elements to be concatenated.
+        *texts (*Sequence[str]): The path elements to be concatenated.
             The last item is treated as the file extension.
 
     Returns:
@@ -5001,10 +5222,11 @@ def join_path(*args):
         True
 
     See Also:
-        util.split_path(), util.multi_split_path()
+        - flyingcircus.util.split_path()
+        - flyingcircus.util.multi_split_path()
     """
-    return ((os.path.join(*args[:-1]) if args[:-1] else '') +
-            (add_extsep(args[-1]) if args[-1] else ''))
+    return ((os.path.join(*texts[:-1]) if texts[:-1] else '') +
+            (add_extsep(texts[-1]) if texts[-1] else ''))
 
 
 # ======================================================================
@@ -5051,7 +5273,7 @@ def change_ext(
     Substitute the old extension with a new one in a filepath.
 
     Args:
-        filepath (str): The input filepath.
+        root (str): The input filepath.
         new_ext (str): The new extension (with or without the dot).
         ext (str|None): The expected extension (with or without the dot).
             Refer to `split_ext()` for more details.
@@ -5111,6 +5333,7 @@ def next_filepath(
              - `base`: The input base file name without extension.
              - `ext`: The input file extension (with leading separator).
              - `basepath`: The input filepath without extension.
+        verbose (int): Set level of verbosity.
 
     Returns:
         filepath (str)
@@ -5141,7 +5364,7 @@ def safe_filename(
         allowed (str):  The valid characters.
             Must comply to Python's regular expression syntax.
         replacing (str): The replacing text.
-        group_consecutive (str): Group consecutive non-allowed.
+        group_consecutive (bool): Group consecutive non-allowed.
             If True, consecutive non-allowed characters are replaced by a
             single instance of `replacing`.
             Otherwise, each character is replaced individually.
@@ -5172,7 +5395,10 @@ def safe_filename(
 
 
 # ======================================================================
-def auto_open(filepath, *args, **kwargs):
+def auto_open(
+        filepath,
+        *_args,
+        **_kws):
     """
     Auto-magically open a compressed file.
 
@@ -5183,8 +5409,8 @@ def auto_open(filepath, *args, **kwargs):
 
     Args:
         filepath (str): The file path.
-        *args (Sequence): Positional arguments passed to `open()`.
-        **kwargs (Mapping): Keyword arguments passed to `open()`.
+        *_args: Positional arguments passed to `open()`.
+        **_kws: Keyword arguments passed to `open()`.
 
     Returns:
         file_obj: A file object.
@@ -5203,7 +5429,7 @@ def auto_open(filepath, *args, **kwargs):
     for zip_module_name in zip_module_names:
         try:
             zip_module = importlib.import_module(zip_module_name)
-            file_obj = zip_module.open(filepath, *args, **kwargs)
+            file_obj = zip_module.open(filepath, *_args, **_kws)
             file_obj.read(1)
         except (OSError, IOError, AttributeError, ImportError):
             file_obj = None
@@ -5211,12 +5437,16 @@ def auto_open(filepath, *args, **kwargs):
             file_obj.seek(0)
             break
     if not file_obj:
-        file_obj = open(filepath, *args, **kwargs)
+        file_obj = open(filepath, *_args, **_kws)
     return file_obj
 
 
 # ======================================================================
-def zopen(filepath, mode='rb', *args, **kwargs):
+def zopen(
+        filepath,
+        mode='rb',
+        *_args,
+        **_kws):
     """
     Auto-magically open a compressed file.
 
@@ -5238,8 +5468,8 @@ def zopen(filepath, mode='rb', *args, **kwargs):
             See `open()` for more info.
             If the `t` mode is not specified, `b` mode is assumed.
             If `t` mode is specified, the file cannot be compressed.
-        *args (Sequence): Positional arguments passed to `open()`.
-        **kwargs (Mapping): Keyword arguments passed to `open()`.
+        *_args: Positional arguments passed to `open()`.
+        **_kws: Keyword arguments passed to `open()`.
 
     Returns:
         file_obj: A file object.
@@ -5259,7 +5489,7 @@ def zopen(filepath, mode='rb', *args, **kwargs):
     valid_mode = 'b' in mode and 't' not in mode
 
     # try open file as normal
-    file_obj = open(filepath, mode=mode, *args, **kwargs)
+    file_obj = open(filepath, mode=mode, *_args, **_kws)
 
     if valid_mode:
         # test if file is compressed using its header
@@ -5545,12 +5775,12 @@ def auto_convert(
 
 
 # ======================================================================
-def is_number(var):
+def is_number(val):
     """
     Determine if a variable contains a number.
 
     Args:
-        var (str): The variable to test.
+        val (str): The variable to test.
 
     Returns:
         result (bool): True if the values can be converted, False otherwise.
@@ -5564,7 +5794,7 @@ def is_number(var):
         True
     """
     try:
-        complex(var)
+        complex(val)
     except (TypeError, ValueError):
         result = False
     else:
@@ -5942,11 +6172,11 @@ def str2dict(
             key, val = key_val[0], key_val[1:]
             val = [tmp_val.strip(strip_val_str) for tmp_val in val]
         else:
-            key = None
+            key = val = None
         # strip dict key
         key = key.strip(strip_key_str)
         # add to dictionary
-        if key:
+        if key is not None:
             if convert:
                 val = auto_convert(val)
             out_dict[key] = val

@@ -21,7 +21,7 @@ import pkg_resources  # Manage package resource (from setuptools module)
 
 # ======================================================================
 # :: External Imports
-# import flyingcircus as fc
+# import flyingcircus as fc  # Everything you always wanted to have in Python.*
 # from flyingcircus import msg, dbg, elapsed, report
 
 # ======================================================================
@@ -78,7 +78,7 @@ MY_GREETINGS = r"""
 
 
 # ======================================================================
-def do_nothing_decorator(*args, **kwargs):
+def do_nothing_decorator(*_args, **_kws):
     """
     Callable decorator that does nothing.
 
@@ -87,8 +87,8 @@ def do_nothing_decorator(*args, **kwargs):
     defined.
 
     Args:
-        *args: Positional arguments.
-        **kwargs: Keyword arguments.
+        *_args: Positional arguments.
+        **_kws: Keyword arguments.
 
     Returns:
         result (callable): The unmodified callable.
@@ -97,12 +97,12 @@ def do_nothing_decorator(*args, **kwargs):
     def wrapper(f):
         return f
 
-    if len(args) > 0 and not callable(args[0]) or len(kwargs) > 0:
+    if len(_args) > 0 and not callable(_args[0]) or len(_kws) > 0:
         return wrapper
-    elif len(args) == 0:
+    elif len(_args) == 0:
         return wrapper
     else:
-        return args[0]
+        return _args[0]
 
 
 # Numba import
@@ -121,8 +121,8 @@ def msg(
         verb_lvl=D_VERB_LVL,
         verb_threshold=D_VERB_LVL,
         fmt=None,
-        *args,
-        **kwargs):
+        *_args,
+        **_kws):
     """
     Display a feedback message to the standard output.
 
@@ -132,8 +132,8 @@ def msg(
         verb_threshold (int): Threshold level of verbosity.
         fmt (str): Format of the message (if `blessed` supported).
             If None, a standard formatting is used.
-        *args (*tuple): Positional arguments to be passed to `print`.
-        **kwargs (**dict): Keyword arguments to be passed to `print`.
+        *_args: Positional arguments to be passed to `print`.
+        **_kws: Keyword arguments to be passed to `print`.
 
     Returns:
         None.
@@ -202,7 +202,7 @@ def msg(
                 if '{}' not in fmt:
                     fmt += '{}'
                 text = fmt.format(text, t=t) + t.normal
-        print(text, *args, **kwargs)
+        print(text, *_args, **_kws)
 
 
 # ======================================================================
@@ -380,12 +380,10 @@ def pkg_paths(
 # ======================================================================
 PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
 
-
 # ======================================================================
 # : populate flyingcircus namespace with submodules
 import flyingcircus.util
 import flyingcircus.num
-
 
 # ======================================================================
 elapsed()

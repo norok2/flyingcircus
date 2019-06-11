@@ -21,7 +21,7 @@ import itertools  # Functions creating iterators for efficient looping
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
-import flyingcircus as fc
+import flyingcircus as fc  # Everything you always wanted to have in Python.*
 from flyingcircus import util
 from flyingcircus import num
 
@@ -51,6 +51,7 @@ def tty_colorify(
             Lowercase letters modify the forground color.
             Uppercase letters modify the background color.
             Available colors:
+
              - r/R: red
              - g/G: green
              - b/B: blue
@@ -84,7 +85,7 @@ def tty_colorify(
 
 
 # ======================================================================
-def is_prime_verbose(num):
+def is_prime_verbose(val):
     """
     Determine if num is a prime number.
 
@@ -95,7 +96,7 @@ def is_prime_verbose(num):
     It is implemented by directly testing for possible factors.
 
     Args:
-        num (int): The number to check for primality.
+        val (int): The number to check for primality.
             Only works for numbers larger than 1.
 
     Returns:
@@ -122,17 +123,17 @@ def is_prime_verbose(num):
         False
     """
     # : verbose implementation (skip 2 multiples!)
-    is_divisible = num == 1 or (num != 2 and num % 2 == 0)
+    is_divisible = val == 1 or (val != 2 and val % 2 == 0)
     i = 3
-    while not is_divisible and i * i < num:
-        is_divisible = num % i == 0
+    while not is_divisible and i * i < val:
+        is_divisible = val % i == 0
         # only odd factors needs to be tested
         i += 2
     return not is_divisible
 
 
 # ======================================================================
-def is_prime_optimized(num):
+def is_prime_optimized(val):
     """
     Determine if num is a prime number.
 
@@ -143,7 +144,7 @@ def is_prime_optimized(num):
     It is implemented by directly testing for possible factors.
 
     Args:
-        num (int): The number to check for primality.
+        val (int): The number to check for primality.
             Only works for numbers larger than 1.
 
     Returns:
@@ -170,11 +171,11 @@ def is_prime_optimized(num):
         True
     """
     # : optimized implementation (skip 2 multiples!)
-    num = abs(num)
-    if num % 2 == 0 and num > 2:
+    val = abs(val)
+    if val % 2 == 0 and val > 2:
         return False
-    for i in range(3, int(num ** 0.5) + 1, 2):
-        if num % i == 0:
+    for i in range(3, int(val ** 0.5) + 1, 2):
+        if val % i == 0:
             return False
     return True
 
@@ -322,8 +323,8 @@ def binomial_coeff(
         252
         >>> binomial_coeff(50, 25)
         126410606437752
-        >>> num = 10
-        >>> for n in range(num):
+        >>> N = 10
+        >>> for n in range(N):
         ...     print([binomial_coeff(n, k) for k in range(n + 1)])
         [1]
         [1, 1]
@@ -350,9 +351,9 @@ def binomial_coeff(
             ...
         ValueError: Invalid values `n=1` `k=2` (0 <= k <= n)
         >>> from scipy.special import binom
-        >>> num = 15
+        >>> N = 15
         >>> all(binomial_coeff(n, k) == int(binom(n, k))
-        ...     for n in range(num) for k in range(n + 1))
+        ...     for n in range(N) for k in range(n + 1))
         True
 
     See Also:
@@ -373,7 +374,7 @@ def binomial_coeff(
 
 
 # ======================================================================
-def is_prime_pascal(num):
+def is_prime_pascal(val):
     """
     Determine if number is prime.
 
@@ -387,7 +388,7 @@ def is_prime_pascal(num):
     This is known to be extremely inefficient.
 
     Args:
-        num (int): The number to check for primality.
+        val (int): The number to check for primality.
             Only works for numbers larger than 1.
 
     Returns:
@@ -419,13 +420,13 @@ def is_prime_pascal(num):
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
-    num = abs(num)
-    if (num % 2 == 0 and num > 2) or (num % 3 == 0 and num > 3):
+    val = abs(val)
+    if (val % 2 == 0 and val > 2) or (val % 3 == 0 and val > 3):
         return False
-    elif num == 2 or num == 3:
+    elif val == 2 or val == 3:
         return True
     elif all(
-            n % num == 0 for n in fc.util.get_pascal_numbers(num, full=False)
+            n % val == 0 for n in fc.util.get_pascal_numbers(val, full=False)
             if n > 1):
         return True
     else:
@@ -1049,7 +1050,7 @@ def transparent_compression(func):
                 tmp_fp.read(1)
             except (OSError, IOError, AttributeError, ImportError) as e:
                 if open_module_name is fallback_module_name:
-                    raise (e)
+                    raise e
             else:
                 tmp_fp.seek(0)
                 fp = tmp_fp
@@ -1103,8 +1104,8 @@ def ssim(
     if arr_interval is None:
         arr_interval = (
             min(np.min(arr1), np.min(arr2)), max(np.max(arr1), np.max(arr2)))
-    interval_size = np.ptp(arr_interval)
-    cc = [(k * interval_size) ** 2 for k in kk]
+    range_size = np.ptp(arr_interval)
+    cc = [(k * range_size) ** 2 for k in kk]
     mu1 = np.mean(arr1)
     mu2 = np.mean(arr2)
     sigma1 = np.std(arr1)
@@ -1115,8 +1116,7 @@ def ssim(
         (2 * sigma1 * sigma2 + cc[1]) / (sigma1 ** 2 + sigma2 ** 2 + cc[1]),
         (sigma12 + cc[2]) / (sigma1 * sigma2 + cc[2])
     ]
-    ssim = np.prod(np.array([f ** a for (f, a) in zip(ff, aa)]), 0)
-    return ssim
+    return np.prod(np.array([f ** a for (f, a) in zip(ff, aa)]), 0)
 
 
 # ======================================================================
@@ -1140,12 +1140,13 @@ def ssim_map(
             If a single value is given, it is assumed to be equal in all dims.
         arr_interval (tuple[float]): Minimum and maximum allowed values.
             The values of both arr1 and arr2 should be within this interval.
-        aa (tuple[float]): The exponentiation weight factors. Must be 3.
+        aa (tuple[float]): The exponentiation weight factors.
+            Must be of length 3.
             Modulate the relative weight of the three SSIM components
             (luminosity, contrast and structural information).
             If they are all equal to 1, the computation can be simplified.
-        kk (tuple[float]): The ratio regularization constant factors. Must
-        be 3.
+        kk (tuple[float]): The ratio regularization constant factors.
+            Must be of length 3.
             Determine the regularization constants as a factors of the total
             interval size (squared) for the three SSIM components
             (luminosity, contrast and structural information).
@@ -1165,7 +1166,7 @@ def ssim_map(
     if arr_interval is None:
         arr_interval = (
             min(np.min(arr1), np.min(arr2)), max(np.max(arr1), np.max(arr2)))
-    interval_size = np.ptp(arr_interval)
+    range_size = np.ptp(arr_interval)
     ndim = arr1.ndim
     arr_filter = fc.num.gaussian_nd(filter_sizes, sigmas, 0.5, ndim, True)
     convolve = sp.signal.fftconvolve
@@ -1177,7 +1178,7 @@ def ssim_map(
     sg1_sg1 = convolve(arr1 ** 2, arr_filter, 'same') - mu1_mu1
     sg2_sg2 = convolve(arr2 ** 2, arr_filter, 'same') - mu2_mu2
     sg12 = convolve(arr1 * arr2, arr_filter, 'same') - mu1_mu2
-    cc = [(k * interval_size) ** 2 for k in kk]
+    cc = [(k * range_size) ** 2 for k in kk]
     # determine whether to use the simplified expression
     if all(aa) == 1 and 2 * cc[2] == cc[1]:
         ssim_arr = ((2 * mu1_mu2 + cc[0]) * (2 * sg12 + cc[1])) / (
@@ -1191,8 +1192,8 @@ def ssim_map(
             (sg12 + cc[2]) / (sg1 * sg2 + cc[2])
         ]
         ssim_arr = np.prod(np.array([f ** a for (f, a) in zip(ff, aa)]), 0)
-    ssim = np.mean(ssim_arr)
-    return ssim_arr, ssim
+    ssim_val = np.mean(ssim_arr)
+    return ssim_arr, ssim_val
 
 
 # ======================================================================
