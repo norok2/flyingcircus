@@ -30,6 +30,7 @@ import warnings  # Warning control
 import importlib  # The implementation of import
 import gzip  # Support for gzip files
 import bz2  # Support for bzip2 compression
+import copy  # Shallow and deep copy operations
 # import lzma  # Compression using the LZMA algorithm
 # import json  # JSON encoder and decoder [JSON: JavaScript Object Notation]
 # import csv  # CSV File Reading and Writing [CSV: Comma-Separated Values]
@@ -161,6 +162,84 @@ def _is_special(stats_mode):
         not stat.S_ISDIR(stats_mode) and \
         not stat.S_ISLNK(stats_mode)
     return is_special
+
+
+# ======================================================================
+def join(
+        *operands,
+        coerce=True):
+    """
+    Join together multiple containers.
+
+    Args:
+        *operands (*Iterable): The operands to join.
+        coerce (bool): Cast all operands into the type of the first.
+
+    Returns:
+        result: The joined object.
+
+    Examples:
+        >>> join([1], [2], [3])
+        [1, 2, 3]
+        >>> join((1, 2), (3, 4))
+        (1, 2, 3, 4)
+        >>> join({1: 2}, {2: 3}, {3: 4})
+        {1: 2, 2: 3, 3: 4}
+        >>> join({1}, {2, 3}, {3, 4})
+        {1, 2, 3, 4}
+        >>> join([1], [2], (3, 4))
+        [1, 2, 3, 4]
+        >>> join((1,), [2], (3, 4))
+        (1, 2, 3, 4)
+        >>> join((1, 2), (3, 4), coerce=False)
+        (1, 2, 3, 4)
+        >>> join((1,), [2], (3, 4), coerce=False)
+        Traceback (most recent call last):
+            ...
+        TypeError: can only concatenate tuple (not "list") to tuple
+
+        These are side effect of duck-typing:
+        >>> join(1, 2.5, 3)
+        6
+        >>> join(1.0, 2.5, 3)
+        6.5
+        >>> join([1], 2, 3.0)
+        Traceback (most recent call last):
+            ...
+        TypeError: 'int' object is not iterable
+        >>> join(1, [2], 3.0)
+        Traceback (most recent call last):
+            ...
+        TypeError: int() argument must be a string, a bytes-like object or a\
+ number, not 'list'
+    """
+    if all(hasattr(x, '__iadd__') for x in operands):
+        iter_operands = iter(operands)
+        result = next(iter_operands).copy()
+        for operand in iter_operands:
+            result += operand
+        return result
+    elif all(hasattr(x, '__add__') for x in operands):
+        iter_operands = iter(operands)
+        result = copy.copy(next(iter_operands))
+        if coerce:
+            result_type = type(result)
+            for operand in iter_operands:
+                if result_type != type(operand):
+                    operand = result_type(operand)
+                result = result + operand
+        else:
+            for operand in iter_operands:
+                result = result + operand
+        return result
+    elif all(hasattr(x, 'update') for x in operands):
+        iter_operands = iter(operands)
+        result = next(iter_operands).copy()
+        for operand in iter_operands:
+            result.update(operand)
+        return result
+    else:
+        raise ValueError('Cannot apply `join()` on `{}`'.format(operands))
 
 
 # ======================================================================
@@ -3251,7 +3330,7 @@ def _gcd(a, b):
 
 
 # =====================================================================
-def gcd(*nums):
+def gcd(*vals):
     """
     Find the greatest common divisor (GCD) of a list of numbers.
 
@@ -3271,14 +3350,14 @@ def gcd(*nums):
         >>> gcd(12, 24, 18, 3)
         3
     """
-    gcd_val = nums[0]
-    for num in nums[1:]:
-        gcd_val = math.gcd(gcd_val, num)
+    gcd_val = vals[0]
+    for val in vals[1:]:
+        gcd_val = math.gcd(gcd_val, val)
     return gcd_val
 
 
 # ======================================================================
-def lcm(*nums):
+def lcm(*vals):
     """
     Find the least common multiple (LCM) of a list of numbers.
 
@@ -3296,9 +3375,9 @@ def lcm(*nums):
         >>> lcm(12, 23, 34, 45, 56)
         985320
     """
-    lcm_val = nums[0]
-    for num in nums[1:]:
-        lcm_val = lcm_val * num // math.gcd(lcm_val, num)
+    lcm_val = vals[0]
+    for val in vals[1:]:
+        lcm_val = lcm_val * val // math.gcd(lcm_val, val)
     return lcm_val
 
 
