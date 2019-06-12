@@ -4390,8 +4390,8 @@ def xopen(
 
     Args:
         the_file (str|bytes|file): The input file.
-        *_args: Positional arguments passed to `open()`.
-        **_kws: Keyword arguments passed to `open()`.
+        *_args: Positional arguments for `open()`.
+        **_kws: Keyword arguments for `open()`.
 
     Returns:
         the_file (file):
@@ -4496,7 +4496,7 @@ def from_cached(
 
     Args:
         func (callable): The computation to perform.
-        kws (dict|None): Keyword arguments passed to `func`.
+        kws (dict|None): Keyword arguments for `func`.
         dirpath (str): The path of the caching directory.
         filename (str): The filename of the caching file.
             This is processed by `format` with `locals()`.
@@ -5002,8 +5002,8 @@ def iflistdir(
             depending on the value of `unix_style`.
         unix_style (bool): Interpret the patterns as Unix-style.
             This is achieved by using `fnmatch`.
-        re_kws (dict|None): Keyword arguments passed to `re.compile()`.
-        walk_kws (dict|None): Keyword arguments passed to `os.walk()`.
+        re_kws (dict|None): Keyword arguments for `re.compile()`.
+        walk_kws (dict|None): Keyword arguments for `os.walk()`.
 
     Yields:
         filepath (str): The next matched filepath.
@@ -5042,8 +5042,8 @@ def flistdir(
             depending on the value of `unix_style`.
         unix_style (bool): Interpret the patterns as Unix-style.
             This is achieved by using `fnmatch`.
-        re_kws (dict|None): Keyword arguments passed to `re.compile()`.
-        walk_kws (dict|None): Keyword arguments passed to `os.walk()`.
+        re_kws (dict|None): Keyword arguments for `re.compile()`.
+        walk_kws (dict|None): Keyword arguments for `os.walk()`.
 
     Returns:
         filepaths (list[str]): The matched filepaths.
@@ -5488,8 +5488,8 @@ def auto_open(
 
     Args:
         filepath (str): The file path.
-        *_args: Positional arguments passed to `open()`.
-        **_kws: Keyword arguments passed to `open()`.
+        *_args: Positional arguments for `open()`.
+        **_kws: Keyword arguments for `open()`.
 
     Returns:
         file_obj: A file object.
@@ -5547,8 +5547,8 @@ def zopen(
             See `open()` for more info.
             If the `t` mode is not specified, `b` mode is assumed.
             If `t` mode is specified, the file cannot be compressed.
-        *_args: Positional arguments passed to `open()`.
-        **_kws: Keyword arguments passed to `open()`.
+        *_args: Positional arguments for `open()`.
+        **_kws: Keyword arguments for `open()`.
 
     Returns:
         file_obj: A file object.

@@ -132,8 +132,8 @@ def msg(
         verb_threshold (int): Threshold level of verbosity.
         fmt (str): Format of the message (if `blessed` supported).
             If None, a standard formatting is used.
-        *_args: Positional arguments to be passed to `print`.
-        **_kws: Keyword arguments to be passed to `print`.
+        *_args: Positional arguments for `print()`.
+        **_kws: Keyword arguments for `print()`.
 
     Returns:
         None.

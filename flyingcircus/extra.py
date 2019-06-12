@@ -7172,8 +7172,8 @@ def moving_apply(
             flattened array is returned.
         func (callable): Function to calculate in the 'moving' window.
             Must accept an `axis` parameter, which will be set to -1.
-        args (tuple|None): Positional arguments passed to `func`.
-        kws (dict|None): Keyword arguments passed to `func`.
+        args (tuple|None): Positional arguments for `func`.
+        kws (dict|None): Keyword arguments for `func`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
@@ -7299,8 +7299,8 @@ def running_apply(
             len(weights) >= 1 and len(weights) <= len(array), otherwise the
             flattened array is returned.
         func (callable): Function to calculate in the 'running' axis.
-        args (tuple|None): Positional arguments passed to `func`.
-        kws (dict|None): Keyword arguments passed to `func`.
+        args (tuple|None): Positional arguments for `func()`.
+        kws (dict|None): Keyword arguments for `func()`.
         mode (str): The output mode.
             Can be one of:
             - 'valid': only values inside the array are used.
