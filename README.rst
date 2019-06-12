@@ -22,7 +22,7 @@ This software provides a library of miscellaneous utilities for Python.
 It is relatively easy to extend and users are encouraged to tweak with
 it.
 
-Most of the code is used is used in a number of projects where it is tested
+Most of the code is used in a number of projects where it is tested
 against real-life scenarios.
 
 As a result of the code maturity, some of the library components may
@@ -41,11 +41,11 @@ Features
 
 The package contain two main sub-packages:
 
--  ``utils``
--  ``numeric``
+-  ``base``
+-  ``extra``
 
 
-The package ``utils`` contains a number of generic functions like
+The package ``base`` contains a number of generic functions like
 
 -  ``multi_replace()``: performs multiple replacements in a string.
 -  ``flatten()``: recursively flattens nested iterables, e.g.
@@ -56,7 +56,7 @@ The package ``utils`` contains a number of generic functions like
 
 etc.
 
-The package ``numeric`` (which requires both ``numpy`` and ``scipy``)
+The package ``extra`` (which requires both ``numpy`` and ``scipy``)
 contains a number of numerical functions, typically
 working on or generating ``numpy.ndarray`` inputs, like:
 

@@ -22,8 +22,8 @@ import itertools  # Functions creating iterators for efficient looping
 import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
 import flyingcircus as fc  # Everything you always wanted to have in Python.*
-from flyingcircus import util
-from flyingcircus import num
+from flyingcircus import base
+from flyingcircus import extra
 
 # :: External Imports Submodules
 import scipy.optimize  # SciPy: Optimization Algorithms
@@ -308,7 +308,7 @@ def binomial_coeff(
     is faster.
 
     If all binomial coefficient for a given `n` are required, then
-    `flyingcircus.util.get_pascal_numbers()` is computationally more efficient.
+    `flyingcircus.base.get_pascal_numbers()` is computationally more efficient.
 
     Args:
         n (int): The major index of the binomial coefficient.
@@ -357,8 +357,8 @@ def binomial_coeff(
         True
 
     See Also:
-        - flyingcircus.util.get_pascal_numbers()
-        - flyingcircus.util.pascal_triangle()
+        - flyingcircus.base.get_pascal_numbers()
+        - flyingcircus.base.pascal_triangle()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
@@ -415,8 +415,8 @@ def is_prime_pascal(val):
         True
 
     See Also:
-        - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_range()
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/AKS_primality_test
     """
@@ -426,7 +426,7 @@ def is_prime_pascal(val):
     elif val == 2 or val == 3:
         return True
     elif all(
-            n % val == 0 for n in fc.util.get_pascal_numbers(val, full=False)
+            n % val == 0 for n in fc.base.get_pascal_numbers(val, full=False)
             if n > 1):
         return True
     else:
@@ -598,7 +598,7 @@ def sequence(
     if step is None:
         step = 1 if stop > start else -1
     if precision is None:
-        precision = fc.util.guess_decimals(step)
+        precision = fc.base.guess_decimals(step)
     for i in range(int(round(stop - start, precision + 1) / step) + 1):
         item = start + i * step
         if precision:
@@ -671,8 +671,8 @@ def cyclic_padding_loops(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.util.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -721,8 +721,8 @@ def symmetric_padding_loops(
          [3 3 2 1 1]
          [3 3 2 1 1]]
     """
-    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.util.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -773,8 +773,8 @@ def cyclic_padding_tile(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
-    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
+    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -824,8 +824,8 @@ def cyclic_padding_pad(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.util.auto_repeat(shape, arr.ndim, check=True)
-    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
+    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         -(int(round((new_dim - dim) * offset))
           if isinstance(offset, float) else offset) % dim
@@ -872,7 +872,7 @@ def cyclic_padding_slicing(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    offsets = util.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -928,10 +928,10 @@ def frame(
         result (np.ndarray): The result array with added borders.
 
     See Also:
-        - flyingcircus.num.reframe()
-        - flyingcircus.num.padding()
+        - flyingcircus.extra.reframe()
+        - flyingcircus.extra.padding()
     """
-    borders = util.auto_repeat(borders, arr.ndim)
+    borders = base.auto_repeat(borders, arr.ndim)
     if any(borders) < 0:
         raise ValueError('relative border cannot be negative')
     if isinstance(borders[0], float):
@@ -987,8 +987,8 @@ def reframe(
         ValueError: output shape cannot be smaller than the input shape.
 
     See Also:
-        - flyingcircus.num.frame()
-        - flyingcircus.num.padding()
+        - flyingcircus.extra.frame()
+        - flyingcircus.extra.padding()
 
     Examples:
         >>> arr = np.ones((2, 3))
@@ -1013,8 +1013,8 @@ def reframe(
                [0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0.]])
     """
-    new_shape = util.auto_repeat(new_shape, arr.ndim, check=True)
-    position = util.auto_repeat(position, arr.ndim, check=True)
+    new_shape = base.auto_repeat(new_shape, arr.ndim, check=True)
+    position = base.auto_repeat(position, arr.ndim, check=True)
     if any([old > new for old, new in zip(arr.shape, new_shape)]):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
@@ -1168,7 +1168,7 @@ def ssim_map(
             min(np.min(arr1), np.min(arr2)), max(np.max(arr1), np.max(arr2)))
     range_size = np.ptp(arr_interval)
     ndim = arr1.ndim
-    arr_filter = fc.num.gaussian_nd(filter_sizes, sigmas, 0.5, ndim, True)
+    arr_filter = fc.extra.gaussian_nd(filter_sizes, sigmas, 0.5, ndim, True)
     convolve = sp.signal.fftconvolve
     mu1 = convolve(arr1, arr_filter, 'same')
     mu2 = convolve(arr2, arr_filter, 'same')

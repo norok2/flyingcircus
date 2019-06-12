@@ -251,7 +251,7 @@ def multi_at(
     Extract selected items according to the specified indexes.
 
     Note that this is mostly equivalent to (but faster than)
-    `flyingcircus.util.iter_at()`.
+    `flyingcircus.base.iter_at()`.
 
     Args:
         items (Sequence): The input items.
@@ -276,7 +276,7 @@ def multi_at(
         [9, 25, 49]
 
     See Also:
-        - flyingcircus.util.iter_at()
+        - flyingcircus.base.iter_at()
     """
     try:
         iter(indexes)
@@ -297,7 +297,7 @@ def iter_at(
     """
     Iterate over selected items according to the specified indexes.
 
-    Note that this is mostly equivalent to `flyingcircus.util.multi_at()`
+    Note that this is mostly equivalent to `flyingcircus.base.multi_at()`
     except that this yields a generator.
 
     Args:
@@ -320,7 +320,7 @@ def iter_at(
         [9, 25, 49]
 
     See Also:
-        - flyingcircus.util.multi_at()
+        - flyingcircus.base.multi_at()
     """
     try:
         iter(indexes)
@@ -846,7 +846,7 @@ def stretch(
     """
     Automatically stretch the values to the target shape.
 
-    This is similar to `flyingcircus.util.auto_repeat()`, except that it
+    This is similar to `flyingcircus.base.auto_repeat()`, except that it
     can flexibly repeat values only when needed.
     This is similar to shape broadcasting of multi-dimensional arrays.
 
@@ -1417,10 +1417,10 @@ def deep_filter_map(
     Apply conditional mapping, filtering and conversion on nested structures.
 
     The behavior of this function can be obtained by combining the following:
-     - flyingcircus.util.conditional_apply()
-     - flyingcircus.util.deep_map()
-     - flyingcircus.util.deep_filter()
-     - flyingcircus.util.deep_convert()
+     - flyingcircus.base.conditional_apply()
+     - flyingcircus.base.deep_map()
+     - flyingcircus.base.deep_filter()
+     - flyingcircus.base.deep_convert()
 
     In particular:
 
@@ -1820,7 +1820,7 @@ def group_by(
     The number of elements for each yield is fixed.
 
     For different handling of the last group for uneven splits, see
-    `flyingcircus.util.split()`.
+    `flyingcircus.base.split()`.
 
     Args:
         items (Iterable): The input items.
@@ -1846,7 +1846,7 @@ def group_by(
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 0, 0))
 
     See Also:
-        flyingcircus.util.grouping()
+        flyingcircus.base.grouping()
     """
     # : alternate (slower) implementations
     # iterators = tuple(items[i::n] for i in range(n))
@@ -1895,7 +1895,7 @@ def split(
         True
 
     See Also:
-        flyingcircus.util.group_by()
+        flyingcircus.base.group_by()
     """
     if isinstance(size, int):
         size = auto_repeat(size, len(items) // size)
@@ -2560,7 +2560,7 @@ def get_pascal_numbers(
         [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
 
     See Also:
-        - flyingcircus.util.pascal_triangle_range()
+        - flyingcircus.base.pascal_triangle_range()
         - sp.special.comb()
         - sp.special.binom()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
@@ -2650,7 +2650,7 @@ def pascal_triangle_range(
         (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
 
     See Also:
-        - flyingcircus.util.get_pascal_numbers()
+        - flyingcircus.base.get_pascal_numbers()
         - sp.special.comb()
         - sp.special.binom()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
@@ -2706,8 +2706,8 @@ def is_prime(num):
         True
 
     See Also:
-        - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_range()
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Trial_division
     """
@@ -2763,8 +2763,8 @@ def primes_range(
         [47, 43, 41, 37, 31, 29, 23, 19, 17, 13, 11, 7, 5, 3, 2]
 
     See Also:
-        - flyingcircus.util.is_prime()
-        - flyingcircus.util.get_primes()
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.get_primes()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     if second is None:
@@ -2813,8 +2813,8 @@ def get_primes(
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
 
     See Also:
-        - flyingcircus.util.is_prime()
-        - flyingcircus.util.primes_range()
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     i = 0
@@ -2844,7 +2844,7 @@ def get_fibonacci(
 
     This is useful for generating a sequence of Fibonacci numbers.
     To generate a specific Fibonacci number,
-    use `flyingcircus.util.fibonacci()`.
+    use `flyingcircus.base.fibonacci()`.
 
     Args:
         max_count (int): The maximum number of values to yield.
@@ -2864,8 +2864,8 @@ def get_fibonacci(
         [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
 
     See Also:
-        - flyingcircus.util.get_gen_fibonacci()
-        - flyingcircus.util.fibonacci()
+        - flyingcircus.base.get_gen_fibonacci()
+        - flyingcircus.base.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     i = 0
@@ -2915,8 +2915,8 @@ def get_gen_fibonacci(
         [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
 
     See Also:
-        - flyingcircus.util.get_fibonacci()
-        - flyingcircus.util.fibonacci()
+        - flyingcircus.base.get_fibonacci()
+        - flyingcircus.base.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     num = combine_iter_len((values, weights))
@@ -2939,7 +2939,7 @@ def fibonacci(
 
     This is useful for generating a specific Fibonacci number.
     For generating a sequence of Fibonacci numbers, use
-    `flyingcircus.util.get_fibonacci()`.
+    `flyingcircus.base.get_fibonacci()`.
 
     Args:
         num (int): The ordinal to generate.
@@ -2970,8 +2970,8 @@ def fibonacci(
         1741
 
     See Also:
-        - flyingcircus.util.get_fibonacci()
-        - flyingcircus.util.get_gen_fibonacci()
+        - flyingcircus.base.get_fibonacci()
+        - flyingcircus.base.get_gen_fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     for _ in range(num):
@@ -3185,7 +3185,7 @@ def factorize_k(
              - 'alt1': factors are alternated before splitting;
              - 'optimal', 'similar', '!', '=': factors have the similar sizes.
         balanced (bool): Balance the number of primes in each factor.
-            See `flyingcircus.util.chunks()` for more info.
+            See `flyingcircus.base.chunks()` for more info.
 
     Returns:
         tuple (int): A listing of `k` factors of `num`.
@@ -3447,8 +3447,8 @@ def mean(items):
     Calculate the mean of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean()`
-     - `flyingcircus.util.imean()`
+     - `flyingcircus.base.next_mean()`
+     - `flyingcircus.base.imean()`
 
     This is substantially faster than `statistics.mean()`.
 
@@ -3472,9 +3472,9 @@ def var(items):
     Calculate the variance of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean_var()`
-     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
-     - `flyingcircus.util.ivar()`
+     - `flyingcircus.base.next_mean_var()`
+     - `flyingcircus.base.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.base.ivar()`
 
     This is substantially faster than `statistics.variance()`.
 
@@ -3499,9 +3499,9 @@ def mean_var(items):
     Calculate the variance of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean_var()`
-     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
-     - `flyingcircus.util.ivar()`
+     - `flyingcircus.base.next_mean_var()`
+     - `flyingcircus.base.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.base.ivar()`
 
     This is substantially faster than `statistics.variance()`.
 
@@ -3531,9 +3531,9 @@ def stdev(
     Calculate the standard deviation of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean_var()`
-     - `flyingcircus.util.next_mean_sosd()` and `.sosd2stdev()`.
-     - `flyingcircus.util.istdev()`
+     - `flyingcircus.base.next_mean_var()`
+     - `flyingcircus.base.next_mean_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.base.istdev()`
 
     This is substantially faster than `statistics.stdev()`.
 
@@ -3720,8 +3720,8 @@ def i_mean(
     Calculate the mean of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean()`
-     - `flyingcircus.util.imean()`
+     - `flyingcircus.base.next_mean()`
+     - `flyingcircus.base.imean()`
 
     This is substantially faster than `statistics.mean()`.
 
@@ -3754,8 +3754,8 @@ def i_var(
 
     The length of `items`
 
-    Internally uses `flyingcircus.util.next_mean_sosd()` and
-    `flyingcircus.util.sosd2var()`.
+    Internally uses `flyingcircus.base.next_mean_sosd()` and
+    `flyingcircus.base.sosd2var()`.
 
     This is substantially faster than `statistics.variance()`.
 
@@ -3790,9 +3790,9 @@ def i_mean_var(
     Calculate the variance of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean_var()`
-     - `flyingcircus.util.next_mean_sosd()` and `.sosd2var()`.
-     - `flyingcircus.util.ivar()`
+     - `flyingcircus.base.next_mean_var()`
+     - `flyingcircus.base.next_mean_sosd()` and `.sosd2var()`.
+     - `flyingcircus.base.ivar()`
 
     This is substantially faster than `statistics.variance()`.
 
@@ -3832,9 +3832,9 @@ def i_stdev(
     Calculate the standard deviation of arbitrary items.
 
     For iterative computation see:
-     - `flyingcircus.util.next_mean_var()`
-     - `flyingcircus.util.next_mean_sosd()` and `.sosd2stdev()`.
-     - `flyingcircus.util.istdev()`
+     - `flyingcircus.base.next_mean_var()`
+     - `flyingcircus.base.next_mean_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.base.istdev()`
 
     This is substantially faster than `statistics.stdev()`.
 
@@ -4425,7 +4425,7 @@ def hash_file(
             If str, must be a valid coding.
             If None, the object is kept as bytes.
         block_size (int|None): The block size.
-            See `size` argument of `flyingcircus.util.blocks` for exact
+            See `size` argument of `flyingcircus.base.blocks` for exact
             behavior.
 
     Returns:
@@ -5200,8 +5200,8 @@ def split_path(
         ('/path/to', 'file', '')
 
     See Also:
-        - flyingcircus.util.join_path()
-        - flyingcircus.util.multi_split_path()
+        - flyingcircus.base.join_path()
+        - flyingcircus.base.multi_split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -5251,8 +5251,8 @@ def multi_split_path(
         ('/', 'path', 'to', 'file', '')
 
     See Also:
-        - flyingcircus.util.join_path()
-        - flyingcircus.util.split_path()
+        - flyingcircus.base.join_path()
+        - flyingcircus.base.split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -5301,8 +5301,8 @@ def join_path(*texts):
         True
 
     See Also:
-        - flyingcircus.util.split_path()
-        - flyingcircus.util.multi_split_path()
+        - flyingcircus.base.split_path()
+        - flyingcircus.base.multi_split_path()
     """
     return ((os.path.join(*texts[:-1]) if texts[:-1] else '') +
             (add_extsep(texts[-1]) if texts[-1] else ''))
@@ -6681,8 +6681,8 @@ def multi_scale_to_int(
         vals (int|tuple[tuple[int]]): The scaled value(s).
 
     See Also:
-        - flyingcircus.util.stretch()
-        - flyingcircus.util.scale_to_int()
+        - flyingcircus.base.stretch()
+        - flyingcircus.base.scale_to_int()
 
     Examples:
         >>> scales = (10, 20, 30)

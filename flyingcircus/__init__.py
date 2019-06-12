@@ -382,8 +382,8 @@ PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
 
 # ======================================================================
 # : populate flyingcircus namespace with submodules
-import flyingcircus.util
-import flyingcircus.num
+import flyingcircus.base
+import flyingcircus.extra
 
 # ======================================================================
 elapsed()
