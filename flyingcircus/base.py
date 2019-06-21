@@ -6966,10 +6966,10 @@ def profile_time(
         err_order = order_of_magnitude(summary['stdev'], 10, 3)
         num_order = order_of_magnitude(summary['num'], 10, 3)
         prec = -min(0, err_order - val_order) * 3
-        val = round(scale_to_order(summary['mean'], val_order, 10, 3), prec)
-        err = round(scale_to_order(summary['stdev'], val_order, 10, 3), prec)
+        val = round(scale_to_order(summary['mean'], 10, 3, val_order), prec)
+        err = round(scale_to_order(summary['stdev'], 10, 3, val_order), prec)
         t_units = order_to_prefix(val_order)
-        num = round(scale_to_order(summary['num'], num_order, 10, 3))
+        num = round(scale_to_order(summary['num'], 10, 3, num_order))
         n_units = order_to_prefix(num_order)
         if verbose >= VERB_LVL['']:
             kws_list = [
