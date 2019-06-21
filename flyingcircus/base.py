@@ -42,6 +42,7 @@ import hashlib  # Secure hashes and message digests
 import base64  # Base16, Base32, Base64, Base85 Data Encodings
 import pickle  # Python object serialization
 import string  # Common string operations
+import gc  # Garbage Collector interface
 
 # :: External Imports
 
@@ -124,6 +125,12 @@ DTYPE_STR.update({
     'double': 'd',
     'str': 's',
 })
+# : define SI base-1000 prefix
+SI_PREFIX = {
+    'base1000+': ('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
+    'base1000-': ('m', 'μ', 'n', 'p', 'f', 'a', 'z', 'y')}
+SI_PREFIX['base1000'] = \
+    ('',) + SI_PREFIX['base1000+'] + SI_PREFIX['base1000-'][::-1]
 
 
 # ======================================================================
@@ -3457,7 +3464,7 @@ def mean(items):
             The values within the sequence should be numeric.
 
     Returns:
-        result (Any): The mean of the items.
+        result (Number): The mean of the items.
 
     Examples:
         >>> mean(range(0, 20, 2))
@@ -3483,7 +3490,7 @@ def var(items):
             The values within the sequence should be numeric.
 
     Returns:
-        result (Any): The variance of the items.
+        result (Number): The variance of the items.
 
     Examples:
         >>> var(range(0, 20, 2))
@@ -3512,8 +3519,8 @@ def mean_var(items):
     Returns:
         result (tuple): The tuple
             contains:
-             - `mean_`: The mean of the items.
-             - `var_`: The variance of the items.
+             - `mean_` (Number): The mean of the items.
+             - `var_` (Number): The variance of the items.
 
     Examples:
         >>> mean_var(range(0, 20, 2))
@@ -3543,7 +3550,7 @@ def stdev(
         ddof (int): The number of degrees of freedom.
 
     Returns:
-        result (Any): The standard deviation of the items.
+        result (Number): The standard deviation of the items.
 
     Examples:
         >>> round(stdev(range(0, 20, 2)), 3)
@@ -3564,12 +3571,12 @@ def next_mean(
     This is useful for low memory footprint computation of the mean.
 
     Args:
-        value (Any): The next to consider.
-        mean_ (Any): The aggregate mean of the previous n items.
+        value (Number): The next to consider.
+        mean_ (Number): The aggregate mean of the previous n items.
         num (int): The number of items in the aggregate.
 
     Returns:
-        mean (Any): The updated mean.
+        mean (Number): The updated mean.
 
     Examples:
         >>> mean = 0.0
@@ -3596,16 +3603,16 @@ def next_mean_var(
     therefore a stand-alone `next_var()` is sub-optimal.
 
     Args:
-        value (Any): The next value to consider.
-        mean_ (Any): The aggregate mean of the previous n items.
-        var_ (Any): The aggregate variance of the previous n items.
+        value (Number): The next value to consider.
+        mean_ (Number): The aggregate mean of the previous n items.
+        var_ (Number): The aggregate variance of the previous n items.
         num (int): The number of items in the aggregate.
 
     Returns:
-        mean (Any): The tuple
+        result (tuple): The tuple
             contains:
-             - mean (Any): The updated mean.
-             - var (Any): The updated variance.
+             - mean (Number): The updated mean.
+             - var (Number): The updated variance.
 
     Examples:
         >>> mean, var = 0.0, 0.0
@@ -3647,10 +3654,10 @@ def next_mean_sosd(
         num (int): The number of items in the aggregate value.
 
     Returns:
-        mean (Any): The tuple
+        result (tuple): The tuple
             contains:
-             - mean (Any): The updated mean.
-             - sosd (Any): The updated sum-of-squared-deviations.
+             - mean (Number): The updated mean.
+             - sosd (Number): The updated sum-of-squared-deviations.
 
     Examples:
         >>> mean_, sosd = 0.0, 0.0
@@ -3683,11 +3690,11 @@ def sosd2var(
     Compute the variance from the sum-of-squared-deviations.
 
     Args:
-        sosd (Any): The sum-of-squared-deviations value.
+        sosd (Number): The sum-of-squared-deviations value.
         num (int): The number of items.
 
     Returns:
-        result (Any): The variance value.
+        result (Number): The variance value.
     """
     return sosd / num
 
@@ -3701,7 +3708,7 @@ def sosd2stdev(
     Compute the standard deviation from the sum-of-squared-deviations.
 
     Args:
-        sosd (Any): The sum-of-squared-deviations value.
+        sosd (Number): The sum-of-squared-deviations value.
         num (int): The number of items.
         ddof (int): The number of degrees of freedom.
 
@@ -5882,6 +5889,122 @@ def is_number(val):
 
 
 # ======================================================================
+def order_of_magnitude(
+        val,
+        base=10,
+        exp=1):
+    """
+    Determine the order of magnitude of a number.
+
+    Args:
+        val (Number): The input number.
+        base (Number): The base for defining the magnitude order.
+        exp (Number): The exp for defining the magnitude order.
+
+    Returns:
+        result (int): The order of magnitude according to `(base ** exp)`.
+
+    Examples:
+        >>> order_of_magnitude(10.0)
+        1
+        >>> order_of_magnitude(1.0)
+        0
+        >>> order_of_magnitude(0.1)
+        -1
+        >>> order_of_magnitude(0.0)
+        0
+        >>> order_of_magnitude(-0.0)
+        0
+        >>> order_of_magnitude(634.432)
+        2
+        >>> order_of_magnitude(1024, 2)
+        10
+        >>> order_of_magnitude(1234, 10, 3)
+        1
+        >>> order_of_magnitude(1234, 2, 10)
+        1
+        >>> all(order_of_magnitude(i) == 0 for i in range(10))
+        True
+    """
+    return int(math.log(abs(val), base) // exp) if val != 0.0 else 0
+
+
+# ======================================================================
+def order_to_prefix(
+        order,
+        tokens=SI_PREFIX['base1000']):
+    """
+    Get the prefix corresponding to the order of magnitude.
+
+    This is works chiefly with SI prefixes.
+
+    Args:
+        order (int): The order of magnitude.
+        tokens (Sequence): The conversion table.
+
+    Returns:
+        result (str): The prefix.
+
+    Examples:
+        >>> [order_to_prefix(i) for i in range(9)]
+        ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+        >>> [order_to_prefix(-i) for i in range(9)]
+        ['', 'm', 'μ', 'n', 'p', 'f', 'a', 'z', 'y']
+        >>> order_to_prefix(10)
+        Traceback (most recent call last):
+            ...
+        ValueError: Unsupported order `10` for tokens of length `17`
+    """
+    if abs(order) <= len(tokens) // 2:
+        return tokens[order]
+    else:
+        raise ValueError(
+            'Unsupported order `{}` for tokens of length `{}`' \
+                .format(order, len(tokens)))
+
+
+# ======================================================================
+def scale_to_order(
+        val,
+        base=10,
+        exp=1,
+        order=None):
+    """
+    Scale a number according to its order of magnitude.
+
+    Args:
+        val (Number): The input number.
+        base (Number): The base for defining the magnitude order.
+        exp (Number): The exp for defining the magnitude order.
+        order (int|None): The order of magnitude.
+            If None, this is computed from `base` and `exp`.
+
+    Returns:
+        result (Number): The scaled value.
+
+    Examples:
+        >>> round(scale_to_order(1234.123), 6)
+        1.234123
+        >>> round(scale_to_order(1234.123, 10, 1, 2), 6)
+        12.34123
+        >>> round(scale_to_order(1234.123, 10, 3, 2), 6)
+        0.001234
+        >>> round(scale_to_order(0.001234, 10, 3, -2), 6)
+        1234.0
+
+        >>> n = 12345.67890
+        >>> all(
+        ...     round(scale_to_order(scale_to_order(n, order=i), order=-i), 5)
+        ...     == n
+        ...     for i in range(10))
+        True
+    """
+    if order is None:
+        order = order_of_magnitude(val, base, exp)
+    return val / (base ** exp) ** order
+
+
+# ======================================================================
 def guess_decimals(
         val,
         n_max=16,
@@ -5988,7 +6111,7 @@ def significant_figures(
     """
     val = float(val)
     num = int(num)
-    order = int(math.floor(math.log10(abs(val)))) if abs(val) != 0.0 else 0
+    order = order_of_magnitude(val, 10, 1)
     prec = num - order - 1
     ofm = ''
     val = round(val, prec)
@@ -6054,8 +6177,8 @@ def format_value_error(
     val = float(val)
     err = float(err)
     num = int(num) if num != 0 else 1
-    val_order = int(math.floor(math.log10(abs(val)))) if val != 0 else 0
-    err_order = int(math.floor(math.log10(abs(err)))) if err != 0 else 0
+    val_order = order_of_magnitude(val, 10, 1)
+    err_order = order_of_magnitude(err, 10, 1)
     try:
         # print('val_order={}, err_order={}, num={}'.format(
         #     val_order, err_order, num))  # DEBUG
@@ -6191,6 +6314,85 @@ def guess_numerical_sequence(
                 round(new_base, rounding), round(first_item, rounding),
                 round(last_item, rounding), round(step, rounding))
     return result
+
+
+# ======================================================================
+def elide(
+        seq,
+        length=79,
+        ending='..',
+        sep=None,
+        start=0):
+    """
+    Cut and append an ellipsis sequence at the end if length is excessive.
+
+    This is especially useful for strings.
+
+    Args:
+        seq (Sequence): The input sequence.
+        length (int): The maximum allowed length
+        ending (Sequence|None): The ending to append.
+            If None, it is ignored.
+        sep (Any|None): The separator to use.
+            If None, it is ignored, otherwise cuts only at the separator.
+        start (int): The start index for the output.
+
+    Returns:
+        result (Sequence): The sequence with the elision.
+
+    Examples:
+        >>> elide('Flying Circus FlyingCircus', 24)
+        'Flying Circus FlyingCi..'
+        >>> elide('Flying Circus FlyingCircus', 24, '...')
+        'Flying Circus FlyingC...'
+        >>> elide('Flying Circus FlyingCircus', 24, '...', ' ')
+        'Flying Circus...'
+        >>> elide('Flying Circus FlyingCircus', 24, None)
+        'Flying Circus FlyingCirc'
+        >>> elide('Flying Circus FlyingCircus', 24, '..', None, 1)
+        'lying Circus FlyingCir..'
+        >>> elide('Flying Circus FlyingCircus', 1)
+        '.'
+        >>> elide('Flying Circus FlyingCircus', 2)
+        '..'
+        >>> elide('Flying Circus FlyingCircus', 3)
+        'F..'
+        >>> elide('Flying Circus FlyingCircus', 5, '..', ' ')
+        '..'
+        >>> elide('a bc def ghij klmno pqrstu vwxyzab', 16, '..', ' ')
+        'a bc def ghij..'
+        >>> elide('a bc def ghij klmno pqrstu vwxyzab', 5, '..', ' ')
+        'a..'
+        >>> elide('a bc def ghij klmno pqrstu vwxyzab', 6, '..', ' ')
+        'a bc..'
+
+        >>> elide(list(range(100)), 16, [-1])
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, -1]
+        >>> elide(list(range(100)), 16, [-1, -1])
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -1, -1]
+        >>> elide([x % 3 for x in range(100)], 16, [-1, -1], 0)
+        [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, -1, -1]
+        >>> elide(list(range(100)), 16, None)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        >>> elide(list(range(100)), 16, [-1, -1], None, 1)
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, -1, -1]
+    """
+    if len(seq) > length:
+        len_ending = len(ending) if ending is not None else 0
+        if sep is not None:
+            try:
+                limit = length - len_ending \
+                        - seq[length - len_ending::-1].index(sep)
+            except ValueError:
+                limit = 0
+        else:
+            limit = max(length - len_ending, 0)
+        if ending is not None:
+            return seq[start:start + limit] + ending[:length]
+        else:
+            return seq[start:start + limit]
+    else:
+        return seq
 
 
 # ======================================================================
@@ -6730,6 +6932,96 @@ def multi_scale_to_int(
             tuple(scale_to_int(x, scale) for x in val)
             for val, scale in zip(vals, scales))
     return result
+
+
+# ======================================================================
+def profile_time(
+        max_iter=1000000000,
+        min_iter=7,
+        max_time=2,
+        timer=time.time,
+        disable_gc=True,
+        verbose=True):
+    """
+    Time-profiler decorator for measuring the execution time of a function.
+
+    This is similar to the functionality provided by `timeit` but works as
+    a decorator.
+
+    Args:
+        max_iter (int): Max number of iterations.
+        min_iter (int): Min number of iterations.
+        max_time (int|float): Max time for testing in s.
+        timer (callable): The function used to measure the timings.
+        disable_gc (bool): Disable the garbage collection during testing.
+        verbose (int): Set level of verbosity.
+
+    Returns:
+        decorator_profile_time (callable): The decorator.
+    """
+
+    # ----------------------------------------------------------
+    def format_summary(summary, kws_limit=8, line_limit=79):
+        val_order = order_of_magnitude(summary['mean'], 10, 3)
+        err_order = order_of_magnitude(summary['stdev'], 10, 3)
+        num_order = order_of_magnitude(summary['num'], 10, 3)
+        prec = -min(0, err_order - val_order) * 3
+        val = round(scale_to_order(summary['mean'], val_order, 10, 3), prec)
+        err = round(scale_to_order(summary['stdev'], val_order, 10, 3), prec)
+        t_units = order_to_prefix(val_order)
+        num = round(scale_to_order(summary['num'], num_order, 10, 3))
+        n_units = order_to_prefix(num_order)
+        if verbose >= VERB_LVL['']:
+            kws_list = [
+                elide(k + '=' + str(v), kws_limit)
+                for k, v in summary['kws'].items()]
+            args_list = [str(arg) for arg in summary['args']]
+            args = '(' + ', '.join(args_list + kws_list) + ')'
+            if len(args) > line_limit // 2:
+                args = '(' + '\n\t' + ',\n\t'.join(args_list + kws_list) + ')'
+        else:
+            args = '(' + elide('') + ')'
+        name = summary['name']
+        name_s = '{name}{args}'.format(**locals())
+        time_s = 'time = ({val} ± {err}) {t_units}s'.format(**locals())
+        num_s = 'iterations ~ {num}{n_units}'.format(**locals())
+        result = ': {name_s};  {time_s};  {num_s}'.format(**locals())
+        if len(result) > line_limit:
+            result = ': {name_s}\n  {time_s};  {num_s}\n'.format(**locals())
+        return result
+
+    # ----------------------------------------------------------
+    def decorator_profile_time(func):
+
+        # ----------------------------------------------------------
+        def wrapper_profile_time(*_args, **_kws):
+            gc_was_enabled = gc.isenabled()
+            if disable_gc and gc_was_enabled:
+                gc.disable()
+            mean_time = sosd_time = 0.0
+            init_time = timer()
+            i = result = None
+            for i in range(max_iter):
+                begin_time = timer()
+                result = func(*_args, **_kws)
+                end_time = timer()
+                run_time = end_time - begin_time
+                mean_time, sosd_time = next_mean_sosd(
+                    run_time, mean_time, sosd_time, i)
+                total_time = end_time - init_time
+                if total_time > max_time and i > min_iter:
+                    break
+            summary = dict(
+                result=result, num=i, mean=mean_time, sosd=sosd_time,
+                var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i))
+            if not gc.isenabled() and gc_was_enabled:
+                gc.enable()
+            msg(format_summary(summary), verbose, D_VERB_LVL)
+            return result, summary
+
+        return wrapper_profile_time
+
+    return decorator_profile_time
 
 
 # ======================================================================
