@@ -6937,9 +6937,12 @@ def profile_time(
         max_iter=1000000000,
         min_iter=7,
         max_time=2,
+        batch_size=7,
+        batch_combine=min,
         timer=time.time,
         use_gc=True,
-        verbose=True):
+        quick=True,
+        verbose=D_VERB_LVL):
     """
     Time-profiler decorator for measuring the execution time of a function.
 
@@ -6950,12 +6953,20 @@ def profile_time(
         max_iter (int): Max number of iterations.
         min_iter (int): Min number of iterations.
             If the min number of iterations requires longer than `max_time`
-            the `max_time` limit, is ignored and exactly `min_iter`
-            iterations are performed.
+            and `quick` is False, the `max_time` limit is ignored and exactly
+            `min_iter` iterations are performed.
         max_time (int|float): Max time for testing in s.
             Note that this may be ignored, see `min_iter` parameter.
+        batch_size (int): The size of the batch.
+            Must be greater than or equal to 1.
+        batch_combine (callable): Determine how to combine batch timings.
+            For deterministic inputs and ignoring caching effects, this
+            should be set to `min()`.
         timer (callable): The function used to measure the timings.
         use_gc (bool): Use the garbage collection during the timing.
+        quick (bool): Force exiting the repetition loops.
+            If this is True, the `max_time` is forced within the execution
+            time of a single instance.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -6973,23 +6984,28 @@ def profile_time(
         t_units = order_to_prefix(val_order)
         num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
         n_units = order_to_prefix(num_order)
-        if verbose >= VERB_LVL['']:
+        if verbose >= VERB_LVL['medium']:
             kws_list = [
                 elide(k + '=' + str(v), kws_limit)
                 for k, v in summary['kws'].items()]
-            args_list = [str(arg) for arg in summary['args']]
+            args_list = [
+                elide(str(arg), line_limit // 2) for arg in summary['args']]
             args = '(' + ', '.join(args_list + kws_list) + ')'
             if len(args) > line_limit // 2:
                 args = '(' + '\n\t' + ',\n\t'.join(args_list + kws_list) + ')'
         else:
-            args = '(' + elide('') + ')'
-        name = summary['name']
+            args = '(..)'
+        name = summary['func_name']
+        batch_name = summary['batch_name']
+        batch_num = summary['batch_size']
         name_s = '{name}{args}'.format(**locals())
         time_s = 'time = ({val} ± {err}) {t_units}s'.format(**locals())
-        num_s = 'iterations ~ {num}{n_units}'.format(**locals())
-        result = ': {name_s};  {time_s};  {num_s}'.format(**locals())
+        num_s = 'loops = {num}{n_units}'.format(**locals())
+        batch_s = '{batch_name}({batch_num})'.format(**locals())
+        result = ': ' + ';  '.join([name_s, time_s, num_s, batch_s])
         if len(result) > line_limit:
-            result = ': {name_s}\n  {time_s};  {num_s}\n'.format(**locals())
+            result = ': ' + name_s + '\n  ' \
+                     + ';  '.join([time_s, num_s, batch_s])
         return result
 
     # ----------------------------------------------------------
@@ -7004,24 +7020,32 @@ def profile_time(
                 gc.disable()
             mean_time = sosd_time = 0.0
             init_time = timer()
+            total_time = 0
             result = None
-            i = 0
+            i = j = 1
             while i < max_iter:
-                begin_time = timer()
-                result = func(*_args, **_kws)
-                end_time = timer()
-                run_time = end_time - begin_time
+                run_times = []
+                for j in range(batch_size):
+                    begin_time = timer()
+                    result = func(*_args, **_kws)
+                    end_time = timer()
+                    run_times.append(end_time - begin_time)
+                    total_time = end_time - init_time
+                    if total_time > max_time:
+                        break
+                run_time = batch_combine(run_times)
                 mean_time, sosd_time = next_mean_sosd(
-                    run_time, mean_time, sosd_time, i)
-                total_time = end_time - init_time
-                if total_time > max_time and i > min_iter:
+                    run_time, mean_time, sosd_time, i - 1)
+                if total_time > max_time and (i > min_iter or quick):
                     break
                 else:
                     i += 1
             summary = dict(
-                result=result, name=func.__name__, args=_args, kws=_kws,
+                result=result, func_name=func.__name__, args=_args, kws=_kws,
                 num=i, mean=mean_time, sosd=sosd_time,
-                var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i))
+                var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i),
+                batch_name=batch_combine.__name__,
+                batch_size=j + 1 if i == 1 else batch_size)
             if gc_was_enabled:
                 gc.enable()
             else:
