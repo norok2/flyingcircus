@@ -61,7 +61,7 @@ from flyingcircus import HAS_JIT, jit
 
 
 # ======================================================================
-# :: Default values usable in functions.
+# :: Default values usable in functions
 CSV_DELIMITER = '\t'
 CSV_COMMENT_TOKEN = '#'
 EXT = {
@@ -73,10 +73,15 @@ EXT = {
     'lzip': 'lz',
 }
 D_TAB_SIZE = 8
+# : define SI base-1000 prefix
+SI_PREFIX = {
+    'base1000+': ('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
+    'base1000-': ('m', 'μ', 'n', 'p', 'f', 'a', 'z', 'y')}
+SI_PREFIX['base1000'] = \
+    ('',) + SI_PREFIX['base1000+'] + SI_PREFIX['base1000-'][::-1]
 
 # ======================================================================
 # :: define C types
-
 # : short form (base types used by `struct`)
 _STRUCT_TYPES = (
     'x',  # pad bytes
@@ -97,7 +102,6 @@ _STRUCT_TYPES = (
     's', 'p',  # char[]
     'P',  # void * (only support mode: '@')
 )
-
 # : data type format conversion for `struct`
 # ... same as: dict(zip(_STRUCT_TYPES, _STRUCT_TYPES))
 DTYPE_STR = {s: s for s in _STRUCT_TYPES}
@@ -125,12 +129,6 @@ DTYPE_STR.update({
     'double': 'd',
     'str': 's',
 })
-# : define SI base-1000 prefix
-SI_PREFIX = {
-    'base1000+': ('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
-    'base1000-': ('m', 'μ', 'n', 'p', 'f', 'a', 'z', 'y')}
-SI_PREFIX['base1000'] = \
-    ('',) + SI_PREFIX['base1000+'] + SI_PREFIX['base1000-'][::-1]
 
 
 # ======================================================================
@@ -6940,7 +6938,7 @@ def profile_time(
         min_iter=7,
         max_time=2,
         timer=time.time,
-        disable_gc=True,
+        use_gc=True,
         verbose=True):
     """
     Time-profiler decorator for measuring the execution time of a function.
@@ -6951,9 +6949,13 @@ def profile_time(
     Args:
         max_iter (int): Max number of iterations.
         min_iter (int): Min number of iterations.
+            If the min number of iterations requires longer than `max_time`
+            the `max_time` limit, is ignored and exactly `min_iter`
+            iterations are performed.
         max_time (int|float): Max time for testing in s.
+            Note that this may be ignored, see `min_iter` parameter.
         timer (callable): The function used to measure the timings.
-        disable_gc (bool): Disable the garbage collection during testing.
+        use_gc (bool): Use the garbage collection during the timing.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -6969,7 +6971,7 @@ def profile_time(
         val = round(scale_to_order(summary['mean'], 10, 3, val_order), prec)
         err = round(scale_to_order(summary['stdev'], 10, 3, val_order), prec)
         t_units = order_to_prefix(val_order)
-        num = round(scale_to_order(summary['num'], 10, 3, num_order))
+        num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
         n_units = order_to_prefix(num_order)
         if verbose >= VERB_LVL['']:
             kws_list = [
@@ -6996,12 +6998,15 @@ def profile_time(
         # ----------------------------------------------------------
         def wrapper_profile_time(*_args, **_kws):
             gc_was_enabled = gc.isenabled()
-            if disable_gc and gc_was_enabled:
+            if use_gc:
+                gc.enable()
+            else:
                 gc.disable()
             mean_time = sosd_time = 0.0
             init_time = timer()
-            i = result = None
-            for i in range(max_iter):
+            result = None
+            i = 0
+            while i < max_iter:
                 begin_time = timer()
                 result = func(*_args, **_kws)
                 end_time = timer()
@@ -7011,11 +7016,16 @@ def profile_time(
                 total_time = end_time - init_time
                 if total_time > max_time and i > min_iter:
                     break
+                else:
+                    i += 1
             summary = dict(
-                result=result, num=i, mean=mean_time, sosd=sosd_time,
+                result=result, name=func.__name__, args=_args, kws=_kws,
+                num=i, mean=mean_time, sosd=sosd_time,
                 var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i))
-            if not gc.isenabled() and gc_was_enabled:
+            if gc_was_enabled:
                 gc.enable()
+            else:
+                gc.disable()
             msg(format_summary(summary), verbose, D_VERB_LVL)
             return result, summary
 
