@@ -6119,7 +6119,6 @@ def significant_figures(
         ofm = 'e{:+d}'.format(order)
     elif prec < 0:
         prec = 0
-
     # print('val={}, num={}, ord={}, prec={}, ofm={}'.format(
     #     val, num, order, prec, ofm))  # DEBUG
     val = '{val:.{prec}f}{ofm}'.format(val=val, prec=prec, ofm=ofm)
@@ -6978,9 +6977,10 @@ def profile_time(
         val_order = order_of_magnitude(summary['mean'], 10, 3)
         err_order = order_of_magnitude(summary['stdev'], 10, 3)
         num_order = order_of_magnitude(summary['num'], 10, 3)
-        prec = -min(0, err_order - val_order) * 3
-        val = round(scale_to_order(summary['mean'], 10, 3, val_order), prec)
-        err = round(scale_to_order(summary['stdev'], 10, 3, val_order), prec)
+        val, err = format_value_error(
+            scale_to_order(summary['mean'], 10, 3, val_order),
+            scale_to_order(summary['stdev'], 10, 3, val_order),
+            3, 6)
         t_units = order_to_prefix(val_order)
         num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
         n_units = order_to_prefix(num_order)
