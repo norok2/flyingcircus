@@ -7006,6 +7006,13 @@ def profile_time(
         if len(result) > line_limit:
             result = ': ' + name_s + '\n  ' \
                      + ';  '.join([time_s, num_s, batch_s])
+        if verbose >= VERB_LVL['medium']:
+            result += \
+                '\n  ' + 'mean_time = ' + str(summary['mean']) + ';  ' \
+                + 'stdev_time = ' + str(summary['stdev']) + ';\n  ' \
+                + 'min_time = ' + str(summary['min']) + ';  ' \
+                + 'max_time = ' + str(summary['max']) + ';\n  ' \
+                + 'minmax_range = ' + str(summary['minmax_range'])
         return result
 
     # ----------------------------------------------------------
@@ -7018,7 +7025,7 @@ def profile_time(
                 gc.enable()
             else:
                 gc.disable()
-            mean_time = sosd_time = 0.0
+            mean_time = sosd_time = min_time = max_time = 0.0
             init_time = timer()
             total_time = 0
             result = None
@@ -7034,6 +7041,10 @@ def profile_time(
                     if total_time > max_time:
                         break
                 run_time = batch_combine(run_times)
+                if run_time < min_time or i == 1:
+                    min_time = run_time
+                if run_time > max_time or i == 1:
+                    max_time = run_time
                 mean_time, sosd_time = next_mean_sosd(
                     run_time, mean_time, sosd_time, i - 1)
                 if total_time > max_time and (i > min_iter or quick):
@@ -7044,6 +7055,7 @@ def profile_time(
                 result=result, func_name=func.__name__, args=_args, kws=_kws,
                 num=i, mean=mean_time, sosd=sosd_time,
                 var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i),
+                min=min_time, max=max_time,
                 batch_name=batch_combine.__name__,
                 batch_size=j + 1 if i == 1 else batch_size)
             if gc_was_enabled:
