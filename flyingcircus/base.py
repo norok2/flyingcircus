@@ -180,10 +180,17 @@ class Infix(object):
         >>> to = Infix(range)
         >>> to(1, 10)
         range(1, 10)
-        >>> 1 - to - 10
+        >>> 1 | to | 10
         range(1, 10)
-        >>> [x for x in 1 - to - 15]
+        >>> [x for x in 1 | to | 15]
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+        >>> @Infix
+        ... def till(a, b):
+        ...     return range(a, b)
+        >>> (1 | to | 10) == (1 | to | 10)
+        True
+
         >>> ((1 - to - 9) == (1 + to + 9) == (1 * to * 9) == (1 / to / 9)
         ...  == (1 // to // 9) == (1 % to % 9)
         ...  == (1 >> to >> 9) == (1 << to << 9)
@@ -191,6 +198,7 @@ class Infix(object):
         True
     """
 
+    # ----------------------------------------------------------
     def __init__(self, func):
         """
         Args:
@@ -199,21 +207,57 @@ class Infix(object):
         """
         self.func = func
 
-    def _forward(self, other):
-        return self.func(other)
+    # ----------------------------------------------------------
+    class RBind:
+        # ----------------------------------------------------------
+        def __init__(self, func, binded):
+            self.func = func
+            self.binded = binded
 
-    def _backward(self, other):
-        return Infix(lambda x, self=self, other=other: self.func(other, x))
+        # ----------------------------------------------------------
+        def __call__(self, other):
+            return self.func(other, self.binded)
 
-    __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
-        __mod__ = __matmul__ = __lshift__ = __rshift__ = \
-        __or__ = __and__ = __xor__ = _forward
-    __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
-        __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
-        __ror__ = __rand__ = __rxor__ = _backward
+        # ----------------------------------------------------------
+        __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
+            __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
+            __ror__ = __rand__ = __rxor__ = __call__
 
+    # ----------------------------------------------------------
+    class LBind:
+        # ----------------------------------------------------------
+        def __init__(self, func, binded):
+            self.func = func
+            self.binded = binded
+
+        # ----------------------------------------------------------
+        def __call__(self, other):
+            return self.func(self.binded, other)
+
+        # ----------------------------------------------------------
+        __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
+            __mod__ = __matmul__ = __lshift__ = __rshift__ = \
+            __or__ = __and__ = __xor__ = __call__
+
+    # ----------------------------------------------------------
+    def rbind(self, other):
+        return self.RBind(self.func, other)
+
+    # ----------------------------------------------------------
+    def lbind(self, other):
+        return self.LBind(self.func, other)
+
+    # ----------------------------------------------------------
     def __call__(self, value1, value2):
         return self.func(value1, value2)
+
+    # ----------------------------------------------------------
+    __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
+        __mod__ = __matmul__ = __lshift__ = __rshift__ = \
+        __or__ = __and__ = __xor__ = rbind
+    __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
+        __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
+        __ror__ = __rand__ = __rxor__ = lbind
 
 
 # ======================================================================
