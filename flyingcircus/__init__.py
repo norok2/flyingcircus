@@ -14,7 +14,7 @@ from __future__ import (
 # ======================================================================
 # :: Python Standard Library Imports
 import datetime  # Basic date and time types
-# import inspect  # Inspect live objects
+import inspect  # Inspect live objects
 import os  # Miscellaneous operating system interfaces
 import appdirs  # Determine appropriate platform-specific dirs
 import pkg_resources  # Manage package resource (from setuptools module)
@@ -26,7 +26,7 @@ import pkg_resources  # Manage package resource (from setuptools module)
 
 # ======================================================================
 # :: Version
-from ._version import __version__
+from flyingcircus._version import __version__
 
 # ======================================================================
 # :: Project Details
@@ -225,16 +225,13 @@ def dbg(obj, fmt=None):
         >>> dbg(my_dict['a'])
         dbg(my_dict['a']): 1
     """
-    import inspect
-
-
     outer_frame = inspect.getouterframes(inspect.currentframe())[1]
     name_str = outer_frame[4][0][:-1]
     msg(name_str, fmt=fmt, end=': ')
     if isinstance(obj, dict):
         obj = tuple(sorted(obj.items()))
     text = repr(obj)
-    msg(text, fmt='')
+    msg(text, fmt='normal')
 
 
 # ======================================================================
@@ -258,7 +255,6 @@ def elapsed(
         # outer_frame = inspect.getouterframes(inspect.currentframe())[1]
         filename = __file__
         name = os.path.basename(filename)
-
     if not time_point:
         time_point = datetime.datetime.now()
     events.append((name, time_point))
@@ -310,11 +306,9 @@ def report(
                       for max_col_width in max_col_widths]))
 
             first_elapsed = events[0][1]
-            for i in range(len(events) - 1):
-                _id = i + 1
-                name = events[_id][0]
-                curr_elapsed = events[_id][1]
-                prev_elapsed = events[_id - 1][1]
+            for i in range(1, len(events)):
+                name, curr_elapsed = events[i]
+                prev_elapsed = events[i - 1][1]
                 diff_first = curr_elapsed - first_elapsed
                 diff_last = curr_elapsed - prev_elapsed
                 if diff_first == diff_last:
@@ -323,10 +317,8 @@ def report(
                     name[:max_col_widths[0]], diff_last, diff_first))
         elif len(events) > 1:
             fmt = '{{!s:{}s}}  {{!s:>{}s}}'.format(*max_col_widths)
-            _id = -1
-            name = events[_id][0]
-            curr_elapsed = events[_id][1]
-            prev_elapsed = events[_id - 1][1]
+            name, curr_elapsed = events[-1]
+            prev_elapsed = events[0][1]
             text += (fmt.format(name, curr_elapsed - prev_elapsed))
         else:
             events = None
@@ -381,17 +373,26 @@ def pkg_paths(
 PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
 
 # ======================================================================
+elapsed(os.path.basename(__file__))
+
+# ======================================================================
 # : populate flyingcircus namespace with submodules
 import flyingcircus.base
 import flyingcircus.extra
-
-# ======================================================================
-elapsed()
 
 # ======================================================================
 if __name__ == '__main__':
     import doctest  # Test interactive Python examples
 
     msg(__doc__.strip())
-    doctest.testmod()
+    msg('Running `doctest.testmod()`... ', fmt='bold')
+    results = doctest.testmod()  # RUN TESTS HERE!
+    results_ok = results.attempted - results.failed
+    results_fmt = '{t.bold}{t.red}' \
+        if results.failed > 0 else '{t.bold}{t.green}'
+    msg('Tests = {results.attempted}; '.format(**locals()),
+        fmt='{t.bold}{t.cyan}', end='')
+    msg('OK = {results_ok}; '.format(**locals()),
+        fmt='{t.bold}{t.green}', end='')
+    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
     msg(report())
