@@ -188,7 +188,7 @@ class Infix(object):
         >>> @Infix
         ... def till(a, b):
         ...     return range(a, b)
-        >>> (1 | to | 10) == (1 | to | 10)
+        >>> (1 | to | 10) == (1 | till | 10)
         True
 
         >>> ((1 + to + 9) == (1 - to - 9) == (1 * to * 9) == (1 / to / 9)
