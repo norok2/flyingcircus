@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-flyingcircus.util: generic basic utilities.
+flyingcircus.base: generic basic utilities.
 """
 
 # ======================================================================
@@ -167,6 +167,53 @@ def _is_special(stats_mode):
         not stat.S_ISDIR(stats_mode) and \
         not stat.S_ISLNK(stats_mode)
     return is_special
+
+
+# ======================================================================
+class Infix(object):
+    """
+    Emulate an infix operator using an arbitrary variable.
+
+    This can also be used as a decorator.
+
+    Examples:
+        >>> to = Infix(range)
+        >>> to(1, 10)
+        range(1, 10)
+        >>> 1 - to - 10
+        range(1, 10)
+        >>> [x for x in 1 - to - 15]
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        >>> ((1 - to - 9) == (1 + to + 9) == (1 * to * 9) == (1 / to / 9)
+        ...  == (1 // to // 9) == (1 % to % 9)
+        ...  == (1 >> to >> 9) == (1 << to << 9)
+        ...  == (1 | to | 9) == (1 & to & 9) == (1 ^ to ^ 9))
+        True
+    """
+
+    def __init__(self, func):
+        """
+        Args:
+            func (callable): The function to emulate the binary operator.
+                The function must support two positional arguments.
+        """
+        self.func = func
+
+    def _forward(self, other):
+        return self.func(other)
+
+    def _backward(self, other):
+        return Infix(lambda x, self=self, other=other: self.func(other, x))
+
+    __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
+        __mod__ = __matmul__ = __lshift__ = __rshift__ = \
+        __or__ = __and__ = __xor__ = _forward
+    __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
+        __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
+        __ror__ = __rand__ = __rxor__ = _backward
+
+    def __call__(self, value1, value2):
+        return self.func(value1, value2)
 
 
 # ======================================================================
@@ -343,6 +390,7 @@ def iter_at(
 
 
 # ======================================================================
+@Infix
 def span(
         first,
         second=None,
@@ -398,6 +446,8 @@ def span(
         [-1, -3, -5, -7, -9]
         >>> print(list(span(-1, -11, -2)))
         [-1, -3, -5, -7, -9, -11]
+
+        >>> 1 - span - 10 == span(1, 10)
     """
     if second is None:
         start, stop = 1, first
@@ -583,7 +633,7 @@ def all_equal(items):
         >>> all(all_equal(x) for x in ((), [], {}, set()))
         True
     """
-    if isinstance(items, collections.Sequence):
+    if isinstance(items, collections.abc.Sequence):
         return items[1:] == items[:-1]
     else:
         iter_items = iter(items)
@@ -2990,7 +3040,7 @@ def factorize(num):
     Find all factors of a number.
 
     Args:
-        num (int): The number to factorize.
+        num (int|float): The number to factorize.
 
     Yields:
         factor (int): The next factor of the number.
@@ -3009,20 +3059,24 @@ def factorize(num):
         [1]
         >>> list(factorize(-1))
         [-1]
+        >>> list(factorize(987654321.0))
+        [3, 3, 17, 17, 379721]
         >>> all([n == prod(factorize(n)) for n in range(1000)])
         True
     """
     # deal with special numbers: 0, 1, and negative
+    if not isinstance(num, int):
+        num = int(round(num))
+
     if num == 0:
-        text = 'Factorization of `0` is undefined.'
-        warnings.warn(text)
+        yield 0
 
     if num < 0:
         yield -1
-    elif num <= 1:
+    elif num == 1:
         yield num
 
-    num = abs(num)
+    num = int(abs(num))
 
     primes = get_primes()
     prime = next(primes)
@@ -7071,12 +7125,21 @@ def profile_time(
 
 
 # ======================================================================
-elapsed(__file__[len(PATH['base']) + 1:])
+elapsed(os.path.basename(__file__))
 
 # ======================================================================
 if __name__ == '__main__':
     import doctest  # Test interactive Python examples
 
     msg(__doc__.strip())
-    doctest.testmod()
+    msg('Running `doctest.testmod()`... ', fmt='bold')
+    results = doctest.testmod()  # RUN TESTS HERE!
+    results_ok = results.attempted - results.failed
+    results_fmt = '{t.bold}{t.red}' \
+        if results.failed > 0 else '{t.bold}{t.green}'
+    msg('Tests = {results.attempted}; '.format(**locals()),
+        fmt='{t.bold}{t.cyan}', end='')
+    msg('OK = {results_ok}; '.format(**locals()),
+        fmt='{t.bold}{t.green}', end='')
+    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
     msg(report())
