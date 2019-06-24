@@ -191,8 +191,8 @@ class Infix(object):
         >>> (1 | to | 10) == (1 | to | 10)
         True
 
-        >>> ((1 - to - 9) == (1 + to + 9) == (1 * to * 9) == (1 / to / 9)
-        ...  == (1 // to // 9) == (1 % to % 9)
+        >>> ((1 + to + 9) == (1 - to - 9) == (1 * to * 9) == (1 / to / 9)
+        ...  == (1 // to // 9) == (1 % to % 9) == (1 ** to ** 9)
         ...  == (1 >> to >> 9) == (1 << to << 9)
         ...  == (1 | to | 9) == (1 & to & 9) == (1 ^ to ^ 9))
         True
@@ -220,7 +220,7 @@ class Infix(object):
 
         # ----------------------------------------------------------
         __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
-            __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
+            __rmod__ = __rpow__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
             __ror__ = __rand__ = __rxor__ = __call__
 
     # ----------------------------------------------------------
@@ -236,7 +236,7 @@ class Infix(object):
 
         # ----------------------------------------------------------
         __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
-            __mod__ = __matmul__ = __lshift__ = __rshift__ = \
+            __mod__ = __pow__ =  __matmul__ = __lshift__ = __rshift__ = \
             __or__ = __and__ = __xor__ = __call__
 
     # ----------------------------------------------------------
@@ -253,10 +253,10 @@ class Infix(object):
 
     # ----------------------------------------------------------
     __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
-        __mod__ = __matmul__ = __lshift__ = __rshift__ = \
+        __mod__ = __pow__ = __matmul__ = __lshift__ = __rshift__ = \
         __or__ = __and__ = __xor__ = rbind
     __radd__ = __rsub__ = __rmul__ = __rtruediv__ = __rfloordiv__ = \
-        __rmod__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
+        __rmod__ = __rpow__ = __rmatmul__ = __rlshift__ = __rrshift__ = \
         __ror__ = __rand__ = __rxor__ = lbind
 
 
