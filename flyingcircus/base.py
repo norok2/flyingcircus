@@ -7034,7 +7034,7 @@ def multi_scale_to_int(
 def profile_time(
         max_iter=1000000000,
         min_iter=7,
-        max_time=2,
+        timeout=2,
         batch_size=7,
         batch_combine=min,
         timer=time.time,
@@ -7053,7 +7053,7 @@ def profile_time(
             If the min number of iterations requires longer than `max_time`
             and `quick` is False, the `max_time` limit is ignored and exactly
             `min_iter` iterations are performed.
-        max_time (int|float): Max time for testing in s.
+        timeout (int|float): Max time for testing in s.
             Note that this may be ignored, see `min_iter` parameter.
         batch_size (int): The size of the batch.
             Must be greater than or equal to 1.
@@ -7137,7 +7137,7 @@ def profile_time(
                     end_time = timer()
                     run_times.append(end_time - begin_time)
                     total_time = end_time - init_time
-                    if total_time > max_time:
+                    if total_time > timeout:
                         break
                 run_time = batch_combine(run_times)
                 if run_time < min_time or i == 1:
@@ -7146,7 +7146,7 @@ def profile_time(
                     max_time = run_time
                 mean_time, sosd_time = next_mean_sosd(
                     run_time, mean_time, sosd_time, i - 1)
-                if total_time > max_time and (i > min_iter or quick):
+                if total_time > timeout and (i > min_iter or quick):
                     break
                 else:
                     i += 1
