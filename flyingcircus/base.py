@@ -7034,7 +7034,7 @@ def multi_scale_to_int(
 def profile_time(
         max_iter=1000000000,
         min_iter=7,
-        timeout=2,
+        timeout=2.0,
         batch_size=7,
         batch_combine=min,
         timer=time.time,
@@ -7069,6 +7069,15 @@ def profile_time(
 
     Returns:
         decorator_profile_time (callable): The decorator.
+
+    Examples:
+        >>> @profile_time(timeout=1.0)
+        ... def my_func(a, b):
+        ...     return [0 for _ in range(a) for _ in range(b)]
+        >>> x = my_func(100, 100)  # doctest:+ELLIPSIS
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        >>> x = my_func(1000, 1000)  # doctest:+ELLIPSIS
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
     """
 
     # ----------------------------------------------------------
@@ -7126,16 +7135,16 @@ def profile_time(
                 gc.disable()
             mean_time = sosd_time = min_time = max_time = 0.0
             init_time = timer()
-            total_time = 0
+            total_time = 0.0
             result = None
             i = j = 1
+            run_times = [0.0] * batch_size
             while i < max_iter:
-                run_times = []
                 for j in range(batch_size):
                     begin_time = timer()
                     result = func(*_args, **_kws)
                     end_time = timer()
-                    run_times.append(end_time - begin_time)
+                    run_times[j] = end_time - begin_time
                     total_time = end_time - init_time
                     if total_time > timeout:
                         break
