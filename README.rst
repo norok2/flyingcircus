@@ -18,9 +18,9 @@ FlyingCircus
 Overview
 --------
 
-This software provides a library of miscellaneous utilities for Python.
-It is relatively easy to extend and users are encouraged to tweak with
-it.
+This software provides a library of miscellaneous utilities / recipes for
+generic computations with Python and NumPy.
+It is relatively easy to extend and users are encouraged to tweak with it.
 
 Most of the code is used in a number of projects where it is tested
 against real-life scenarios.
