@@ -237,7 +237,7 @@ class Infix(object):
 
         # ----------------------------------------------------------
         __add__ = __sub__ = __mul__ = __truediv__ = __floordiv__ = \
-            __mod__ = __pow__ =  __matmul__ = __lshift__ = __rshift__ = \
+            __mod__ = __pow__ = __matmul__ = __lshift__ = __rshift__ = \
             __or__ = __and__ = __xor__ = __call__
 
     # ----------------------------------------------------------
@@ -1649,119 +1649,6 @@ def deep_filter_map(
 
 
 # ======================================================================
-def prod(
-        items,
-        start=1):
-    """
-    Calculate the product of arbitrary items.
-
-    This is similar to `sum`, but uses product instead of addition.
-
-    Args:
-        items (Iterable): The input items.
-        start (Any|None): The initial value.
-
-    Returns:
-        result: The cumulative product of `items`.
-
-    Examples:
-        >>> prod([2] * 10)
-        1024
-    """
-    for item in items:
-        start *= item
-    return start
-
-
-# ======================================================================
-def pairwise_map(
-        items,
-        func,
-        flip_args=False):
-    """
-    Calculate the pairwise difference of arbitrary items.
-
-    This is similar to `div`, but uses subtraction instead of division.
-
-    Args:
-        items (Iterable): The input items.
-        func (callable): The pairwise operator to apply.
-        flip_args (bool): Flips the order of the arguments in `func()`.
-
-    Yields:
-        value: The next pairwise difference.
-
-    Examples:
-        >>> list(diff(range(10)))
-        [1, 1, 1, 1, 1, 1, 1, 1, 1]
-    """
-    items = iter(items)
-    last_item = next(items)
-    # : condition is before the loop for performance
-    if not flip_args:
-        for i, item in enumerate(items):
-            yield func(item, last_item)
-            last_item = item
-    else:
-        for i, item in enumerate(items):
-            yield func(last_item, item)
-            last_item = item
-
-
-# ======================================================================
-def diff(
-        items,
-        flip=False):
-    """
-    Calculate the pairwise difference of arbitrary items.
-
-    This is similar to `div`, but uses subtraction instead of division.
-
-    Args:
-        items (Iterable): The input items.
-
-    Yields:
-        value: The next pairwise difference.
-        flip (bool): Flips the order of the operands.
-
-    Examples:
-        >>> list(diff(range(10)))
-        [1, 1, 1, 1, 1, 1, 1, 1, 1]
-        >>> list(diff(range(10), True))
-        [-1, -1, -1, -1, -1, -1, -1, -1, -1]
-    """
-    return pairwise_map(items, operator.sub, flip_args=flip)
-
-
-# ======================================================================
-def div(
-        items,
-        flip=False):
-    """
-    Calculate the pairwise division of arbitrary items.
-
-    This is similar to `diff`, but uses division instead of subtraction.
-
-    Args:
-        items (Iterable): The input items.
-        flip (bool): Flips the order of the operands.
-
-    Yields:
-        value: The next pairwise division.
-
-    Examples:
-        >>> items = [2 ** x for x in range(10)]
-        >>> items
-        [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
-        >>> list(div(items))
-        [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
-        >>> list(div(items, True))
-        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
-    """
-    return pairwise_map(items, operator.truediv, flip_args=flip)
-
-
-# ======================================================================
 def uniques(items):
     """
     Get unique items (keeping order of appearance).
@@ -1841,12 +1728,68 @@ def combine_iter_len(
 
 
 # ======================================================================
+def pairwise_map(
+        func,
+        items,
+        reverse=False):
+    """
+    Apply a binary function to consecutive elements in an iterable.
+
+    The same can be obtained combining `map()` and `flyingcircus.base.slide()`,
+    but this is faster.
+
+    Args:
+        func (callable): The pairwise operator to apply.
+        items (Iterable): The input items.
+        reverse (bool): Reverse the order of the arguments in `func()`.
+
+    Yields:
+        value: The result of func applied to the next pair.
+
+    Examples:
+        >>> list(pairwise_map(lambda x, y: (x, y), range(8)))
+        [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7)]
+        >>> list(pairwise_map(lambda x, y: (x, y), range(8), True))
+        [(1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6)]
+        >>> list(pairwise_map(lambda x, y: x < y, range(10)))
+        [True, True, True, True, True, True, True, True, True]
+        >>> list(pairwise_map(lambda x, y: x < y, []))
+        []
+
+        >>> def sub_args(x): return x[0] - x[1]
+        >>> items = range(1000)
+        >>> all(x == y for x, y in zip(
+        ...     pairwise_map(operator.sub, items),
+        ...     map(sub_args, slide(items, 2))))
+        True
+
+    See Also:
+        - flyingcircus.base.slide()
+    """
+    items = iter(items)
+    try:
+        last_item = next(items)
+    except StopIteration:
+        pass
+    # : condition is before the loop for performance
+    if reverse:
+        for item in items:
+            yield func(item, last_item)
+            last_item = item
+    else:
+        for item in items:
+            yield func(last_item, item)
+            last_item = item
+
+
+# ======================================================================
 def slide(
         items,
         size=2,
         step=1,
         truncate=True,
-        fill=None):
+        fill=None,
+        reverse=False):
     """
     Generate a sliding grouping / window across the items.
 
@@ -1863,6 +1806,7 @@ def slide(
             If True, last groups are skipped if smaller than `size`.
         fill (Any): Value to use for filling the last group.
             This is only used when `truncate` is False.
+        reverse (bool): Reverse the order within the window.
 
     Returns:
         result (zip|itertools.zip_longest): Iterable of items within window.
@@ -1891,6 +1835,9 @@ def slide(
         ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
         >>> tuple(slide(range(8), 1, 2))
         ((0,), (2,), (4,), (6,))
+
+        >>> tuple(slide(range(8), 2, reverse=True))
+        ((1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6))
     """
     if step > 1:
         iters = [
@@ -1902,6 +1849,8 @@ def slide(
             return iterator
 
         iters = [consumed(iter(items), i) for i in range(size)]
+    if reverse:
+        iters = iters[::-1]
     if truncate:
         return zip(*iters)
     else:
@@ -2395,6 +2344,154 @@ def latin_square(
 
 
 # ======================================================================
+def is_sorted(
+        items,
+        compare=lambda x, y: x <= y,
+        both=True):
+    """
+    Determine if an iterable is sorted or not.
+
+    Args:
+        items (Iterable): The input items.
+        compare (callable): The comparison function.
+            Must have the signature: compare(Any, Any) -> bool.
+        both (bool): Compare the items both forward and backward.
+
+    Returns:
+        result (bool): The result of the comparison for all consecutive pairs.
+
+    Examples:
+        >>> items = list(range(10))
+        >>> print(items)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> is_sorted(items)
+        True
+        >>> is_sorted(items[::-1])
+        True
+        >>> is_sorted(items[::-1], both=False)
+        False
+        >>> is_sorted(items[::-1], lambda x, y: x > y, both=False)
+        True
+
+        >>> items = [1] * 10
+        >>> print(items)
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        >>> is_sorted(items)
+        True
+        >>> is_sorted(items, lambda x, y: x < y)
+        False
+
+        >>> is_sorted([0, 1, 2, 4, 4, 5, 6, 7, 8, 9])
+        True
+        >>> is_sorted([0, 1, 2, 5, 4, 5, 6, 7, 8, 9])
+        False
+        >>> is_sorted([])
+        True
+        >>> is_sorted(iter([0, 1, 2, 4, 4, 5, 6, 7, 8, 9]))
+        True
+        >>> is_sorted(iter([0, 1, 2, 5, 4, 5, 6, 7, 8, 9]))
+        False
+
+    See Also:
+        - flyingcircus.base.pairwise_map()
+    """
+    result = all(pairwise_map(compare, items, False))
+    if both:
+        result = result or all(pairwise_map(compare, items, True))
+    return result
+
+
+# ======================================================================
+def search_sorted(
+        seq,
+        item):
+    """
+    Search for an item in a sorted sequence.
+
+    If the sequence is not sorted the results are unpredictable.
+    Internally, it uses a binary search, which is the theoretical optimal
+    algorithm for searching sorted sequences.
+
+    Note that if the item is present in the sequence, for built-in sequences,
+    the `.index()` method may be faster.
+
+    Args:
+        seq (Sequence): The input sequence.
+        item (Any): The item to search for.
+
+    Returns:
+        result (int): The matching index.
+            If `item` is in `seq`, this is the index at which `item` is found,
+            i.e. `item == seq[result]`
+            Otherwise, this is the index at which inserting `item` in `seq`
+            would result in a sorted sequence.
+
+    Examples:
+        >>> search_sorted(list(range(1000)), 500)
+        500
+        >>> search_sorted([x ** 2 for x in range(100)], 500)
+        23
+
+        >>> items = [x ** 2 for x in range(10)]
+        >>> print(items)
+        [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+        >>> value = 9
+        >>> i = search_sorted(items, value)
+        >>> print(items[i] == value)
+        True
+        >>> new_items = items[:i] + [value] + items[i:]
+        >>> print(new_items)
+        [0, 1, 4, 9, 9, 16, 25, 36, 49, 64, 81]
+        >>> print(is_sorted(new_items))
+        True
+
+        >>> value = 5
+        >>> i = search_sorted(items, value)
+        >>> print(items[i] == value)
+        False
+        >>> new_items = items[:i] + [value] + items[i:]
+        >>> print(new_items)
+        [0, 1, 4, 5, 9, 16, 25, 36, 49, 64, 81]
+        >>> print(is_sorted(new_items))
+        True
+
+        >>> all(search_sorted(items, x) == items.index(x) for x in items)
+        True
+
+        >>> search_sorted([], 'ciao')
+        0
+        >>> search_sorted(string.ascii_lowercase, 'x')
+        23
+
+        These fails because the input is not sorted!
+        >>> items = [1, 4, 6, 8, 2, 3, 5]
+        >>> value = 5
+        >>> search_sorted(items, value) == items.index(value)
+        False
+        >>> search_sorted(string.ascii_letters, 'X')
+        0
+
+    See Also:
+        - flyingcircus.base.is_sorted()
+    """
+    first = 0
+    last = len(seq) - 1
+    found = False
+    while first <= last and not found:
+        midpoint = (first + last) // 2
+        if seq[midpoint] == item:
+            first = midpoint
+            found = True
+        else:
+            if item < seq[midpoint]:
+                last = midpoint - 1
+            else:
+                first = midpoint + 1
+    return first
+
+
+# ======================================================================
 def seqmap2mapseq(
         data,
         labels=None,
@@ -2514,6 +2611,91 @@ def mapseq2seqmap(
             (label, data[label][i]) for label in labels
             if data[label][i] is not d_val)
         for i in range(num_elems))
+
+
+# ======================================================================
+def prod(
+        items,
+        start=1):
+    """
+    Calculate the product of arbitrary items.
+
+    This is similar to `sum`, but uses product instead of addition.
+
+    Args:
+        items (Iterable): The input items.
+        start (Any|None): The initial value.
+
+    Returns:
+        result: The cumulative product of `items`.
+
+    Examples:
+        >>> prod([2] * 10)
+        1024
+    """
+    for item in items:
+        start *= item
+    return start
+
+
+# ======================================================================
+def diff(
+        items,
+        reverse=False):
+    """
+    Calculate the pairwise difference of arbitrary items.
+
+    This is similar to `flyingcircus.base.div()`, but uses subtraction instead
+    of division.
+
+    Args:
+        items (Iterable): The input items.
+        reverse (bool): Reverse the order of the operands.
+
+    Yields:
+        value: The next pairwise difference.
+
+
+    Examples:
+        >>> list(diff(range(10)))
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        >>> list(diff(range(10), True))
+        [-1, -1, -1, -1, -1, -1, -1, -1, -1]
+    """
+    # : equivalent (slower) implementation
+    # return map(lambda x: x[1] - x[0], slide(items, 2, reverse=reverse))
+    return pairwise_map(operator.sub, items, reverse=not reverse)
+
+
+# ======================================================================
+def div(
+        items,
+        reverse=False):
+    """
+    Calculate the pairwise division of arbitrary items.
+
+    This is similar to `flyingcircus.base.diff()`, but uses division instead
+    of subtraction.
+
+    Args:
+        items (Iterable): The input items.
+        reverse (bool): Reverse the order of the operands.
+
+    Yields:
+        value: The next pairwise division.
+
+    Examples:
+        >>> items = [2 ** x for x in range(10)]
+        >>> items
+        [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+        >>> list(div(items))
+        [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        >>> list(div(items, True))
+        [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    """
+    # : equivalent (slower) implementation
+    # return map(lambda x: x[1] / x[0], slide(items, 2, reverse=reverse))
+    return pairwise_map(operator.truediv, items, reverse=not reverse)
 
 
 # ======================================================================
@@ -5052,7 +5234,7 @@ def listdir(
         path,
         file_ext='',
         full_path=True,
-        is_sorted=True,
+        sorting=True,
         verbose=D_VERB_LVL):
     """
     Retrieve a sorted list of files matching specified extension and pattern.
@@ -5062,7 +5244,7 @@ def listdir(
         file_ext (str|None): File extension. Empty string for all files.
             None for directories.
         full_path (bool): Include the full path.
-        is_sorted (bool): Sort results alphabetically.
+        sorting (bool): Sort results alphabetically.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -5084,7 +5266,7 @@ def listdir(
             os.path.join(path, filename) if full_path else filename
             for filename in os.listdir(path)
             if filename.lower().endswith(file_ext.lower())]
-    if is_sorted:
+    if sorting:
         filepaths = sorted(filepaths)
     return filepaths
 
