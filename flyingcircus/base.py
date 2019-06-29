@@ -7395,7 +7395,9 @@ def multi_benchmark(
             Each item correspond to an element of `funcs`.
         input_sizes (Iterable[int]): The input sizes.
         gen_input (callable): The function used to generate the input.
-            Must have the signature: gen_input(int) -> Any
+            Must have the signature: gen_input(int) -> Any.
+        time_prof_kws (dict|None): Keyword parameters for `time_profile`.
+            These are passed to `flyingcircus.base.time_profile()`.
         store_all (bool): Store all results.
             If True, all results are stores.
         msg_text (str): Text to use for printing output.
