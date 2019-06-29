@@ -7213,10 +7213,10 @@ def multi_scale_to_int(
 
 
 # ======================================================================
-def profile_time(
+def time_profile(
+        timeout=2.0,
         max_iter=1000000000,
         min_iter=7,
-        timeout=2.0,
         batch_size=7,
         batch_combine=min,
         timer=time.time,
@@ -7224,19 +7224,19 @@ def profile_time(
         quick=True,
         verbose=D_VERB_LVL):
     """
-    Time-profiler decorator for measuring the execution time of a function.
+    Estimate the execution time of a function with multiple repetitions.
 
-    This is similar to the functionality provided by `timeit` but works as
-    a decorator.
+    This is similar to the functionality provided by the `timeit` module,
+    but also works as a decorator.
 
     Args:
+        timeout (int|float): Max time for testing in s.
+            Note that this may be overridden by the `min_iter` parameter.
         max_iter (int): Max number of iterations.
         min_iter (int): Min number of iterations.
             If the min number of iterations requires longer than `max_time`
-            and `quick` is False, the `max_time` limit is ignored and exactly
-            `min_iter` iterations are performed.
-        timeout (int|float): Max time for testing in s.
-            Note that this may be ignored, see `min_iter` parameter.
+            and `quick` is False, the `max_time` limit is ignored until
+            at least `min_iter` iterations are performed.
         batch_size (int): The size of the batch.
             Must be greater than or equal to 1.
         batch_combine (callable): Determine how to combine batch timings.
@@ -7253,13 +7253,24 @@ def profile_time(
         decorator_profile_time (callable): The decorator.
 
     Examples:
-        >>> @profile_time(timeout=1.0)
+        >>> @time_profile(timeout=1.0)
         ... def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> x = my_func(100, 100)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
         >>> x = my_func(1000, 1000)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+
+        >>> def my_func(a, b):
+        ...     return [0 for _ in range(a) for _ in range(b)]
+        >>> my_func = time_profile(timeout=1.0)(my_func)
+        >>> x = my_func(100, 100)  # doctest:+ELLIPSIS
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        >>> x = my_func(1000, 1000)  # doctest:+ELLIPSIS
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+
+    See Also:
+        - flyingcircus.base.multi_benchmark()
     """
 
     # ----------------------------------------------------------
@@ -7358,6 +7369,102 @@ def profile_time(
         return wrapper_profile_time
 
     return decorator_profile_time
+
+
+# ======================================================================
+def multi_benchmark(
+        funcs,
+        argss=None,
+        kwss=None,
+        input_sizes=(10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000),
+        gen_input=lambda n: [random.random() for _ in range(n)],
+        time_prof_kws=None,
+        store_all=False,
+        msg_text='  {eq:>4s},  input_size={input_size}',
+        verbose=D_VERB_LVL):
+    """
+    Benchmark multiple functions for varying input size.
+
+    Args:
+        funcs (Iterable[callable]): The functions to test.
+            Must have the signature: func(input_, *args, **kws).
+            `args` and `kws` are from `argss` and `kwss` respectively.
+        argss (Iterable|None): The positional arguments for `funcs`.
+            Each item correspond to an element of `funcs`.
+        kwss (Iterable|None): The keyword arguments for `funcs`.
+            Each item correspond to an element of `funcs`.
+        input_sizes (Iterable[int]): The input sizes.
+        gen_input (callable): The function used to generate the input.
+            Must have the signature: gen_input(int) -> Any
+        store_all (bool): Store all results.
+            If True, all results are stores.
+        msg_text (str): Text to use for printing output.
+        verbose (int): Set level of verbosity.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - summaries (list[list[dict]]): The summary for each benchmark.
+             - labels (list[str]): The function names.
+             - results (list): The full results.
+                This is non-empty only if `store_all` is True.
+
+    Examples:
+        >>> def f1(items):
+        ...     return [item * item for item in items]
+        >>> def f2(items):
+        ...     return [item ** 2 for item in items]
+        >>> funcs = f1, f2
+        >>> summaries, labels, results = multi_benchmark(
+        ...     funcs, input_sizes=(10, 100, 1000),
+        ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
+        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=10
+        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=10
+        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=100
+        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=100
+        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=1000
+        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+            OK,  input_size=1000
+
+    See Also:
+        - flyingcircus.base.time_profile()
+    """
+    labels = [func.__name__ for func in funcs]
+    if argss is None:
+        argss = ()
+    if kwss is None:
+        kwss = ()
+    time_prof_kws = dict(time_prof_kws) if time_prof_kws is not None else {}
+    if 'verbose' not in time_prof_kws:
+        time_prof_kws['verbose'] = verbose
+    summaries = []
+    results = []
+    for i, input_size in enumerate(input_sizes):
+        inner_summaries = []
+        input_data = gen_input(input_size)
+        truth = None
+        for j, (func, args, kws) in \
+                enumerate(itertools.zip_longest(funcs, argss, kwss)):
+            args = tuple(args) if args is not None else ()
+            kws = dict(kws) if kws is not None else {}
+            func = time_profile(**time_prof_kws)(func)
+            result, summary = func(input_data, *args, **kws)
+            if j == 0:
+                truth = result
+            is_equal = truth == result
+            eq = 'OK' if is_equal else 'FAIL'
+            msg(msg_text.format(**locals()), verbose, D_VERB_LVL)
+            summary['is_equal'] = is_equal
+            inner_summaries.append(summary)
+            if store_all:
+                results.append(result)
+        summaries.append(inner_summaries)
+    return summaries, labels, results
 
 
 # ======================================================================
