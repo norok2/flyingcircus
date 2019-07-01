@@ -121,7 +121,7 @@ def msg(
         text,
         verb_lvl=D_VERB_LVL,
         verb_threshold=D_VERB_LVL,
-        fmt=None,
+        fmt=True,
         *_args,
         **_kws):
     """
@@ -131,8 +131,12 @@ def msg(
         text (str|Any): Message to display or object with `__repr__`.
         verb_lvl (int): Current level of verbosity.
         verb_threshold (int): Threshold level of verbosity.
-        fmt (str): Format of the message (if `blessed` supported).
-            If None, a standard formatting is used.
+        fmt (str|bool|None): Format of the message (if `blessed` supported).
+            If True, a standard formatting is used.
+            If False, empty string or None, no formatting is applied.
+            If str, the specified formatting is used.
+            This must be in the form of `{t.NAME}` where `NAME` refer to
+            a formatting supported by `Terminal()` from `blessed`/`blessings`.
         *_args: Positional arguments for `print()`.
         **_kws: Keyword arguments for `print()`.
 
@@ -156,21 +160,17 @@ def msg(
     if verb_lvl >= verb_threshold and text is not None:
         # if blessed/blessings is not present, no coloring
         try:
-            import blessed
+            from blessed import Terminal
         except ImportError:
             try:
-                import blessings as blessed
+                from blessings import Terminal
             except ImportError:
-                blessed = None
+                Terminal = False
 
-        try:
-            t = blessed.Terminal()
-        except (ValueError, AttributeError):
-            t = None
-
-        if blessed and t:
+        t = Terminal() if callable(Terminal) else None
+        if t is not None and fmt:
             text = str(text)
-            if not fmt:
+            if fmt is True:
                 if VERB_LVL['low'] < verb_threshold <= VERB_LVL['medium']:
                     e = t.cyan
                 elif VERB_LVL['medium'] < verb_threshold < VERB_LVL['debug']:
