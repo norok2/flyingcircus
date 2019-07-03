@@ -5594,8 +5594,8 @@ def frame(
     """
     Add a background frame to an array specifying the borders.
 
-    This is essentially a more convenient interface to `fc.num.padding()`.
-    Also, the output `mask` from `fc.num.padding()` is discarded.
+    This is essentially a more convenient interface to `fc.extra.padding()`.
+    Also, the output `mask` from `fc.extra.padding()` is discarded.
 
     Args:
         arr (np.ndarray): The input array.
@@ -5641,13 +5641,13 @@ def reframe(
 
     Args:
         arr (np.ndarray): The input array.
-            Its shape is passed as `shape` to `fc.num.shape_to_pad_width()`.
+            Its shape is passed as `shape` to `fc.extra.shape_to_pad_width()`.
         shape (int|Iterable[int]): The shape of the output array.
-            Passed as `new_shape` to `fc.num.shape_to_pad_width()`.
+            Passed as `new_shape` to `fc.extra.shape_to_pad_width()`.
         position (int|float|Iterable[int|float]): Position within new shape.
-            Passed as `position` to `fc.num.shape_to_pad_width()`.
+            Passed as `position` to `fc.extra.shape_to_pad_width()`.
         mode (str|Number): The padding mode.
-            This is passed to `fc.num.padding()`.
+            This is passed to `fc.extra.padding()`.
         **_kws: Keyword parameters for `flyingcircus.base.padding()`.
 
     Returns:
@@ -6531,7 +6531,7 @@ def rotation_axes(
         - flyingcircus.extra.weighted_covariance()
         - flyingcircus.extra.tensor_of_inertia()
         - flyingcircus.extra.auto_rotation()
-        - fc.num.realigning()
+        - fc.extra.realigning()
     """
     # calculate the tensor of inertia with respect to the weighted center
     inertia = tensor_of_inertia(arr, labels, index, None).astype(np.double)
@@ -7015,14 +7015,14 @@ def rolling_window_nd(
             - 'full': the full output is provided.
         pad_mode (Number|str): The padding mode.
             If `out_mode` is `valid` or `view` this parameter is ignored.
-            This is passed as `mode` to `fc.num.padding()`.
+            This is passed as `mode` to `fc.extra.padding()`.
         pad_kws (Mappable): Keyword parameters for padding.
             If `out_mode` is `valid` or `view` this parameter is ignored.
-            This is passed as `mode` to `fc.num.padding()`.
+            This is passed as `mode` to `fc.extra.padding()`.
         writeable (bool): Determine if the result entries can be overwritten.
-            This is passed to `fc.num.nd_windowing()`.
+            This is passed to `fc.extra.nd_windowing()`.
         shape_mode (str): Determine the shape of the result.
-            This is passed to `fc.num.nd_windowing()`.
+            This is passed to `fc.extra.nd_windowing()`.
 
     Returns:
         result (np.ndarray): The windowing array.
@@ -7408,18 +7408,18 @@ def rolling_apply_nd(
     Args:
         arr (np.ndarray): The input array.
         window (int|Iterable[int]): The window sizes.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
         steps (int|Iterable[int]): The step sizes.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
         window_steps (int|Iterable[int]): The window step sizes.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
         out_mode (str): The output mode.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
             Note that `view` is now identical to `valid`.
         pad_mode (Number|str): The padding mode.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
-            This is passed as `mode` to `fc.num.rolling_window_nd()`.
+            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
         func (callable): The function to apply.
             Must have the following signature:
             func(np.ndarray, axis=Iterable[int], *_args, **_kws)

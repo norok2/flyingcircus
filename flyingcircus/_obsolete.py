@@ -661,7 +661,7 @@ def cyclic_padding_loops(
         result (np.ndarray): The cyclic padded array of given shape.
 
     Examples:
-        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> arr = fc.extra.arange_nd((2, 3)) + 1
         >>> print(arr)
         [[1 2 3]
          [4 5 6]]
@@ -711,7 +711,7 @@ def symmetric_padding_loops(
         result (np.ndarray): The symmetric padded array of given shape.
 
     Examples:
-        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> arr = fc.extra.arange_nd((2, 3)) + 1
         >>> print(arr)
         [[1 2 3]
          [4 5 6]]
@@ -763,7 +763,7 @@ def cyclic_padding_tile(
         result (np.ndarray): The cyclic padded array of given shape.
 
     Examples:
-        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> arr = fc.extra.arange_nd((2, 3)) + 1
         >>> print(arr)
         [[1 2 3]
          [4 5 6]]
@@ -814,7 +814,7 @@ def cyclic_padding_pad(
         result (np.ndarray): The cyclic padded array of given shape.
 
     Examples:
-        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> arr = fc.extra.arange_nd((2, 3)) + 1
         >>> print(arr)
         [[1 2 3]
          [4 5 6]]
@@ -862,7 +862,7 @@ def cyclic_padding_slicing(
         result (np.ndarray): The cyclic padded array of given shape.
 
     Examples:
-        >>> arr = fc.num.arange_nd((2, 3)) + 1
+        >>> arr = fc.extra.arange_nd((2, 3)) + 1
         >>> print(arr)
         [[1 2 3]
          [4 5 6]]
@@ -909,7 +909,7 @@ def frame(
     """
     Add a background frame to an array specifying the borders.
 
-    Note that this is similar to `fc.num.padding()` but it is significantly
+    Note that this is similar to `fc.extra.padding()` but it is significantly
     faster, although less flexible.
 
     Args:
