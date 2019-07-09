@@ -49,7 +49,7 @@ from flyingcircus import base
 
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
-from flyingcircus import elapsed, report
+from flyingcircus import elapsed, report, run_doctests
 from flyingcircus import msg, dbg
 from flyingcircus import HAS_JIT, jit
 
@@ -7585,17 +7585,4 @@ elapsed(os.path.basename(__file__))
 
 # ======================================================================
 if __name__ == '__main__':
-    import doctest  # Test interactive Python examples
-
-    msg(__doc__.strip())
-    msg('Running `doctest.testmod()`... ', fmt='bold')
-    results = doctest.testmod()  # RUN TESTS HERE!
-    results_ok = results.attempted - results.failed
-    results_fmt = '{t.bold}{t.red}' \
-        if results.failed > 0 else '{t.bold}{t.green}'
-    msg('Tests = {results.attempted}; '.format(**locals()),
-        fmt='{t.bold}{t.cyan}', end='')
-    msg('OK = {results_ok}; '.format(**locals()),
-        fmt='{t.bold}{t.green}', end='')
-    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
-    msg(report())
+    run_doctests(__doc__)

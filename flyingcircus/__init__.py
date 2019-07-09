@@ -18,6 +18,7 @@ import inspect  # Inspect live objects
 import os  # Miscellaneous operating system interfaces
 import appdirs  # Determine appropriate platform-specific dirs
 import pkg_resources  # Manage package resource (from setuptools module)
+import doctest  # Test interactive Python examples
 
 # ======================================================================
 # :: External Imports
@@ -373,6 +374,22 @@ def pkg_paths(
 
 
 # ======================================================================
+def run_doctests(module_docstring):
+    msg(module_docstring.strip())
+    msg('Running `doctest.testmod()`... ', fmt='bold')
+    results = doctest.testmod()  # RUN TESTS HERE!
+    results_ok = results.attempted - results.failed
+    results_fmt = '{t.bold}{t.red}' \
+        if results.failed > 0 else '{t.bold}{t.green}'
+    msg('Tests = {results.attempted}; '.format(**locals()),
+        fmt='{t.bold}{t.cyan}', end='')
+    msg('OK = {results_ok}; '.format(**locals()),
+        fmt='{t.bold}{t.green}', end='')
+    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
+    msg(report())
+
+
+# ======================================================================
 PATH = pkg_paths(__file__, INFO['name'], INFO['author'], INFO['version'])
 
 # ======================================================================
@@ -385,17 +402,4 @@ import flyingcircus.extra
 
 # ======================================================================
 if __name__ == '__main__':
-    import doctest  # Test interactive Python examples
-
-    msg(__doc__.strip())
-    msg('Running `doctest.testmod()`... ', fmt='bold')
-    results = doctest.testmod()  # RUN TESTS HERE!
-    results_ok = results.attempted - results.failed
-    results_fmt = '{t.bold}{t.red}' \
-        if results.failed > 0 else '{t.bold}{t.green}'
-    msg('Tests = {results.attempted}; '.format(**locals()),
-        fmt='{t.bold}{t.cyan}', end='')
-    msg('OK = {results_ok}; '.format(**locals()),
-        fmt='{t.bold}{t.green}', end='')
-    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
-    msg(report())
+    run_doctests(__doc__)

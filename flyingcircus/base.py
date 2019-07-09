@@ -51,7 +51,7 @@ import gc  # Garbage Collector interface
 # :: Local Imports
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
-from flyingcircus import elapsed, report
+from flyingcircus import elapsed, report, run_doctests
 from flyingcircus import msg, dbg
 from flyingcircus import do_nothing_decorator
 from flyingcircus import HAS_JIT, jit
@@ -915,6 +915,9 @@ def auto_repeat(
         ((1, 1, 1), (1, 1, 1), (1, 1, 1))
         >>> auto_repeat((1, 1), (3, 2), True, True)
         (((1, 1), (1, 1)), ((1, 1), (1, 1)), ((1, 1), (1, 1)))
+
+    See Also:
+        - flyingcircus.base.stretch()
     """
     try:
         iter(obj)
@@ -995,6 +998,9 @@ def stretch(
  ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6)),\
  ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6)),\
  ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6))))
+
+    See Also:
+        - flyingcircus.base.auto_repeat()
     """
     if not is_deep(items):
         result = auto_repeat(items, shape)
@@ -7256,19 +7262,23 @@ def time_profile(
         >>> @time_profile(timeout=1.0)
         ... def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
-        >>> x = my_func(100, 100)  # doctest:+ELLIPSIS
+        >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-        >>> x = my_func(1000, 1000)  # doctest:+ELLIPSIS
+        >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
 
         >>> def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> my_func = time_profile(timeout=1.0)(my_func)
-        >>> x = my_func(100, 100)  # doctest:+ELLIPSIS
+        >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-        >>> x = my_func(1000, 1000)  # doctest:+ELLIPSIS
+        >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
         : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
 
+        >>> print(list(summary.keys()))
+        ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var',\
+ 'stdev', 'min', 'max', 'batch_name', 'batch_size']
+ 
     See Also:
         - flyingcircus.base.multi_benchmark()
     """
@@ -7372,6 +7382,30 @@ def time_profile(
 
 
 # ======================================================================
+def remove_ansi_escapes(text):
+    """
+    Remove ANSI escape sequences from text.
+
+    Args:
+        text (str): The input text.
+
+    Returns:
+        result (str): The output text.
+
+    Examples:
+        >>> s = '\u001b[0;35mfoo\u001b[0m \u001b[0;36mbar\u001b[0m'
+        >>> print(repr(s))
+        '\x1b[0;35mfoo\x1b[0m \x1b[0;36mbar\x1b[0m'
+        >>> print(repr(remove_ansi_escapes(s)))
+        'foo bar'
+        >>> remove_ansi_escapes(s) == 'foo bar'
+        True
+    """
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
+
+
+# ======================================================================
 def multi_benchmark(
         funcs,
         argss=None,
@@ -7419,19 +7453,10 @@ def multi_benchmark(
         >>> funcs = f1, f2
         >>> summaries, labels, results = multi_benchmark(
         ...     funcs, input_sizes=(10, 100, 1000),
-        ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
-        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=10
-        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=10
-        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=100
-        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=100
-        : f1(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=1000
-        : f2(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
-            OK,  input_size=1000
+        ...     time_prof_kws=dict(timeout=0.1), verbose=VERB_LVL['none'])
+        >>> print(labels, results, list(summaries[0][0].keys()))
+        ['f1', 'f2'] [] ['result', 'func_name', 'args', 'kws', 'num', 'mean',\
+ 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
 
     See Also:
         - flyingcircus.base.time_profile()
@@ -7474,17 +7499,4 @@ elapsed(os.path.basename(__file__))
 
 # ======================================================================
 if __name__ == '__main__':
-    import doctest  # Test interactive Python examples
-
-    msg(__doc__.strip())
-    msg('Running `doctest.testmod()`... ', fmt='bold')
-    results = doctest.testmod()  # RUN TESTS HERE!
-    results_ok = results.attempted - results.failed
-    results_fmt = '{t.bold}{t.red}' \
-        if results.failed > 0 else '{t.bold}{t.green}'
-    msg('Tests = {results.attempted}; '.format(**locals()),
-        fmt='{t.bold}{t.cyan}', end='')
-    msg('OK = {results_ok}; '.format(**locals()),
-        fmt='{t.bold}{t.green}', end='')
-    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
-    msg(report())
+    run_doctests(__doc__)
