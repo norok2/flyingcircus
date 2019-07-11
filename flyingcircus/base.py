@@ -5216,12 +5216,15 @@ def parallel_execute(
 
 
 # ======================================================================
-def realpath(path):
+def realpath(
+        path,
+        create=True):
     """
     Get the expanded absolute path from its short or relative counterpart.
 
     Args:
         path (str): The path to expand.
+        create (bool): Automatically create the path if not exists.
 
     Returns:
         new_path (str): the expanded path.
@@ -5231,7 +5234,10 @@ def realpath(path):
     """
     new_path = os.path.abspath(os.path.realpath(os.path.expanduser(path)))
     if not os.path.exists(new_path):
-        raise OSError
+        if create:
+            os.makedirs(new_path)
+        else:
+            raise OSError
     return new_path
 
 
