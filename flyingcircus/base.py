@@ -73,12 +73,32 @@ EXT = {
     'lzip': 'lz',
 }
 D_TAB_SIZE = 8
-# : define SI base-1000 prefix
+
+# : define SI prefix
+SI_ORDER_STEP = 3
 SI_PREFIX = {
-    'base1000+': ('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
-    'base1000-': ('m', 'μ', 'n', 'p', 'f', 'a', 'z', 'y')}
-SI_PREFIX['base1000'] = \
-    ('',) + SI_PREFIX['base1000+'] + SI_PREFIX['base1000-'][::-1]
+    'base1000+': {
+        k: (v + 1)
+        for v, k in enumerate(('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'))},
+    'base1000-': {
+        k: -(v + 1)
+        for v, k in enumerate(('m', 'µ', 'n', 'p', 'f', 'a', 'z', 'y'))},
+    'base1000': {'': 0},
+    'base10': {'': 0},
+    'base10+': {'da': 1, 'h': 2},
+    'base10-': {'d': -1, 'c': -2}}
+SI_PREFIX['base1000'].update(SI_PREFIX['base1000+'])
+SI_PREFIX['base1000'].update(SI_PREFIX['base1000-'])
+SI_PREFIX['base10+'].update({
+    k: v * SI_ORDER_STEP for k, v in SI_PREFIX['base1000+'].items()})
+SI_PREFIX['base10-'].update({
+    k: v * SI_ORDER_STEP for k, v in SI_PREFIX['base1000-'].items()})
+SI_PREFIX['base10'].update(SI_PREFIX['base10+'])
+SI_PREFIX['base10'].update(SI_PREFIX['base10-'])
+SI_PREFIX_ASCII = copy.deepcopy(SI_PREFIX)
+for mode in ('base1000-', 'base10-', 'base1000', 'base10'):
+    SI_PREFIX_ASCII[mode]['u'] = SI_PREFIX_ASCII[mode]['µ']
+    del SI_PREFIX_ASCII[mode]['µ']
 
 # ======================================================================
 # :: define C types
@@ -337,6 +357,49 @@ def join(
         return result
     else:
         raise ValueError('Cannot apply `join()` on `{}`'.format(operands))
+
+
+# ======================================================================
+def reverse_mapping(
+        mapping,
+        check=True):
+    """
+    Reverse the (key, value) relationship of a mapping.
+
+    Given a (key, value) sequence, returns a (value, key) sequence.
+    The values in the input mapping must be allowed to be used as `dict` keys.
+
+    Args:
+        mapping (Mapping): The input mapping
+        check (bool): Perform a validity check.
+            The check succeeds if all values in the original mapping are
+            unique.
+
+    Returns:
+        result (dict): The reversed mapping.
+
+    Raises:
+        KeyError: if `check == True` and a duplicate key is detected.
+
+    Examples:
+        >>> mapping = {i: str(i) for i in range(5)}
+        >>> print(sorted(mapping.items()))
+        [(0, '0'), (1, '1'), (2, '2'), (3, '3'), (4, '4')]
+        >>> print(sorted(reverse_mapping(mapping).items()))
+        [('0', 0), ('1', 1), ('2', 2), ('3', 3), ('4', 4)]
+        >>> reverse_mapping({1: 2, 2: 2})
+        Traceback (most recent call last):
+            ...
+        KeyError: 'Reversing a mapping detected duplicate key in the result!'
+        >>> reverse_mapping({1: 2, 2: 2}, False)
+        {2: 2}
+    """
+    result = {v: k for k, v in mapping.items()}
+    if check and len(mapping) != len(result):
+        raise KeyError(
+            'Reversing a mapping detected duplicate key in the result!')
+    else:
+        return result
 
 
 # ======================================================================
@@ -6221,37 +6284,200 @@ def order_of_magnitude(
 
 
 # ======================================================================
+def prefix_to_order(
+        prefix,
+        prefixes=tuple(SI_PREFIX['base10'].items())):
+    """
+    Get the order corresponding to a given prefix.
+
+    This works chiefly with SI prefixes.
+
+    Args:
+        prefix (str): The prefix to inspect.
+        prefixes (Mappable): The conversion table for the prefixes.
+            This must have the form: (prefix, order).
+
+    Returns:
+        order (int|float): The order associate to the prefix.
+
+    Raises:
+        IndexError: If no prefix is found in the given prefixes.
+
+    Examples:
+        >>> [prefix_to_order(x)
+        ...     for x in ('', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')]
+        [0, 3, 6, 9, 12, 15, 18, 21, 24]
+        >>> [prefix_to_order(x)
+        ...     for x in ('', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y')]
+        [0, -3, -6, -9, -12, -15, -18, -21, -24]
+        >>> all(prefix_to_order(order_to_prefix(i)) == i
+        ...     for i in range(-24, 25, SI_ORDER_STEP))
+        True
+
+    See Also:
+        - flyingcircus.base.order_to_prefix()
+        - flyingcircus.base.prefix_to_factor()
+    """
+    prefixes = dict(prefixes)
+    if prefix in prefixes:
+        return prefixes[prefix]
+    else:
+        raise IndexError('Prefix `{prefix}` not found!'.format(**locals()))
+
+
+# ======================================================================
 def order_to_prefix(
         order,
-        tokens=SI_PREFIX['base1000']):
+        prefixes=tuple(SI_PREFIX['base10'].items())):
     """
     Get the prefix corresponding to the order of magnitude.
 
-    This is works chiefly with SI prefixes.
+    This works chiefly with SI prefixes.
 
     Args:
         order (int): The order of magnitude.
-        tokens (Sequence): The conversion table.
+        prefixes (Mappable): The conversion table for the prefixes.
+            This must have the form: (prefix, order).
 
     Returns:
-        result (str): The prefix.
+        prefix (str): The prefix for the corresponding order.
+
+    Raises:
+        ValueError: If no prefix exists for the input order.
 
     Examples:
-        >>> [order_to_prefix(i) for i in range(9)]
+        >>> [order_to_prefix(i * SI_ORDER_STEP) for i in range(9)]
         ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
-        >>> [order_to_prefix(-i) for i in range(9)]
-        ['', 'm', 'μ', 'n', 'p', 'f', 'a', 'z', 'y']
+        >>> [order_to_prefix(-i * SI_ORDER_STEP) for i in range(9)]
+        ['', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y']
         >>> order_to_prefix(10)
         Traceback (most recent call last):
             ...
-        ValueError: Unsupported order `10` for tokens of length `17`
+        ValueError: Invalid order `10` for given prefixes.
+
+    See Also:
+        - flyingcircus.base.prefix_to_order()
+        - flyingcircus.base.prefix_to_factor()
     """
-    if abs(order) <= len(tokens) // 2:
-        return tokens[order]
+    reverted_prefixes = reverse_mapping(dict(prefixes))
+    if order in reverted_prefixes:
+        return reverted_prefixes[order]
     else:
         raise ValueError(
-            'Unsupported order `{}` for tokens of length `{}`' \
-                .format(order, len(tokens)))
+            'Invalid order `{order}` for given prefixes.'.format(**locals()))
+
+
+# ======================================================================
+def order_to_factor(order, base=10):
+    """
+    Compute the factor from the order (for a given base).
+
+    Args:
+        order (int|float): The order.
+        base (int|float): The base to use for the order-to-factor conversion.
+            Must be strictly positive.
+
+    Returns:
+        factor (int|float): The factor.
+
+    Examples:
+        >>> [order_to_factor(i) for i in range(-5, 6)]
+        [1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000]
+        >>> [order_to_factor(float(i)) for i in range(-5, 5)]
+        [1e-05, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+    """
+    return base ** order
+
+
+# ======================================================================
+def factor_to_order(
+        factor,
+        base=10):
+    """
+    Compute the order from the factor (for a given base).
+
+    Args:
+        factor (int|float): The factor.
+        base (int|float): The base to use for the order-to-factor conversion.
+            Must be strictly positive.
+
+    Returns:
+        order (int|float): The order.
+
+    Examples:
+        >>> [factor_to_order(x) for x in (1, 10, 1000, 100000)]
+        [0, 1, 3, 5]
+        >>> [factor_to_order(x) for x in (1.0, 100.0, 10000.0, 123.45)]
+        [0, 2, 4, 2]
+    """
+    return int(round(math.log(factor, base)))
+
+
+# ======================================================================
+def prefix_to_factor(
+        prefix,
+        prefixes=tuple(SI_PREFIX['base10'].items()),
+        base=10):
+    """
+    Get the order corresponding to a given prefix.
+
+    This works chiefly with SI prefixes.
+
+    Args:
+        prefix (str): The prefix to inspect.
+        prefixes (Mappable): The conversion table for the prefixes.
+            This must have the form: (prefix, order).
+        base (int|float): The base to use for the factor.
+
+    Returns:
+        factor (int|float): The factor associate to the prefix.
+
+    Examples:
+        >>> [prefix_to_factor(x) for x in ('', 'k', 'M', 'G', 'T', 'P')]
+        [1, 1000, 1000000, 1000000000, 1000000000000, 1000000000000000]
+        >>> [prefix_to_factor(x)
+        ...     for x in ('', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y')]
+        [1, 0.001, 1e-06, 1e-09, 1e-12, 1e-15, 1e-18, 1e-21, 1e-24]
+        >>> all(prefix_to_order(order_to_prefix(i)) == i
+        ...     for i in range(-24, 25, SI_ORDER_STEP))
+        True
+
+    See Also:
+        - flyingcircus.base.prefix_to_order()
+        - flyingcircus.base.order_to_prefix()
+    """
+    return order_to_factor((prefix_to_order(prefix, prefixes), base))
+
+
+# ======================================================================
+def factor_to_prefix(
+        factor,
+        prefixes=tuple(SI_PREFIX['base10'].items()),
+        base=10):
+    """
+    Get the order corresponding to a given prefix.
+
+    This works chiefly with SI prefixes.
+
+    Args:
+        factor (int|float): The factor to inspect.
+        prefixes (Mappable): The conversion table for the prefixes.
+            This must have the form: (prefix, order).
+        base (int|float): The base to use for the order-to-factor conversion.
+            Must be strictly positive.
+
+    Returns:
+        prefix (str): The prefix for the corresponding factor.
+
+    Examples:
+        >>> factor_to_prefix(1e6)
+
+    See Also:
+        - flyingcircus.base.prefix_to_order()
+        - flyingcircus.base.order_to_prefix()
+    """
+    order = int(round(math.log(factor, base)))
+    return order_to_prefix(order, prefixes)
 
 
 # ======================================================================
@@ -6480,6 +6706,27 @@ def format_value_error(
         val_str = str(val)
         err_str = str(err)
     return val_str, err_str
+
+
+# ======================================================================
+def parse_units_prefix(
+        text,
+        force_si=True,
+        check_si=True):
+    """
+    Extract factor and base units from units.
+
+    Supports all base SI units, a number of non-base SI units and some
+    non-SI units.
+
+    Args:
+        text (str):
+        force_si:
+        check_si:
+
+    Returns:
+        result (tuple):
+    """
 
 
 # ======================================================================
@@ -7291,16 +7538,16 @@ def time_profile(
 
     # ----------------------------------------------------------
     def format_summary(summary, kws_limit=8, line_limit=79):
-        val_order = order_of_magnitude(summary['mean'], 10, 3)
-        err_order = order_of_magnitude(summary['stdev'], 10, 3)
-        num_order = order_of_magnitude(summary['num'], 10, 3)
+        val_order = order_of_magnitude(summary['mean'], 10, SI_ORDER_STEP)
+        err_order = order_of_magnitude(summary['stdev'], 10, SI_ORDER_STEP)
+        num_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
         val, err = format_value_error(
-            scale_to_order(summary['mean'], 10, 3, val_order),
-            scale_to_order(summary['stdev'], 10, 3, val_order),
-            3, 6)
-        t_units = order_to_prefix(val_order)
+            scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
+            scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
+            SI_ORDER_STEP, 6)
+        t_units = order_to_prefix(val_order / SI_ORDER_STEP)
         num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
-        n_units = order_to_prefix(num_order)
+        n_units = order_to_prefix(num_order / SI_ORDER_STEP)
         if verbose >= VERB_LVL['medium']:
             kws_list = [
                 elide(k + '=' + str(v), kws_limit)
