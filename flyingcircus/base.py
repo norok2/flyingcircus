@@ -6447,7 +6447,7 @@ def prefix_to_factor(
         - flyingcircus.base.prefix_to_order()
         - flyingcircus.base.order_to_prefix()
     """
-    return order_to_factor((prefix_to_order(prefix, prefixes), base))
+    return order_to_factor(prefix_to_order(prefix, prefixes), base)
 
 
 # ======================================================================
@@ -6471,14 +6471,16 @@ def factor_to_prefix(
         prefix (str): The prefix for the corresponding factor.
 
     Examples:
-        >>> factor_to_prefix(1e6)
+        >>> factor_to_prefix(1e12)
+        'T'
+        >>> [factor_to_prefix(10 ** i) for i in range(-3, 4)]
+        ['m', 'c', 'd', '', 'da', 'h', 'k']
 
     See Also:
         - flyingcircus.base.prefix_to_order()
         - flyingcircus.base.order_to_prefix()
     """
-    order = int(round(math.log(factor, base)))
-    return order_to_prefix(order, prefixes)
+    return order_to_prefix(factor_to_order(factor, base), prefixes)
 
 
 # ======================================================================
