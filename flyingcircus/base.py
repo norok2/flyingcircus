@@ -2848,6 +2848,8 @@ def isqrt(num):
         32
         >>> isqrt(2 ** 400)
         1606938044258990275541962092341162602522202993782792835301376
+        >>> all(isqrt(2 ** (2 * i)) == 2 ** i for i in range(1000))
+        True
     """
     num = abs(num)
     guess = (num >> num.bit_length() // 2) + 1
