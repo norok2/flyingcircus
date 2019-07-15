@@ -6318,6 +6318,9 @@ def prefix_to_order(
     See Also:
         - flyingcircus.base.order_to_prefix()
         - flyingcircus.base.prefix_to_factor()
+        - flyingcircus.base.factor_to_prefix()
+        - flyingcircus.base.order_to_factor()
+        - flyingcircus.base.factor_to_order()
     """
     prefixes = dict(prefixes)
     if prefix in prefixes:
@@ -6359,6 +6362,9 @@ def order_to_prefix(
     See Also:
         - flyingcircus.base.prefix_to_order()
         - flyingcircus.base.prefix_to_factor()
+        - flyingcircus.base.factor_to_prefix()
+        - flyingcircus.base.order_to_factor()
+        - flyingcircus.base.factor_to_order()
     """
     reverted_prefixes = reverse_mapping(dict(prefixes))
     if order in reverted_prefixes:
@@ -6386,6 +6392,13 @@ def order_to_factor(order, base=10):
         [1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000, 100000]
         >>> [order_to_factor(float(i)) for i in range(-5, 5)]
         [1e-05, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+
+    See Also:
+        - flyingcircus.base.prefix_to_order()
+        - flyingcircus.base.order_to_prefix()
+        - flyingcircus.base.prefix_to_factor()
+        - flyingcircus.base.factor_to_prefix()
+        - flyingcircus.base.factor_to_order()
     """
     return base ** order
 
@@ -6410,6 +6423,13 @@ def factor_to_order(
         [0, 1, 3, 5]
         >>> [factor_to_order(x) for x in (1.0, 100.0, 10000.0, 123.45)]
         [0, 2, 4, 2]
+
+    See Also:
+        - flyingcircus.base.prefix_to_order()
+        - flyingcircus.base.order_to_prefix()
+        - flyingcircus.base.prefix_to_factor()
+        - flyingcircus.base.factor_to_prefix()
+        - flyingcircus.base.order_to_factor()
     """
     return int(round(math.log(factor, base)))
 
@@ -6446,6 +6466,9 @@ def prefix_to_factor(
     See Also:
         - flyingcircus.base.prefix_to_order()
         - flyingcircus.base.order_to_prefix()
+        - flyingcircus.base.factor_to_prefix()
+        - flyingcircus.base.order_to_factor()
+        - flyingcircus.base.factor_to_order()
     """
     return order_to_factor(prefix_to_order(prefix, prefixes), base)
 
@@ -6479,6 +6502,9 @@ def factor_to_prefix(
     See Also:
         - flyingcircus.base.prefix_to_order()
         - flyingcircus.base.order_to_prefix()
+        - flyingcircus.base.prefix_to_factor()
+        - flyingcircus.base.order_to_factor()
+        - flyingcircus.base.factor_to_order()
     """
     return order_to_prefix(factor_to_order(factor, base), prefixes)
 
