@@ -407,7 +407,7 @@ def reverse_mapping(
 
 
 # ======================================================================
-def reverse_mapping_iter(mapping, unique):
+def reverse_mapping_iter(mapping):
     """
     Reverse the (key, values) relationship of a mapping.
 
@@ -4265,28 +4265,28 @@ def i_stdev(
 
 
 # ======================================================================
-def num_align(
+def align(
         num,
-        align='pow2',
-        mode=1):
+        base,
+        mode='closest'):
     """
-    Align a number to a specified value, so as to make it multiple of it.
+    Align (round) a number to a multiple of the specified base.
 
     The resulting number is computed using the formula:
 
-    num = num + func(num % align / align) * align - num % align
+    num = num + func(num % base / base) * base - num % base
 
     where `func` is a rounding function, as determined by `mode`.
 
     Args:
         num (int|float): The input number.
-        align (int|float|str|None): The number to align to.
+        base (int|float|str|None): The number to align to.
             If int, then calculate a multiple of `align` close to `num`.
             If str, possible options are:
              - 'powX' (where X >= 2 must be an int): calculate a power of X
                that is close to `num`.
             The exact number being calculated depends on the value of `mode`.
-        mode (int|str): Determine which multiple to convert the number to.
+        mode (int|str|bool): Determine the rounding mode.
             If str, valid inputs are:
              - 'upper': converts to the smallest multiple larger than `num`.
              - 'lower': converts to the largest multiple smaller than `num`.
@@ -4300,62 +4300,65 @@ def num_align(
         num (int): The aligned number.
 
     Examples:
-        >>> num_align(432)
-        512
-        >>> num_align(432, mode=-1)
-        256
-        >>> num_align(432, mode=0)
-        512
-        >>> num_align(447, 32, mode=1)
-        448
-        >>> num_align(447, 32, mode=-1)
-        416
-        >>> num_align(447, 32, mode=0)
-        448
-        >>> num_align(45, 90, mode=0)
-        0
-        >>> num_align(6, 'pow2', mode=0)
+        >>> align(9, 2)
         8
-        >>> num_align(6543, 'pow10', mode=0)
+        >>> align(447, 32, mode=1)
+        448
+        >>> align(447, 32, mode=-1)
+        416
+        >>> align(447, 32, mode=0)
+        448
+        >>> align(432, 'pow2', mode=1)
+        512
+        >>> align(432, 'pow2', mode=-1)
+        256
+        >>> align(432, 'pow2', mode=0)
+        512
+        >>> align(45, 90, mode=0)
+        0
+        >>> align(6, 'pow2', mode=0)
+        8
+        >>> align(6543, 'pow10', mode=0)
         10000
-        >>> num_align(1543, 'pow10', mode=0)
+        >>> align(1543, 'pow10', mode=0)
         1000
-        >>> num_align(128, 128, mode=1)
+        >>> align(128, 128, mode=1)
         128
-        >>> num_align(123.37, 0.5, mode=1)
+        >>> align(123.37, 0.5, mode=1)
         123.5
-        >>> num_align(123.37, 0.5, mode=0)
+        >>> align(123.37, 0.5, mode=0)
         123.5
-        >>> num_align(123.37, 0.5, mode=-1)
+        >>> align(123.37, 0.5, mode=-1)
         123.0
-        >>> num_align(123.37, None)
+        >>> align(123.37, None)
         123.37
     """
-    if mode == 'upper' or mode == +1:
-        func = math.ceil
-    elif mode == 'lower' or mode == -1:
-        func = math.floor
-    elif mode == 'closest' or mode == 0:
-        func = round
+    reversed_modes = {
+        math.ceil: ['upper', 1],
+        math.floor: ['lower', -1],
+        round: ['closest', 0]}
+    modes = reverse_mapping_iter(reversed_modes)
+    if mode in modes:
+        func = modes[mode][0]
     else:
         raise ValueError('Invalid mode `{mode}`'.format(mode=mode))
 
-    if align:
-        if isinstance(align, str):
-            if align.startswith('pow'):
-                base = int(align[len('pow'):])
+    if base:
+        if isinstance(base, str):
+            if base.startswith('pow'):
+                base = int(base[len('pow'):])
                 exp = math.log(num, base)
                 num = int(base ** func(exp))
             else:
-                raise ValueError('Invalid align `{align}`'.format(align=align))
+                raise ValueError('Invalid align `{align}`'.format(align=base))
 
-        elif isinstance(align, (int, float)):
-            modulus = num % align
-            num += func(modulus / align) * align - modulus
+        elif isinstance(base, (int, float)):
+            modulus = num % base
+            num += func(modulus / base) * base - modulus
 
         else:
             warnings.warn('Will not align `{num}` to `{align}`.'.format(
-                num=num, align=align))
+                num=num, align=base))
 
     return num
 
