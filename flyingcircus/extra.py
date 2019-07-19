@@ -790,6 +790,32 @@ def nd_windowing(
          [2 3]
          [4 5]
          [6 7]]
+
+        >>> new_arr = nd_windowing(arange_nd((5, 4)), (1, 2), (1, 2))
+        >>> print(new_arr)
+        [[[[ 0  1]]
+        <BLANKLINE>
+          [[ 2  3]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 4  5]]
+        <BLANKLINE>
+          [[ 6  7]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[ 8  9]]
+        <BLANKLINE>
+          [[10 11]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[12 13]]
+        <BLANKLINE>
+          [[14 15]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[16 17]]
+        <BLANKLINE>
+          [[18 19]]]]
     """
     shape_mode = shape_mode.lower()
     window = base.auto_repeat(window, arr.ndim, check=True)
