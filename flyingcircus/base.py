@@ -97,9 +97,9 @@ SI_PREFIX['base10-'].update({
 SI_PREFIX['base10'].update(SI_PREFIX['base10+'])
 SI_PREFIX['base10'].update(SI_PREFIX['base10-'])
 SI_PREFIX_ASCII = copy.deepcopy(SI_PREFIX)
-for mode in ('base1000-', 'base10-', 'base1000', 'base10'):
-    SI_PREFIX_ASCII[mode]['u'] = SI_PREFIX_ASCII[mode]['µ']
-    del SI_PREFIX_ASCII[mode]['µ']
+for _mode in ('base1000-', 'base10-', 'base1000', 'base10'):
+    SI_PREFIX_ASCII[_mode]['u'] = SI_PREFIX_ASCII[_mode]['µ']
+    del SI_PREFIX_ASCII[_mode]['µ']
 
 # ======================================================================
 # :: define C types
@@ -394,6 +394,9 @@ def reverse_mapping(
         KeyError: 'Reversing a mapping detected duplicate key in the result!'
         >>> reverse_mapping({1: 2, 2: 2}, False)
         {2: 2}
+
+    See Also:
+        - flyingcircus.base.reverse_mapping_iter()
     """
     result = {v: k for k, v in mapping.items()}
     if check and len(mapping) != len(result):
@@ -401,6 +404,48 @@ def reverse_mapping(
             'Reversing a mapping detected duplicate key in the result!')
     else:
         return result
+
+
+# ======================================================================
+def reverse_mapping_iter(mapping, unique):
+    """
+    Reverse the (key, values) relationship of a mapping.
+
+    Given a (key, values) sequence, returns a reversed (value, keys) sequence.
+    The input values need to be iterable and their items need to be hashable.
+    Each of the values either generates a new key or gets appended to the new
+    values in the result.
+
+    Args:
+        mapping (Mapping): The input mapping with iterable values.
+
+    Returns:
+        result (dict): The reversed mapping.
+
+    Examples:
+        >>> mapping = {i: [str(i)] for i in range(5)}
+        >>> print(sorted(mapping.items()))
+        [(0, ['0']), (1, ['1']), (2, ['2']), (3, ['3']), (4, ['4'])]
+        >>> print(sorted(reverse_mapping_iter(mapping).items()))
+        [('0', [0]), ('1', [1]), ('2', [2]), ('3', [3]), ('4', [4])]
+        >>> reverse_mapping_iter({1: [2], 2: [2]})
+        {2: [1, 2]}
+        >>> reverse_mapping_iter({1: [1, 2], 2: [2]})
+        {1: [1], 2: [1, 2]}
+        >>> reverse_mapping_iter({1: [1, 2, 1], 2: [2, 1]})
+        {1: [1, 1, 2], 2: [1, 2]}
+
+    See Also:
+        - flyingcircus.base.reverse_mapping()
+    """
+    result = {}
+    for key, values in mapping.items():
+        for value in values:
+            if value in result:
+                result[value].append(key)
+            else:
+                result[value] = [key]
+    return result
 
 
 # ======================================================================
@@ -1836,20 +1881,21 @@ def pairwise_map(
     See Also:
         - flyingcircus.base.slide()
     """
-    items = iter(items)
+    iter_items = iter(items)
     try:
-        last_item = next(items)
+        last_item = next(iter_items)
     except StopIteration:
         pass
-    # : condition is before the loop for performance
-    if reverse:
-        for item in items:
-            yield func(item, last_item)
-            last_item = item
     else:
-        for item in items:
-            yield func(last_item, item)
-            last_item = item
+        # : condition is before the loop for performance
+        if reverse:
+            for item in iter_items:
+                yield func(item, last_item)
+                last_item = item
+        else:
+            for item in iter_items:
+                yield func(last_item, item)
+                last_item = item
 
 
 # ======================================================================
@@ -1928,7 +1974,7 @@ def slide(
 
 
 # ======================================================================
-def group_by(
+def grouped(
         items,
         size,
         truncate=False,
@@ -1955,13 +2001,13 @@ def group_by(
 
     Examples:
         >>> l = list(range(10))
-        >>> tuple(group_by(l, 4))
+        >>> tuple(grouped(l, 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, None, None))
-        >>> tuple(group_by(tuple(l), 2))
+        >>> tuple(grouped(tuple(l), 2))
         ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
-        >>> tuple(group_by(l, 4, True))
+        >>> tuple(grouped(l, 4, True))
         ((0, 1, 2, 3), (4, 5, 6, 7))
-        >>> tuple(group_by(l, 4, False, 0))
+        >>> tuple(grouped(l, 4, False, 0))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 0, 0))
 
     See Also:
@@ -1985,7 +2031,7 @@ def split(
     Split items into groups according to size(s).
 
     The number of elements for each group can vary.
-    Note that for integer splits, `group_by()` can be faster alternative.
+    Note that for integer splits, `gruped()` can be faster alternative.
 
     Args:
         items (Sequence): The input items.
@@ -2010,11 +2056,11 @@ def split(
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
         >>> tuple(split(tuple(l), 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9))
-        >>> tuple(split(tuple(l), 2)) == tuple(group_by(l, 2))
+        >>> tuple(split(tuple(l), 2)) == tuple(grouped(l, 2))
         True
 
     See Also:
-        flyingcircus.base.group_by()
+        flyingcircus.base.gruped()
     """
     if isinstance(size, int):
         size = auto_repeat(size, len(items) // size)
