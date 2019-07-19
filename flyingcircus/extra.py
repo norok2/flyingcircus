@@ -776,6 +776,20 @@ def nd_windowing(
         >>> new_arr = nd_windowing(arange_nd((100, 100)), 5)
         >>> print(nbytes(new_arr), new_arr.nbytes)
         80000 1843200
+
+        >>> new_arr = nd_windowing(arange_nd((8,)), 2, 2)
+        >>> print(new_arr)
+        [[0 1]
+         [2 3]
+         [4 5]
+         [6 7]]
+
+        >>> new_arr = nd_windowing(arange_nd((9,)), 2, 2)
+        >>> print(new_arr)
+        [[0 1]
+         [2 3]
+         [4 5]
+         [6 7]]
     """
     shape_mode = shape_mode.lower()
     window = base.auto_repeat(window, arr.ndim, check=True)
