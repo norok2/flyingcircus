@@ -2044,6 +2044,7 @@ def split(
 
     The number of elements for each group can vary.
     Note that for integer splits, `separate()` can be faster alternative.
+    All and only the elements in `items` are ever yielded.
 
     Args:
         items (Sequence): The input items.
@@ -2099,7 +2100,8 @@ def chunks(
     Split items into groups according to the number desired.
 
     If the number of items does not allow groups (chunks) of the same size,
-    the chunks are determined depending on the values of `balanced`
+    the chunks are determined depending on the values of `balanced`.
+    All and only the elements in `items` are ever yielded.
 
     Args:
         items (Sequence): The input items.
