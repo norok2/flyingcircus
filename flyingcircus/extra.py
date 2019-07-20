@@ -45,7 +45,6 @@ from numpy.fft import fftn, ifftn
 
 # :: Local Imports
 import flyingcircus as fc  # Everything you always wanted to have in Python.*
-from flyingcircus import base
 
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
@@ -75,7 +74,7 @@ def arange_nd(shape):
         [[ 0  1  2  3  4  5  6  7  8  9]
          [10 11 12 13 14 15 16 17 18 19]]
     """
-    return np.arange(base.prod(shape)).reshape(shape)
+    return np.arange(fc.base.prod(shape)).reshape(shape)
 
 
 # ======================================================================
@@ -185,11 +184,11 @@ def ndim_slice(
     # initialize slice index
     slab = [slice(None)] * arr.ndim
     # ensure index is meaningful
-    axes = base.auto_repeat(axes, 1)
+    axes = fc.base.auto_repeat(axes, 1)
     if indexes is None:
-        indexes = base.auto_repeat(None, len(axes))
+        indexes = fc.base.auto_repeat(None, len(axes))
     else:
-        indexes = base.auto_repeat(indexes, 1)
+        indexes = fc.base.auto_repeat(indexes, 1)
     indexes = list(indexes)
     for i, (index, axis) in enumerate(zip(indexes, axes)):
         if index is None:
@@ -818,9 +817,9 @@ def nd_windowing(
           [[18 19]]]]
     """
     shape_mode = shape_mode.lower()
-    window = base.auto_repeat(window, arr.ndim, check=True)
-    steps = base.auto_repeat(steps, arr.ndim, check=True)
-    window_steps = base.auto_repeat(window_steps, arr.ndim, check=True)
+    window = fc.base.auto_repeat(window, arr.ndim, check=True)
+    steps = fc.base.auto_repeat(steps, arr.ndim, check=True)
+    window_steps = fc.base.auto_repeat(window_steps, arr.ndim, check=True)
     assert (all(step > 0 for step in steps))
     assert (all(w_step >= 0 for w_step in window_steps))
     assert (all(dim >= size for dim, size in zip(arr.shape, window)))
@@ -860,6 +859,109 @@ def nd_windowing(
         arr, shape=shape, strides=strides, writeable=writeable)
     if not as_view:
         result = result.copy()
+    return result
+
+
+# ======================================================================
+def separate(
+        arr,
+        size=2,
+        axis=0,
+        keepdims=False,
+        truncate=False,
+        fill=0,
+        shape_mode='end'):
+    """
+    Separate an array into blocks with fixed size along a specific axis.
+
+    This is equivalent to `flyingcircus.extra.nd_windowing()` with
+    `window == steps` and `window_steps == 1`.
+
+    Additionally, this function offers better control over the handling of
+    the array shape not aligned with size.
+
+    This is a multidimensional version of `flyingcircus.base.separate()`.
+
+    Args:
+        arr (np.ndarray): The input array.
+        size (int): The size of the separated blocks.
+        axis (int): The axis along which to separate.
+        keepdims (bool): Keep all the dimensions for the results.
+        truncate (bool): Determine how to handle uneven splits.
+            If True, last block is omitted if smaller than `size`.
+        fill (Any): Value to use for filling the last block.
+            This is only used when `truncate` is False.
+        shape_mode (str): Determine the shape of the result.
+            See `flyingcircus.extra.nd_windowing()` for more details.
+
+    Returns:
+        result (np.ndarray): The output array.
+            If size of `arr` along `axis` is a multiple of `size`, the
+            result is a non-writable view of the input array.
+
+    Examples:
+        >>> print(separate(np.arange(10)))
+        [[0 1]
+         [2 3]
+         [4 5]
+         [6 7]
+         [8 9]]
+        >>> print(separate(np.arange(9)))
+        [[0 1]
+         [2 3]
+         [4 5]
+         [6 7]
+         [8 0]]
+        >>> print(separate(np.arange(9), truncate=True))
+        [[0 1]
+         [2 3]
+         [4 5]
+         [6 7]]
+
+        >>> new_arr = separate(arange_nd((3, 4)), 2, 0)
+        >>> print(new_arr.shape)
+        (2, 4, 2)
+        >>> print(new_arr)
+        [[[ 0  4]
+          [ 1  5]
+          [ 2  6]
+          [ 3  7]]
+        <BLANKLINE>
+         [[ 8  0]
+          [ 9  0]
+          [10  0]
+          [11  0]]]
+        >>> new_arr = separate(arange_nd((3, 4)), 2, 1)
+        >>> print(new_arr.shape)
+        (3, 2, 2)
+        >>> print(new_arr)
+        [[[ 0  1]
+          [ 2  3]]
+        <BLANKLINE>
+         [[ 4  5]
+          [ 6  7]]
+        <BLANKLINE>
+         [[ 8  9]
+          [10 11]]]
+    """
+    axis = axis % arr.ndim
+    if arr.shape[axis] % size != 0:
+        aligned = fc.base.align(arr.shape[axis], size, -1 if truncate else 1)
+        if truncate:
+            slicing = tuple(
+                slice(None) if i != axis else slice(None, aligned)
+                for i in range(arr.ndim))
+            arr = arr[slicing]
+        else:
+            fill_shape = tuple(
+                dim if i != axis else aligned - dim
+                for i, dim in enumerate(arr.shape))
+            fill_arr = np.full(fill_shape, fill, dtype=arr.dtype)
+            arr = np.concatenate([arr, fill_arr], axis=axis)
+    window = tuple(1 if i != axis else size for i in range(arr.ndim))
+    result = nd_windowing(arr, window, window, shape_mode=shape_mode)
+    if not keepdims:
+        result = np.squeeze(result)
     return result
 
 
@@ -982,10 +1084,10 @@ def compute_edge_weights(
                 **weighting_kws),
             weighting(
                 arr[tuple(
-                    slice(None) if i != j else base.flip(windows[0])
+                    slice(None) if i != j else fc.base.flip(windows[0])
                     for j in range(arr.ndim))],
                 arr[tuple(
-                    slice(None) if i != j else base.flip(windows[1])
+                    slice(None) if i != j else fc.base.flip(windows[1])
                     for j in range(arr.ndim))],
                 **weighting_kws)
             if circular else
@@ -995,7 +1097,7 @@ def compute_edge_weights(
                 endpoint)),
             axis=i)
         for i in range(arr.ndim)], axis=-1)
-    idx_arr = np.arange(base.prod(arr.shape), dtype=int).reshape(arr.shape)
+    idx_arr = np.arange(fc.base.prod(arr.shape), dtype=int).reshape(arr.shape)
     orig_idx_arr, dest_idx_arr = tuple(
         np.stack([
             np.concatenate((
@@ -1003,7 +1105,7 @@ def compute_edge_weights(
                     slice(None) if i != j else window
                     for j in range(idx_arr.ndim))],
                 idx_arr[tuple(
-                    slice(None) if i != j else base.flip(window)
+                    slice(None) if i != j else fc.base.flip(window)
                     for j in range(idx_arr.ndim))]
                 if circular else
                 np.full(tuple(
@@ -1035,7 +1137,7 @@ def shuffle_on_axis(arr, axis=-1):
     Examples:
         >>> np.random.seed(0)
         >>> shape = 2, 3, 4
-        >>> arr = np.arange(base.prod(shape)).reshape(shape)
+        >>> arr = np.arange(fc.base.prod(shape)).reshape(shape)
         >>> shuffle_on_axis(arr.copy())
         array([[[ 1,  0,  2,  3],
                 [ 6,  4,  5,  7],
@@ -1056,7 +1158,7 @@ def shuffle_on_axis(arr, axis=-1):
     arr = np.swapaxes(arr, 0, axis)
     shape = arr.shape
     i = np.random.rand(*arr.shape).argsort(0).reshape(shape[0], -1)
-    return arr.reshape(shape[0], -1)[i, np.arange(base.prod(shape[1:]))]. \
+    return arr.reshape(shape[0], -1)[i, np.arange(fc.base.prod(shape[1:]))]. \
         reshape(shape).swapaxes(axis, 0)
 
 
@@ -1095,7 +1197,7 @@ def is_broadcastable(*items):
         item.shape if hasattr(item, 'shape') else item
         for item in items)
     return all(
-        base.all_equal(dim for dim in dims if dim > 1)
+        fc.base.all_equal(dim for dim in dims if dim > 1)
         for dims in zip(*tuple(shape[::-1] for shape in shapes)))
 
 
@@ -1770,7 +1872,7 @@ def distances2displacements(
         >>> distances2displacements(1)
         array([-0.5,  0.5])
     """
-    distances = (0,) + tuple(base.auto_repeat(distances, 1))
+    distances = (0,) + tuple(fc.base.auto_repeat(distances, 1))
     return np.cumsum(distances) - np.sum(distances) * origin + offset
 
 
@@ -2312,7 +2414,7 @@ def auto_random(val=(0.0, 1.0)):
     if isinstance(val, (int, float, complex, str, bytes)) or val is None:
         return val
     elif isinstance(val, (slice, range)) or (
-            len(val) == 2 and base.nesting_level(val) == 1):
+            len(val) == 2 and fc.base.nesting_level(val) == 1):
         val = valid_interval(val)
         if all(isinstance(x, int) for x in val):
             return random.randint(val[0], val[1])
@@ -2429,7 +2531,7 @@ def sgngeomspace(
             ...
         AssertionError
     """
-    if not base.is_same_sign((start, stop)):
+    if not fc.base.is_same_sign((start, stop)):
         assert (abs(start) > 1 and abs(stop) > 1)
         bounds = ((start, 1 / start), (1 / stop, stop))
         equity = 1 if num % 2 == 1 and abs(start) > abs(stop) else 0
@@ -2835,9 +2937,10 @@ def coord(
         >>> coord((5, 5), 3, False)
         (3, 3)
     """
-    xx = base.auto_repeat(position, len(shape), check=True)
+    xx = fc.base.auto_repeat(position, len(shape), check=True)
     if is_relative:
-        refs = base.auto_repeat(is_relative(shape), len(shape), check=True) \
+        refs = fc.base.auto_repeat(
+            is_relative(shape), len(shape), check=True) \
             if callable(is_relative) else shape
         if use_int:
             xx = tuple(
@@ -3058,7 +3161,7 @@ def rel2abs(shape, size=0.5):
         - flyingcircus.extra.coord()
         - flyingcircus.extra.scale()
     """
-    size = base.auto_repeat(size, len(shape), check=True)
+    size = fc.base.auto_repeat(size, len(shape), check=True)
     return tuple((s - 1.0) * p for p, s in zip(size, shape))
 
 
@@ -3097,7 +3200,7 @@ def abs2rel(shape, position=0):
         - flyingcircus.extra.coord()
         - flyingcircus.extra.scale()
     """
-    position = base.auto_repeat(position, len(shape), check=True)
+    position = fc.base.auto_repeat(position, len(shape), check=True)
     return tuple(p / (s - 1.0) for p, s in zip(position, shape))
 
 
@@ -3157,7 +3260,7 @@ def laplace_kernel(
     """
     kk = grid_coord(shape)
     if factors and factors != 1:
-        factors = base.auto_repeat(factors, len(shape), check=True)
+        factors = fc.base.auto_repeat(factors, len(shape), check=True)
         kk = [k_i / factor for k_i, factor in zip(kk, factors)]
     kk2 = np.zeros(shape)
     for k_i, dim in zip(kk, shape):
@@ -3232,7 +3335,7 @@ def gradient_kernels(
     """
     kk = grid_coord(shape)
     if factors and factors != 1:
-        factors = base.auto_repeat(factors, len(shape), check=True)
+        factors = fc.base.auto_repeat(factors, len(shape), check=True)
         kk = [k_i / factor for k_i, factor in zip(kk, factors)]
     if dims is None:
         dims = range(len(shape))
@@ -3320,7 +3423,7 @@ def exp_gradient_kernels(
     """
     kk = grid_coord(shape)
     if factors and factors != 1:
-        factors = base.auto_repeat(factors, len(shape), check=True)
+        factors = fc.base.auto_repeat(factors, len(shape), check=True)
         kk = [k_i / factor for k_i, factor in zip(kk, factors)]
     if dims is None:
         dims = range(len(shape))
@@ -3374,8 +3477,8 @@ def width_from_shapes(
         >>> width_from_shapes((2, 3), (4, 5), (2, 0))
         ((2, 0), (0, 2))
     """
-    new_shape = base.auto_repeat(new_shape, len(shape), check=True)
-    position = base.auto_repeat(position, len(shape), check=True)
+    new_shape = fc.base.auto_repeat(new_shape, len(shape), check=True)
+    position = fc.base.auto_repeat(position, len(shape), check=True)
     if any([dim > new_dim for dim, new_dim in zip(shape, new_shape)]):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
@@ -3518,16 +3621,16 @@ def const_padding(
         ...     == np.pad(arr, 17, 'constant', constant_values=vals))
         True
     """
-    width = base.multi_scale_to_int(width, arr.shape)
+    width = fc.base.multi_scale_to_int(width, arr.shape)
     if callable(values):
         values = values(arr)
     if any(any(size for size in sizes) for sizes in width):
         shape = tuple(
             low + dim + up for dim, (low, up) in zip(arr.shape, width))
-        if not base.is_deep(values):
+        if not fc.base.is_deep(values):
             result = np.full(shape, values, dtype=arr.dtype)
         else:
-            values = base.stretch(values, (arr.ndim, 2))
+            values = fc.base.stretch(values, (arr.ndim, 2))
             result = np.zeros(shape, dtype=arr.dtype)
             slices = tuple(
                 (slice(0, low), slice(dim - up, dim))
@@ -3613,7 +3716,7 @@ def edge_padding(
         >>> np.all(edge_padding(arr, 17) == np.pad(arr, 17, 'edge'))
         True
     """
-    width = base.multi_scale_to_int(width, arr.shape)
+    width = fc.base.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         shape = tuple(
             low + dim + up for dim, (low, up) in zip(arr.shape, width))
@@ -3685,7 +3788,7 @@ def cyclic_padding(
         >>> np.all(cyclic_padding(arr, 17) == np.pad(arr, 17, 'wrap'))
         True
     """
-    width = base.multi_scale_to_int(width, arr.shape)
+    width = fc.base.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         offsets = tuple(
             (low + dim) % dim for dim, (low, up) in zip(arr.shape, width))
@@ -3756,7 +3859,7 @@ def symmetric_padding(
         >>> np.all(symmetric_padding(arr, 17) == np.pad(arr, 17, 'symmetric'))
         True
     """
-    width = base.multi_scale_to_int(width, arr.shape)
+    width = fc.base.multi_scale_to_int(width, arr.shape)
     if any(any(size for size in sizes) for sizes in width):
         shape = tuple(
             low + dim + up for dim, (low, up) in zip(arr.shape, width))
@@ -3768,11 +3871,12 @@ def symmetric_padding(
                     min((i + 1 - (1 if low % dim else 0)) * dim + low % dim,
                         low + dim + up))
                 for i in range(
-                    base.div_ceil(low, dim) + base.div_ceil(up, dim) + 1))
+                    fc.base.div_ceil(low, dim) + fc.base.div_ceil(up,
+                                                                  dim) + 1))
             for dim, (low, up) in zip(arr.shape, width))
         len_target_slices = tuple(len(items) for items in target_slices)
         parities = tuple(
-            base.div_ceil(low, dim) % 2
+            fc.base.div_ceil(low, dim) % 2
             for dim, (low, up) in zip(arr.shape, width))
         for i, target_slicing in enumerate(itertools.product(*target_slices)):
             ij = np.unravel_index(i, len_target_slices)
@@ -3866,8 +3970,8 @@ def padding(
         >>> print(mask)
         (slice(1, -1, None), slice(1, -1, None))
     """
-    if width or base.is_deep(width) and any(base.flatten(width)):
-        width = base.multi_scale_to_int(width, arr.shape, combine=combine)
+    if width or fc.base.is_deep(width) and any(fc.base.flatten(width)):
+        width = fc.base.multi_scale_to_int(width, arr.shape, combine=combine)
         mask = tuple(slice(lower, -upper) for (lower, upper) in width)
         if isinstance(mode, (int, float, complex)):
             _kws['constant_values'] = mode
@@ -4411,7 +4515,7 @@ def mutual_information(
     Returns:
         mi (float): The (normalized) mutual information.
             If base is None, the normalized version is returned.
-            Otherwise returns the mutual information in the specified base.
+            Otherwise returns the mutual information in the specified fc.base.
 
     Examples:
         >>> np.random.seed(0)
@@ -4543,11 +4647,11 @@ def gaussian_nd(
         array([3.72665317e-06, 4.00652974e-05, 3.35462628e-04])
     """
     if not n_dim:
-        n_dim = base.combine_iter_len((shape, sigmas, position))
+        n_dim = fc.base.combine_iter_len((shape, sigmas, position))
 
-    shape = base.auto_repeat(shape, n_dim)
-    sigmas = base.auto_repeat(sigmas, n_dim)
-    position = base.auto_repeat(position, n_dim)
+    shape = fc.base.auto_repeat(shape, n_dim)
+    sigmas = fc.base.auto_repeat(sigmas, n_dim)
+    position = fc.base.auto_repeat(position, n_dim)
 
     position = grid_coord(
         shape, position, is_relative=rel_position, use_int=False)
@@ -4818,9 +4922,9 @@ def marginal_sep_elbow(items):
         >>> marginal_sep_elbow(items)
         -1
     """
-    if base.is_increasing(items):
+    if fc.base.is_increasing(items):
         sign = -1
-    elif base.is_decreasing(items):
+    elif fc.base.is_decreasing(items):
         sign = 1
     else:
         sign = None
@@ -4859,9 +4963,9 @@ def marginal_sep_quad(items):
         >>> marginal_sep_quad(items)
         5
     """
-    if base.is_increasing(items):
+    if fc.base.is_increasing(items):
         sign = -1
-    elif base.is_decreasing(items):
+    elif fc.base.is_decreasing(items):
         sign = 1
     else:
         sign = None
@@ -4896,9 +5000,9 @@ def marginal_sep_quad_weight(items):
         >>> marginal_sep_quad_weight(items)
         7
     """
-    if base.is_increasing(items):
+    if fc.base.is_increasing(items):
         sign = -1
-    elif base.is_decreasing(items):
+    elif fc.base.is_decreasing(items):
         sign = 1
     else:
         sign = None
@@ -4934,9 +5038,9 @@ def marginal_sep_quad_inv_weight(items):
         >>> marginal_sep_quad_inv_weight(items)
         7
     """
-    if base.is_increasing(items):
+    if fc.base.is_increasing(items):
         sign = -1
-    elif base.is_decreasing(items):
+    elif fc.base.is_decreasing(items):
         sign = 1
     else:
         sign = None
@@ -5459,11 +5563,11 @@ def calc_stats(
         label_list = ['avg', 'std', 'min', 'max', 'sum', 'num']
         val_list = []
         for label in label_list:
-            val_list.append(base.compact_num_str(stats_dict[label]))
+            val_list.append(fc.base.compact_num_str(stats_dict[label]))
         if save_path:
             with open(save_path, 'wb') as csv_file:
                 csv_writer = csv.writer(
-                    csv_file, delimiter=str(base.CSV_DELIMITER))
+                    csv_file, delimiter=str(fc.base.CSV_DELIMITER))
                 csv_writer.writerow(label_list)
                 csv_writer.writerow(val_list)
         if title:
@@ -5471,7 +5575,7 @@ def calc_stats(
             for label in label_list:
                 if compact:
                     print_str += '{}={}, '.format(
-                        label, base.compact_num_str(stats_dict[label]))
+                        label, fc.base.compact_num_str(stats_dict[label]))
                 else:
                     print_str += '{}={}, '.format(label, stats_dict[label])
             print(print_str)
@@ -5794,7 +5898,7 @@ def multi_reframe(
             max(*list(shape_arr[:, i]))
             for i in range(len(new_shape)))
 
-    position = base.auto_repeat(position, len(arrs))
+    position = fc.base.auto_repeat(position, len(arrs))
 
     if dtype is None:
         # : alternative to looping
@@ -5830,7 +5934,7 @@ def zoom_prepare(
         zoom (tuple[float]): The zoom factors for each directions.
         shape (int|Iterable[int]): The shape of the array to operate with.
     """
-    zoom_factors = list(base.auto_repeat(zoom_factors, len(shape)))
+    zoom_factors = list(fc.base.auto_repeat(zoom_factors, len(shape)))
     if extra_dim:
         shape = list(shape) + [1] * (len(zoom_factors) - len(shape))
     else:
@@ -6018,7 +6122,7 @@ def multi_resample(
         shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
         for i, shape in enumerate(shapes):
             shape_arr[i, :len(shape)] = np.array(shape)
-        combiner = base.lcm if lossless else max
+        combiner = fc.base.lcm if lossless else max
         new_shape = tuple(
             combiner(*list(shape_arr[:, i]))
             for i in range(len(new_shape)))
@@ -6886,7 +6990,7 @@ def random_mask(
         [[ True False  True False  True]
          [False  True False False  True]]
     """
-    size = base.prod(shape)
+    size = fc.base.prod(shape)
     if not 0 < density < 1:
         raise ValueError('Density must be between 0 and 1')
     mask = np.zeros(shape, dtype=dtype).ravel()
@@ -7068,7 +7172,7 @@ def rolling_window_nd(
         result (np.ndarray): The windowing array.
     """
     pad_kws = dict(pad_kws) if pad_kws else {}
-    window = base.auto_repeat(window, arr.ndim, check=True)
+    window = fc.base.auto_repeat(window, arr.ndim, check=True)
     as_view = (out_mode == 'view')
     width = 0  # for both 'valid' and 'view' output modes
     if out_mode == 'same':
