@@ -1951,9 +1951,16 @@ def slide(
         ((0,), (1,), (2,), (3,), (4,), (5,), (6,), (7,))
         >>> tuple(slide(range(8), 1, 2))
         ((0,), (2,), (4,), (6,))
+        >>> tuple(slide(range(8), 2, 2))
+        ((0, 1), (2, 3), (4, 5), (6, 7))
 
         >>> tuple(slide(range(8), 2, reverse=True))
         ((1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6))
+
+    See Also:
+        - flyingcircus.base.separate()
+        - flyingcircus.base.split()
+        - flyingcircus.base.chunks()
     """
     if step > 1:
         iters = [
@@ -1996,7 +2003,7 @@ def separate(
             This is only used when `truncate` is False.
 
     Returns:
-        groups (zip|itertools.zip_longest): Iterable of grouped items.
+        result (zip|itertools.zip_longest): Iterable of grouped items.
             Each group is a tuple regardless of the original container.
 
     Examples:
@@ -2010,8 +2017,13 @@ def separate(
         >>> tuple(separate(l, 4, False, 0))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 0, 0))
 
+        >>> tuple(separate(l, 2)) == tuple(slide(l, 2, 2))
+        True
+
     See Also:
-        flyingcircus.base.grouping()
+        - flyingcircus.base.slide()
+        - flyingcircus.base.split()
+        - flyingcircus.base.chunks()
     """
     # : alternate (slower) implementations
     # iterators = tuple(items[i::n] for i in range(n))
@@ -2026,7 +2038,7 @@ def separate(
 # ======================================================================
 def split(
         items,
-        size):
+        sizes):
     """
     Split items into groups according to size(s).
 
@@ -2035,7 +2047,7 @@ def split(
 
     Args:
         items (Sequence): The input items.
-        size (int|Sequence[int]): The size of each group.
+        sizes (int|Sequence[int]): The size(s) of each group.
             If Sequence, each group has the number of elements specified.
             If int, all groups have the same number of elements.
             The last group will have the remaining items (if any).
@@ -2060,15 +2072,18 @@ def split(
         True
 
     See Also:
-        flyingcircus.base.gruped()
+        - flyingcircus.base.slide()
+        - flyingcircus.base.separate()
+        - flyingcircus.base.split()
+        - flyingcircus.base.chunks()
     """
-    if isinstance(size, int):
-        size = auto_repeat(size, len(items) // size)
+    if isinstance(sizes, int):
+        sizes = auto_repeat(sizes, len(items) // sizes)
 
     num_items = len(items)
-    if sum(size) >= num_items:
-        size = size[:-1]
-    index = (0,) + tuple(itertools.accumulate(size)) + (num_items,)
+    if sum(sizes) >= num_items:
+        sizes = sizes[:-1]
+    index = (0,) + tuple(itertools.accumulate(sizes)) + (num_items,)
     num = len(index) - 1
     for i in range(num):
         yield items[index[i]:index[i + 1]]
@@ -2090,20 +2105,23 @@ def chunks(
         items (Sequence): The input items.
         n (int): Approximate number of chunks.
             The exact number depends on the value of `mode`.
-        mode (str): Determine which approximation to use.
+        mode (str|int): Determine which approximation to use.
             If str, valid inputs are:
              - 'upper', '+': at most `n` chunks are generated.
              - 'lower', '-': at least `n` chunks are generated.
              - 'closest', '~': the number of chunks is `n` or `n + 1`
                depending on which gives the most evenly distributed chunks
                sizes.
+            If int, valid inputs are `+1`, `0` and `-1`, mapping to 'upper',
+            'closest' and 'lower' respectively.
         balanced (bool): Produce balanced chunks.
             If True, the size of any two chunks is not larger than one.
             Otherwise, the first chunks except the last have the same size.
             This has no effect if the number of items is a multiple of `n`.
 
-    Returns:
-        groups (Generator): Grouped items from the source.
+    Yields:
+        group (Sequence): The items from the grouping.
+            Its container matches the one of `items`.
 
     Examples:
         >>> l = list(range(10))
@@ -2127,13 +2145,19 @@ def chunks(
         ([0, 1, 2], [3, 4, 5], [6, 7], [8, 9])
         >>> tuple(chunks(list(range(10)), 3, '~', False))
         ([0, 1, 2], [3, 4, 5], [6, 7, 8], [9])
+
+    See Also:
+        - flyingcircus.base.slide()
+        - flyingcircus.base.separate()
+        - flyingcircus.base.split()
     """
-    if mode in ('upper', '+'):
-        approx = math.ceil
-    elif mode in ('lower', '-'):
-        approx = math.floor
-    elif mode in ('closest', '~'):
-        approx = round
+    reversed_modes = {
+        math.ceil: ['upper', '+', 1],
+        math.floor: ['lower', '-', -1],
+        round: ['closest', '~', 0]}
+    modes = reverse_mapping_iter(reversed_modes)
+    if mode in modes:
+        approx = modes[mode][0]
     else:
         raise ValueError('Invalid mode `{mode}`'.format(mode=mode))
     n = max(1, n)
@@ -2142,7 +2166,8 @@ def chunks(
         k = len(items) // size + 1
         q = -len(items) % size
         size = (size,) * (k - q) + (size - 1,) * q
-    return split(items, size)
+    for group in split(items, size):
+        yield group
 
 
 # ======================================================================
@@ -4288,13 +4313,11 @@ def align(
             The exact number being calculated depends on the value of `mode`.
         mode (int|str|bool): Determine the rounding mode.
             If str, valid inputs are:
-             - 'upper': converts to the smallest multiple larger than `num`.
-             - 'lower': converts to the largest multiple smaller than `num`.
-             - 'closest': converts to the multiple closest to `num`.
-            If int, valid inputs are:
-             - '+1' has the same behavior as 'upper'.
-             - '-1' has the same behavior as  'lower'.
-             - '0' has the same behavior as  'closest'.
+             - 'upper', '+': round to smallest multiple larger than `num`.
+             - 'lower', '-': round to the largest multiple smaller than `num`.
+             - 'closest', '~': round to the multiple closest to `num`.
+            If int, valid inputs are `+1`, `0` and `-1`, mapping to 'upper',
+            'closest' and 'lower' respectively.
 
     Returns:
         num (int): The aligned number.
@@ -4339,7 +4362,7 @@ def align(
         round: ['closest', 0]}
     modes = reverse_mapping_iter(reversed_modes)
     if mode in modes:
-        func = modes[mode][0]
+        approx = modes[mode][0]
     else:
         raise ValueError('Invalid mode `{mode}`'.format(mode=mode))
 
@@ -4348,13 +4371,13 @@ def align(
             if base.startswith('pow'):
                 base = int(base[len('pow'):])
                 exp = math.log(num, base)
-                num = int(base ** func(exp))
+                num = int(base ** int(approx(exp)))
             else:
                 raise ValueError('Invalid align `{align}`'.format(align=base))
 
         elif isinstance(base, (int, float)):
             modulus = num % base
-            num += func(modulus / base) * base - modulus
+            num += approx(modulus / base) * base - modulus
 
         else:
             warnings.warn('Will not align `{num}` to `{align}`.'.format(
