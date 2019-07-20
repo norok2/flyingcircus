@@ -1974,18 +1974,18 @@ def slide(
 
 
 # ======================================================================
-def grouped(
+def separate(
         items,
         size,
         truncate=False,
         fill=None):
     """
-    Generate grouped items (with constant group size).
+    Separate items into groups with fixed size.
 
     The number of elements for each yield is fixed.
 
-    For different handling of the last group for uneven splits, see
-    `flyingcircus.base.split()`.
+    For different handling of the last group for uneven splits, and for
+    splitting into groups of varying size, see `flyingcircus.base.split()`.
 
     Args:
         items (Iterable): The input items.
@@ -2001,13 +2001,13 @@ def grouped(
 
     Examples:
         >>> l = list(range(10))
-        >>> tuple(grouped(l, 4))
+        >>> tuple(separate(l, 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, None, None))
-        >>> tuple(grouped(tuple(l), 2))
+        >>> tuple(separate(tuple(l), 2))
         ((0, 1), (2, 3), (4, 5), (6, 7), (8, 9))
-        >>> tuple(grouped(l, 4, True))
+        >>> tuple(separate(l, 4, True))
         ((0, 1, 2, 3), (4, 5, 6, 7))
-        >>> tuple(grouped(l, 4, False, 0))
+        >>> tuple(separate(l, 4, False, 0))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 0, 0))
 
     See Also:
@@ -2031,7 +2031,7 @@ def split(
     Split items into groups according to size(s).
 
     The number of elements for each group can vary.
-    Note that for integer splits, `gruped()` can be faster alternative.
+    Note that for integer splits, `separate()` can be faster alternative.
 
     Args:
         items (Sequence): The input items.
@@ -2056,7 +2056,7 @@ def split(
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
         >>> tuple(split(tuple(l), 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9))
-        >>> tuple(split(tuple(l), 2)) == tuple(grouped(l, 2))
+        >>> tuple(split(tuple(l), 2)) == tuple(separate(l, 2))
         True
 
     See Also:
