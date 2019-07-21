@@ -7217,6 +7217,12 @@ def moving_mean(
         array([3., 4., 5., 6., 7.])
         >>> moving_mean(np.linspace(1, 8, 8), 5)
         array([3., 4., 5., 6.])
+
+    See Also:
+        - flyingcircus.extra.moving_average()
+        - flyingcircus.extra.moving_apply()
+        - flyingcircus.extra.running_apply()
+        - flyingcircus.extra.rolling_apply_nd()
     """
     arr = arr.ravel()
     arr = np.cumsum(arr)
@@ -7270,6 +7276,12 @@ def moving_average(
         >>> moving_average(np.linspace(1, 8, 8), [1, 0.2])
         array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
                6.16666667, 7.16666667])
+
+    See Also:
+        - flyingcircus.extra.moving_mean()
+        - flyingcircus.extra.moving_apply()
+        - flyingcircus.extra.running_apply()
+        - flyingcircus.extra.rolling_apply_nd()
     """
     arr = arr.ravel()
     if isinstance(weights, int):
@@ -7305,7 +7317,10 @@ def moving_apply(
 
     This function differs from `running_apply` in that it should be faster but
     more memory demanding.
-    Also the `stat_func` callable is required to accept an `axis` parameter.
+    Also the `func` callable is required to accept an `axis` parameter.
+
+    If the `weights` functionality is not required, then
+    `flyingcircus.extra.rolling_apply_nd()` is a faster alternative.
 
     Args:
         arr (np.ndarray): The input array.
@@ -7359,6 +7374,12 @@ def moving_apply(
         >>> moving_apply(arr, [1, 0.2])
         array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
                6.16666667, 7.16666667])
+
+    See Also:
+        - flyingcircus.extra.moving_mean()
+        - flyingcircus.extra.moving_average()
+        - flyingcircus.extra.running_apply()
+        - flyingcircus.extra.rolling_apply_nd()
     """
     arr = arr.ravel()
     if isinstance(weights, int):
@@ -7432,8 +7453,7 @@ def running_apply(
 
     This function differs from `rolling_apply` in that it should be slower but
     less memory demanding.
-    Also the `stat_func` callable is not required to accept an `axis`
-    parameter.
+    Also the `func` callable is not required to accept an `axis` parameter.
 
     Args:
         arr (np.ndarray): The input array.
@@ -7480,6 +7500,12 @@ def running_apply(
         >>> running_apply(arr, [1, 0.2])
         array([1.16666667, 2.16666667, 3.16666667, 4.16666667, 5.16666667,
                6.16666667, 7.16666667])
+
+    See Also:
+        - flyingcircus.extra.moving_mean()
+        - flyingcircus.extra.moving_average()
+        - flyingcircus.extra.moving_apply()
+        - flyingcircus.extra.rolling_apply_nd()
     """
     arr = arr.ravel()
     if isinstance(weights, int):
@@ -7552,22 +7578,22 @@ def rolling_apply_nd(
     Args:
         arr (np.ndarray): The input array.
         window (int|Iterable[int]): The window sizes.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
+            This is passed to `fc.extra.rolling_window_nd()`.
         steps (int|Iterable[int]): The step sizes.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
+            This is passed to `fc.extra.rolling_window_nd()`.
         window_steps (int|Iterable[int]): The window step sizes.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
+            This is passed to `fc.extra.rolling_window_nd()`.
         out_mode (str): The output mode.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
-            Note that `view` is now identical to `valid`.
+            This is passed to `fc.extra.rolling_window_nd()`.
+            Note that `view` is treated identical to `valid`.
         pad_mode (Number|str): The padding mode.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
+            This is passed to `fc.extra.rolling_window_nd()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
-            This is passed as `mode` to `fc.extra.rolling_window_nd()`.
+            This is passed to `fc.extra.rolling_window_nd()`.
         func (callable): The function to apply.
             Must have the following signature:
-            func(np.ndarray, axis=Iterable[int], *_args, **_kws)
-            -> np.ndarray
+             func(np.ndarray, axis=int|Sequence[int], *_args, **_kws)
+              -> np.ndarray
             The result of `func` must be an array with the dimensions specified
             in `axis` collapsed, e.g. `np.mean()`, `np.min()`, `np.max()`, etc.
             Note that the `axis` parameter must be accepted.
@@ -7637,6 +7663,12 @@ def rolling_apply_nd(
          [18.5 19.  20.  21.  22.  23.  24.  24.5]
          [25.5 26.  27.  28.  29.  30.  31.  31.5]
          [29.  29.5 30.5 31.5 32.5 33.5 34.5 35. ]]
+
+    See Also:
+        - flyingcircus.extra.moving_mean()
+        - flyingcircus.extra.moving_average()
+        - flyingcircus.extra.moving_apply()
+        - flyingcircus.extra.running_apply()
     """
     args = tuple(args) if args else ()
     kws = dict(kws) if kws else {}
@@ -7644,7 +7676,7 @@ def rolling_apply_nd(
         arr, window, steps, window_steps, out_mode, pad_mode, pad_kws,
         False, 'end')
     axes = tuple(range(arr.ndim // 2, arr.ndim))
-    kws['axis'] = axes
+    kws['axis'] = axes if len(axes) > 1 else axes[0]
     return func(arr, *args, **kws)
 
 
