@@ -858,6 +858,64 @@ def unfreeze(
 
 
 # ======================================================================
+def is_mutable(
+        obj,
+        max_depth=-1):
+    """
+    Recursively determine if an object is mutable.
+
+    This is useful to inspect whether it is safe to use an object as default
+    parameter value.
+
+    Args:
+        obj (Any): The object to inspect.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (bool): The result of the mutability check.
+
+    Examples:
+        >>> is_mutable(1)
+        False
+        >>> is_mutable([1])
+        True
+        >>> is_mutable((1, 2))
+        False
+        >>> is_mutable((1, 2, []))
+        True
+        >>> is_mutable((1, 2, []), max_depth=0)
+        False
+        >>> is_mutable(zip(([], []), ((), ())))
+        True
+        >>> is_mutable(zip(((), ()), ((), ())))
+        False
+        >>> is_mutable(map(lambda x: [], (1, 2)))
+        True
+        >>> is_mutable(map(lambda x: 'ciao', (1, 2)))
+        False
+        >>> is_mutable(filter(lambda x: len(x) >= 0, ((), (), [])))
+        True
+        >>> is_mutable(filter(lambda x: len(x) >= 0, ((), ())))
+        False
+    """
+    shallow_immutables = (
+            bool, int, float, str, bytes, slice, range, frozenset)
+    if isinstance(obj, shallow_immutables):
+        return False
+    elif isinstance(obj, (tuple, zip, map, filter)):
+        if max_depth != 0:
+            for item in obj:
+                if is_mutable(item, max_depth - 1):
+                    return True
+            else:
+                return False
+        else:
+            return False
+    else:
+        return True
+
+
+# ======================================================================
 def all_equal(items):
     """
     Check if all items are equal.
