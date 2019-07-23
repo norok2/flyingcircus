@@ -759,6 +759,105 @@ def is_deep(
 
 
 # ======================================================================
+def freeze(
+        items,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Recursively convert mutable containers to immutable counterparts.
+
+    The following conversions are performed:
+     - Iterable -> tuple
+     - set -> frozenset
+     - dict -> tuple
+
+    This is useful to sanitize default parameters in functions.
+
+    Args:
+        items: The input items.
+        avoid (tuple|None): Data types to skip.
+            Note that recursive objects (i.e. `obj == next(iter(obj))`)
+            are always considered not deep.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (tuple): The output items.
+
+    Examples:
+        >>> freeze([1, 2, 'ciao', [2, 3]])
+        (1, 2, 'ciao', (2, 3))
+        >>> freeze([1, 2, 'ciao', {2, 3}])
+        (1, 2, 'ciao', frozenset({2, 3}))
+        >>> freeze([1, 2, 'ciao', {2: 3}])
+        (1, 2, 'ciao', ((2, 3),))
+        >>> freeze([1, 2, 'ciao', {2: 3}, {4: 5}])
+        (1, 2, 'ciao', ((2, 3),), ((4, 5),))
+    """
+    if max_depth == 0:
+        return items
+    else:
+        if hasattr(items, 'items'):
+            return tuple(
+                freeze(item, avoid, max_depth - 1)
+                if is_deep(item, avoid) else item
+                for item in items.items())
+        else:
+            container = frozenset if isinstance(items, set) else tuple
+            return container(
+                freeze(item, avoid, max_depth - 1)
+                if is_deep(item, avoid) else item
+                for item in items)
+
+
+# ======================================================================
+def unfreeze(
+        items,
+        avoid=(str, bytes),
+        max_depth=-1):
+    """
+    Recursively convert immutable containers to mutable counterparts.
+
+    The following conversions are performed:
+     - Iterable -> dict (if possible) or list
+     - frozenset -> set
+
+    Args:
+        items: The input items.
+        avoid (tuple|None): Data types to skip.
+            Note that recursive objects (i.e. `obj == next(iter(obj))`)
+            are always considered not deep.
+        max_depth (int): Maximum depth to reach. Negative for unlimited.
+
+    Returns:
+        result (tuple): The output items.
+
+    Examples:
+        >>> unfreeze((1, 2, 'ciao', (2, 3)))
+        [1, 2, 'ciao', [2, 3]]
+        >>> unfreeze((1, 2, 'ciao', frozenset({2, 3})))
+        [1, 2, 'ciao', {2, 3}]
+        >>> unfreeze((1, 2, 'ciao', ((2, 3),)))
+        [1, 2, 'ciao', {2: 3}]
+        >>> unfreeze((1, 2, 'ciao', ((2, 3),), ((4, 5),)))
+        [1, 2, 'ciao', {2: 3}, {4: 5}]
+    """
+    if max_depth == 0:
+        return items
+    else:
+        try:
+            return dict(
+                unfreeze(item, avoid, max_depth - 1)
+                if is_deep(item, avoid) else item
+                for item in items)
+        except TypeError:
+            container = set if isinstance(items, frozenset) else list
+            return container(
+                unfreeze(item, avoid, max_depth - 1)
+                if is_deep(item, avoid) else item
+                for item in items)
+
+
+# ======================================================================
 def all_equal(items):
     """
     Check if all items are equal.
@@ -6367,7 +6466,7 @@ def order_of_magnitude(
 # ======================================================================
 def prefix_to_order(
         prefix,
-        prefixes=tuple(SI_PREFIX['base10'].items())):
+        prefixes=freeze(SI_PREFIX['base10'])):
     """
     Get the order corresponding to a given prefix.
 
@@ -6412,7 +6511,7 @@ def prefix_to_order(
 # ======================================================================
 def order_to_prefix(
         order,
-        prefixes=tuple(SI_PREFIX['base10'].items())):
+        prefixes=freeze(SI_PREFIX['base10'])):
     """
     Get the prefix corresponding to the order of magnitude.
 
@@ -6519,7 +6618,7 @@ def factor_to_order(
 # ======================================================================
 def prefix_to_factor(
         prefix,
-        prefixes=tuple(SI_PREFIX['base10'].items()),
+        prefixes=freeze(SI_PREFIX['base10']),
         base=10):
     """
     Get the order corresponding to a given prefix.
@@ -6558,7 +6657,7 @@ def prefix_to_factor(
 # ======================================================================
 def factor_to_prefix(
         factor,
-        prefixes=tuple(SI_PREFIX['base10'].items()),
+        prefixes=freeze(SI_PREFIX['base10']),
         base=10):
     """
     Get the order corresponding to a given prefix.
