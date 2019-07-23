@@ -719,8 +719,7 @@ def read_cstr(
 # ======================================================================
 def is_deep(
         obj,
-        avoid=(str, bytes),
-        max_depth=-1):
+        avoid=(str, bytes)):
     """
     Determine if an object is deep, i.e. it can be iterated through.
 
@@ -729,7 +728,6 @@ def is_deep(
         avoid (tuple|None): Data types to skip.
             Note that recursive objects (i.e. `obj == next(iter(obj))`)
             are always considered not deep.
-        max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
         result (bool): If the object is deep or not.
@@ -750,7 +748,7 @@ def is_deep(
     """
     try:
         no_expand = avoid and isinstance(obj, avoid)
-        if no_expand or max_depth == 0 or obj == next(iter(obj)):
+        if no_expand or obj == next(iter(obj)):
             raise TypeError
     except TypeError:
         return False
@@ -846,7 +844,7 @@ def nesting_level(
         >>> nesting_level(((1, 2), 1, (1, (2, 3))), True, combine=min)
         1
     """
-    if not is_deep(obj, avoid, max_depth):
+    if not is_deep(obj, avoid):
         return 0
     elif len(obj) == 0:
         return 1
@@ -920,7 +918,7 @@ def nested_len(
         ...     ((1, 2), (1,), ((1, (2, 3)),)), combine=None, check_same=False)
         (3, (2,), (1,), (1, (2, (2,))))
     """
-    if not is_deep(obj, avoid, max_depth):
+    if not is_deep(obj, avoid):
         return ()
     else:
         if deep:
@@ -1196,7 +1194,7 @@ def flatten(
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
     for item in items:
-        if is_deep(item, avoid, max_depth):
+        if is_deep(item, avoid) and not max_depth == 0:
             # yield from flatten(item, avoid, max_depth - 1)
             for subitem in flatten(item, avoid, max_depth - 1):
                 yield subitem
@@ -1490,7 +1488,7 @@ def deep_map(
 
     new_items = []
     for item in items:
-        if is_deep(item, avoid, max_depth):
+        if is_deep(item, avoid):
             new_items.append(
                 deep_map(func, item, container, avoid, max_depth - 1))
         else:
@@ -1543,7 +1541,7 @@ def deep_filter(
     #     return final_container(
     #         deep_filter(func, item, container, avoid, max_depth - 1)
     #         for item in items
-    #         if is_deep(item, avoid, max_depth) or func(item))
+    #         if is_deep(item, avoid) or func(item))
     # else:
     #     return final_container(items)
 
@@ -1551,11 +1549,11 @@ def deep_filter(
     # return final_container(
     #     deep_filter(func, item, container, avoid, max_depth - 1)
     #     if is_deep(item, avoid, max_depth) else item
-    #     for item in items if is_deep(item, avoid, max_depth) or func(item))
+    #     for item in items if is_deep(item, avoid) or func(item))
 
     new_items = []
     for item in items:
-        if is_deep(item, avoid, max_depth):
+        if is_deep(item, avoid):
             new_items.append(
                 deep_filter(func, item, container, avoid, max_depth - 1))
         else:
@@ -1609,7 +1607,7 @@ def deep_convert(
     if container is not None:
         new_items = []
         for item in items:
-            if is_deep(item, avoid, max_depth):
+            if is_deep(item, avoid):
                 new_items.append(
                     deep_convert(container, item, avoid, max_depth - 1))
             else:
@@ -4799,17 +4797,23 @@ def blocks_r(
         file_size = remaining_size = file_obj.seek(0, os.SEEK_END)
     else:
         file_size = remaining_size = file_obj.tell()
-    rounding = 0
+    rounding = adjust = 0
     while remaining_size > 0:
-        offset = min(file_size, offset + size)
-        file_obj.seek(file_size - offset)
-        block = file_obj.read(min(remaining_size, size))
-        if not isinstance(block, bytes):
-            real_size = len(
-                block.encode(encoding) if encoding else block.encode())
-            rounding = len(block) - real_size
-        remaining_size -= size
-        yield block[:len(block) + rounding] if rounding else block
+        try:
+            offset = min(file_size, size + offset + adjust)
+            file_obj.seek(file_size - offset)
+            block = file_obj.read(min(remaining_size, size + adjust))
+        except UnicodeDecodeError:
+            offset -= size + adjust
+            adjust += 1
+        else:
+            if not isinstance(block, bytes):
+                real_size = len(
+                    block.encode(encoding) if encoding else block.encode())
+                rounding = len(block) - real_size
+            remaining_size -= size + adjust
+            yield block[:len(block) + rounding] if rounding else block
+            adjust = 0
 
 
 # ======================================================================
@@ -6451,7 +6455,9 @@ def order_to_prefix(
 
 
 # ======================================================================
-def order_to_factor(order, base=10):
+def order_to_factor(
+        order,
+        base=10):
     """
     Compute the factor from the order (for a given base).
 
@@ -7650,9 +7656,9 @@ def time_profile(
             scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
             scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
             SI_ORDER_STEP, 6)
-        t_units = order_to_prefix(val_order / SI_ORDER_STEP)
+        t_units = order_to_prefix(val_order)
         num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
-        n_units = order_to_prefix(num_order / SI_ORDER_STEP)
+        n_units = order_to_prefix(num_order)
         if verbose >= VERB_LVL['medium']:
             kws_list = [
                 elide(k + '=' + str(v), kws_limit)
