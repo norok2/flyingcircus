@@ -7776,6 +7776,7 @@ def multi_benchmark(
         kwss=None,
         input_sizes=(10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000),
         gen_input=lambda n: [random.random() for _ in range(n)],
+        equal_output=lambda a, b: a == b,
         time_prof_kws=None,
         store_all=False,
         msg_text='  {eq:>4s},  input_size={input_size}',
@@ -7794,6 +7795,8 @@ def multi_benchmark(
         input_sizes (Iterable[int]): The input sizes.
         gen_input (callable): The function used to generate the input.
             Must have the signature: gen_input(int) -> Any.
+        equal_output (callable): The function used to compare the output.
+            Must have the signature: gen_input(Any, Any) -> bool.
         time_prof_kws (dict|None): Keyword parameters for `time_profile`.
             These are passed to `flyingcircus.base.time_profile()`.
         store_all (bool): Store all results.
@@ -7847,7 +7850,7 @@ def multi_benchmark(
             result, summary = func(input_data, *args, **kws)
             if j == 0:
                 truth = result
-            is_equal = truth == result
+            is_equal = equal_output(truth, result)
             eq = 'OK' if is_equal else 'FAIL'
             msg(msg_text.format(**locals()), verbose, D_VERB_LVL)
             summary['is_equal'] = is_equal
