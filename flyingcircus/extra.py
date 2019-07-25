@@ -2600,7 +2600,7 @@ def subst(
     """
     Substitute all occurrences of a value in an array.
 
-    Useful to remove specific values, e.g. singularities.
+    Useful to replace (mask out) specific unsafe values, e.g. singularities.
 
     Args:
         arr (np.ndarray): The input array.
