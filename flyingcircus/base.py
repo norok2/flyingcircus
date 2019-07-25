@@ -52,7 +52,7 @@ import gc  # Garbage Collector interface
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report, run_doctests
-from flyingcircus import msg, dbg
+from flyingcircus import msg, dbg, fmt, fmtm
 from flyingcircus import do_nothing_decorator
 from flyingcircus import HAS_JIT, jit
 
@@ -5107,7 +5107,7 @@ def from_cached(
     """
     kws = dict(kws) if kws else {}
     hash_key = hash_object((func, kws))
-    filepath = os.path.join(dirpath, filename.format(**locals()))
+    filepath = os.path.join(dirpath, fmtm(filename))
     if os.path.isfile(filepath) and not force:
         result = load_func(open(filepath, 'rb'))
     else:
@@ -5410,7 +5410,7 @@ def execute(
             while proc.poll() is None:
                 out_buff = proc.stdout.readline().decode(encoding)
                 p_stdout += out_buff
-                msg(out_buff, fmt='', end='')
+                msg(out_buff, fmtt='', end='')
                 sys.stdout.flush()
             ret_code = proc.wait()
         elif mode == 'call':
@@ -5423,9 +5423,9 @@ def execute(
             p_stdout = p_stdout.decode(encoding)
             p_stderr = p_stderr.decode(encoding)
             if p_stdout:
-                msg(p_stdout, verbose, VERB_LVL['high'], fmt='')
+                msg(p_stdout, verbose, VERB_LVL['high'], fmtt='')
             if p_stderr:
-                msg(p_stderr, verbose, VERB_LVL['high'], fmt='')
+                msg(p_stderr, verbose, VERB_LVL['high'], fmtt='')
             ret_code = proc.wait()
         else:
             proc.kill()
@@ -5436,7 +5436,7 @@ def execute(
             pid = proc.pid
             for stream, source in ((p_stdout, 'out'), (p_stderr, 'err')):
                 if stream:
-                    log_filepath = log.format(**locals())
+                    log_filepath = fmtm(log)
                     with open(log_filepath, 'wb') as fileobj:
                         fileobj.write(stream.encode(encoding))
     return ret_code, p_stdout, p_stderr
@@ -5504,9 +5504,9 @@ def parallel_execute(
             procs += new_procs
             num_running = len(procs)
         elapsed_dt = datetime.datetime.now() - begin_dt
-        text = ('I: {num_processed} / {num_total} processed'
-                ' ({num_running} running) - Elapsed: {elapsed_dt}'
-                ).format(**locals())
+        text = fmtm(
+            'I: {num_processed} / {num_total} processed'
+            ' ({num_running} running) - Elapsed: {elapsed_dt}')
         msg(text, verbose, D_VERB_LVL)
         if callable(callback):
             callback(*callback_args, **callback_kws)
@@ -6023,7 +6023,7 @@ def next_filepath(
         counter = 0
         while os.path.exists(filepath):
             counter += 1
-            filepath = out_template.format(**locals())
+            filepath = fmtm(out_template)
         msg('NEW: {}'.format(filepath), verbose, VERB_LVL['medium'])
     return filepath
 
@@ -6563,7 +6563,7 @@ def prefix_to_order(
     if prefix in prefixes:
         return prefixes[prefix]
     else:
-        raise IndexError('Prefix `{prefix}` not found!'.format(**locals()))
+        raise IndexError(fmtm('Prefix `{prefix}` not found!'))
 
 
 # ======================================================================
@@ -6607,8 +6607,7 @@ def order_to_prefix(
     if order in reverted_prefixes:
         return reverted_prefixes[order]
     else:
-        raise ValueError(
-            'Invalid order `{order}` for given prefixes.'.format(**locals()))
+        raise ValueError(fmtm('Invalid order `{order}` for given prefixes.'))
 
 
 # ======================================================================
@@ -7830,10 +7829,10 @@ def time_profile(
         name = summary['func_name']
         batch_name = summary['batch_name']
         batch_num = summary['batch_size']
-        name_s = '{name}{args}'.format(**locals())
-        time_s = 'time = ({val} ± {err}) {t_units}s'.format(**locals())
-        num_s = 'loops = {num}{n_units}'.format(**locals())
-        batch_s = '{batch_name}({batch_num})'.format(**locals())
+        name_s = fmtm('{name}{args}')
+        time_s = fmtm('time = ({val} ± {err}) {t_units}s')
+        num_s = fmtm('loops = {num}{n_units}')
+        batch_s = fmtm('{batch_name}({batch_num})')
         result = ': ' + ';  '.join([name_s, time_s, num_s, batch_s])
         if len(result) > line_limit:
             result = ': ' + name_s + '\n  ' \
@@ -8009,7 +8008,7 @@ def multi_benchmark(
                 truth = result
             is_equal = equal_output(truth, result)
             eq = 'OK' if is_equal else 'FAIL'
-            msg(msg_text.format(**locals()), verbose, D_VERB_LVL)
+            msg(fmtm(msg_text), verbose, D_VERB_LVL)
             summary['is_equal'] = is_equal
             inner_summaries.append(summary)
             if store_all:

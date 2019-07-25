@@ -32,7 +32,7 @@ import scipy.signal  # SciPy: Signal Processing
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report
-from flyingcircus import msg, dbg
+from flyingcircus import msg, dbg, fmt, fmtm
 from flyingcircus import HAS_JIT, jit
 
 

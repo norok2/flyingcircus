@@ -23,7 +23,7 @@ import doctest  # Test interactive Python examples
 # ======================================================================
 # :: External Imports
 # import flyingcircus as fc  # Everything you always wanted to have in Python.*
-# from flyingcircus import msg, dbg, elapsed, report
+# from flyingcircus import msg, dbg, fmt, fmtm, elapsed, report
 
 # ======================================================================
 # :: Version
@@ -118,21 +118,95 @@ else:
 
 
 # ======================================================================
+def fmt(
+        text,
+        *_args,
+        **_kws):
+    """
+    Perform string formatting using `text.format()`.
+
+    Args:
+        text (str|Any): Text to format.
+        *_args: Positional arguments for `str.format()`.
+        **_kws: Keyword arguments for `str.format()`.
+
+    Returns:
+        None.
+
+    Examples:
+        >>> a, b, c = 1, 2, 3
+        >>> dd = dict(a=10, b=20, c=30)
+        >>> fmt('{a} + {a} = {b}', a=a, b=b)
+        '1 + 1 = 2'
+        >>> fmt('{a} + {a} = {b}', **dd)
+        '10 + 10 = 20'
+        >>> fmt('{} + {} = {}', 2, 2, 4)
+        '2 + 2 = 4'
+        >>> fmt('{b} + {b} = {}', 4, b=2)
+        '2 + 2 = 4'
+
+    See Also:
+        - flyingcircus.fmtm()
+    """
+    return text.format(*_args, **_kws)
+
+
+# ======================================================================
+def fmtm(
+        text,
+        source=None):
+    """
+    Perform string formatting using `text.format_map()`.
+
+    Args:
+        text (str|Any): Text to format.
+        source (Mapping|None): The mapping to use as source.
+            If None, uses caller's `vars()`.
+
+    Returns:
+        None.
+
+    Examples:
+        >>> a, b, c = 1, 2, 3
+        >>> dd = dict(a=10, b=20, c=30)
+        >>> fmtm('{a} + {a} = {b}')
+        '1 + 1 = 2'
+        >>> fmtm('{a} + {a} = {b}', dd)
+        '10 + 10 = 20'
+        >>> fmtm('{} + {} = {}', 2, 2, 4)  # doctest:+ELLIPSIS
+        Traceback (most recent call last):
+            ...
+        TypeError: fmtm() takes from 1 to 2 positional arguments ...
+        >>> fmtm('{b} + {b} = {}', 4)
+        Traceback (most recent call last):
+            ...
+        TypeError: 'int' object is not subscriptable
+
+    See Also:
+        - flyingcircus.fmt()
+    """
+    if source is None:
+        frame = inspect.currentframe()
+        source = frame.f_back.f_locals
+    return text.format_map(source)
+
+
+# ======================================================================
 def msg(
         text,
         verb_lvl=D_VERB_LVL,
         verb_threshold=D_VERB_LVL,
-        fmt=True,
+        fmtt=True,
         *_args,
         **_kws):
     """
     Display a feedback message to the standard output.
 
     Args:
-        text (str|Any): Message to display or object with `__repr__`.
+        text (str|Any): Message to display or object with `__str__`.
         verb_lvl (int): Current level of verbosity.
         verb_threshold (int): Threshold level of verbosity.
-        fmt (str|bool|None): Format of the message (if `blessed` supported).
+        fmtt (str|bool|None): Format of the message (if `blessed` supported).
             If True, a standard formatting is used.
             If False, empty string or None, no formatting is applied.
             If str, the specified formatting is used.
@@ -151,11 +225,12 @@ def msg(
         >>> msg(s, VERB_LVL['medium'], VERB_LVL['low'])
         Hello World!
         >>> msg(s, VERB_LVL['low'], VERB_LVL['medium'])  # no output
-        >>> msg(s, fmt='{t.green}')  # if ANSI Terminal, green text
+        >>> msg(s, fmtt='{t.green}')  # if ANSI Terminal, green text
         Hello World!
-        >>> msg('   :  a b c', fmt='{t.red}{}')  # if ANSI Terminal, red text
+        >>> msg('   :  a b c', fmtt='{t.red}{}')  # if ANSI Terminal,
+        red text
            :  a b c
-        >>> msg(' : a b c', fmt='cyan')  # if ANSI Terminal, cyan text
+        >>> msg(' : a b c', fmtt='cyan')  # if ANSI Terminal, cyan text
          : a b c
     """
     if verb_lvl >= verb_threshold and text is not None:
@@ -169,9 +244,9 @@ def msg(
                 Terminal = False
 
         t = Terminal() if callable(Terminal) else None
-        if t is not None and fmt:
+        if t is not None and fmtt:
             text = str(text)
-            if fmt is True:
+            if fmtt is True:
                 if VERB_LVL['low'] < verb_threshold <= VERB_LVL['medium']:
                     e = t.cyan
                 elif VERB_LVL['medium'] < verb_threshold < VERB_LVL['debug']:
@@ -199,16 +274,16 @@ def msg(
                     t0=txt0, t1=txt1, t2=txt2, n=t.normal)
                 text = '{t0}{e1}{t1}{n}{e2}{t2}{n}'.format_map(txt_kws)
             else:
-                if 't.' not in fmt:
-                    fmt = '{{t.{}}}'.format(fmt)
-                if '{}' not in fmt:
-                    fmt += '{}'
-                text = fmt.format(text, t=t) + t.normal
+                if 't.' not in fmtt:
+                    fmtt = '{{t.{}}}'.format(fmtt)
+                if '{}' not in fmtt:
+                    fmtt += '{}'
+                text = fmtt.format(text, t=t) + t.normal
         print(text, *_args, **_kws)
 
 
 # ======================================================================
-def dbg(obj, fmt=None):
+def dbg(obj, fmtt=None):
     """
     Print content of a variable for debug purposes.
 
@@ -229,11 +304,11 @@ def dbg(obj, fmt=None):
     """
     outer_frame = inspect.getouterframes(inspect.currentframe())[1]
     name_str = outer_frame[4][0][:-1]
-    msg(name_str, fmt=fmt, end=': ')
+    msg(name_str, fmtt=fmtt, end=': ')
     if isinstance(obj, dict):
         obj = tuple(sorted(obj.items()))
     text = repr(obj)
-    msg(text, fmt='normal')
+    msg(text, fmtt='normal')
 
 
 # ======================================================================
@@ -292,7 +367,7 @@ def report(
     text = '\n'
     if events:
         if not only_last and len(events) > 2:
-            fmt = '{{!s:{}s}}  {{!s:>{}s}}  {{!s:>{}s}}\n'.format(
+            fmtt = '{{!s:{}s}}  {{!s:>{}s}}  {{!s:>{}s}}\n'.format(
                 *max_col_widths)
             title_sep = ((title_sep * len(title))[:len(title)] + '\n') \
                 if title_sep else ''
@@ -300,10 +375,10 @@ def report(
                 '\n' + title_sep + '\n' if len(events) > 2 else ': ')
 
             if labels and len(events) > 2:
-                text += (fmt.format(*labels))
+                text += (fmtt.format(*labels))
 
             if label_sep:
-                text += (fmt.format(
+                text += (fmtt.format(
                     *[(label_sep * max_col_width)[:max_col_width]
                       for max_col_width in max_col_widths]))
 
@@ -315,13 +390,13 @@ def report(
                 diff_last = curr_elapsed - prev_elapsed
                 if diff_first == diff_last:
                     diff_first = '-'
-                text += (fmt.format(
+                text += (fmtt.format(
                     name[:max_col_widths[0]], diff_last, diff_first))
         elif len(events) > 1:
-            fmt = '{{!s:{}s}}  {{!s:>{}s}}'.format(*max_col_widths)
+            fmtt = '{{!s:{}s}}  {{!s:>{}s}}'.format(*max_col_widths)
             name, curr_elapsed = events[-1]
             prev_elapsed = events[0][1]
-            text += (fmt.format(name, curr_elapsed - prev_elapsed))
+            text += (fmtt.format(name, curr_elapsed - prev_elapsed))
         else:
             events = None
 
@@ -376,16 +451,14 @@ def pkg_paths(
 # ======================================================================
 def run_doctests(module_docstring):
     msg(module_docstring.strip())
-    msg('Running `doctest.testmod()`... ', fmt='bold')
+    msg('Running `doctest.testmod()`... ', fmtt='bold')
     results = doctest.testmod()  # RUN TESTS HERE!
     results_ok = results.attempted - results.failed
     results_fmt = '{t.bold}{t.red}' \
         if results.failed > 0 else '{t.bold}{t.green}'
-    msg('Tests = {results.attempted}; '.format(**locals()),
-        fmt='{t.bold}{t.cyan}', end='')
-    msg('OK = {results_ok}; '.format(**locals()),
-        fmt='{t.bold}{t.green}', end='')
-    msg('Fail = {results.failed}'.format(**locals()), fmt=results_fmt)
+    msg(fmtm('Tests = {results.attempted}; '), fmtt='{t.bold}{t.cyan}', end='')
+    msg(fmtm('OK = {results_ok}; '), fmtt='{t.bold}{t.green}', end='')
+    msg(fmtm('Fail = {results.failed}'), fmtt=results_fmt)
     msg(report())
 
 

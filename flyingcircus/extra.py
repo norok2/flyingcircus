@@ -49,7 +49,7 @@ import flyingcircus as fc  # Everything you always wanted to have in Python.*
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report, run_doctests
-from flyingcircus import msg, dbg
+from flyingcircus import msg, dbg, fmt, fmtm
 from flyingcircus import HAS_JIT, jit
 
 
@@ -7408,8 +7408,7 @@ def moving_apply(
                 (np.full((num - 1,), borders[-1]),
                  np.full((num - 1,), borders[0])))
         else:
-            raise ValueError(
-                '`borders={borders}` not understood'.format(**locals()))
+            raise ValueError(fmtm('`borders={borders}` not understood'))
 
         # calculate generator for data and weights
         arr = np.concatenate((arr, extension))
@@ -7533,8 +7532,7 @@ def running_apply(
             head = np.full((num - 1,), borders[0])
             tail = np.full((num - 1,), borders[-1])
         else:
-            raise ValueError(
-                '`borders={borders}` not understood'.format(**locals()))
+            raise ValueError(fmtm('`borders={borders}` not understood'))
 
         # calculate generator for data and weights
         gen = np.concatenate((head, arr, tail))
