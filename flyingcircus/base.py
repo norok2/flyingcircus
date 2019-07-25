@@ -668,9 +668,9 @@ def read_stream(
         file_obj = in_file
     if offset is not None:
         file_obj.seek(offset, whence)
-    fmt = mode + str(num_blocks) + DTYPE_STR[dtype]
-    read_size = struct.calcsize(fmt)
-    data = struct.unpack_from(fmt, file_obj.read(read_size))
+    struct_format = mode + str(num_blocks) + DTYPE_STR[dtype]
+    read_size = struct.calcsize(struct_format)
+    data = struct.unpack_from(struct_format, file_obj.read(read_size))
     if isinstance(in_file, str):
         file_obj.close()
     return data
