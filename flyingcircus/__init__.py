@@ -268,6 +268,30 @@ def safe_format_map(
         '{a} -B- {c}'
         >>> safe_format_map(text, dict(c='-C-'))
         '{a} {b} -C-'
+
+        >>> source = dict(a=4, c=101, d=dict(x='FOO'), e=[1, 2])
+        >>> safe_format_map('{b} {f}', source)
+        '{b} {f}'
+        >>> safe_format_map('{a} {b}', source)
+        '4 {b}'
+        >>> safe_format_map('{a} {b} {c:5d}', source)
+        '4 {b}   101'
+        >>> safe_format_map('{a} {b} {c!s}', source)
+        '4 {b} 101'
+        >>> safe_format_map('{a} {b} {c!s:>{a}s}', source)
+        '4 {b}  101'
+        >>> safe_format_map('{a} {b} {c:0{a}d}', source)
+        '4 {b} 0101'
+        >>> safe_format_map('{a} {b} {d[x]}', source)
+        '4 {b} FOO'
+        >>> safe_format_map('{a} {b} {e.index}', source)  # doctest:+ELLIPSIS
+        '4 {b} <built-in method index of list object at ...>'
+        >>> safe_format_map('{a} {b} {f[g]}', source)
+        '4 {b} {f[g]}'
+        >>> safe_format_map('{a} {b} {f.values}', source)
+        '4 {b} {f.values}'
+        >>> safe_format_map('{a} {b} {e[0]}', source)
+        '4 {b} 1'
     """
     stack = []
     for i, j, depth in nested_delimiters(text, '{', '}'):
