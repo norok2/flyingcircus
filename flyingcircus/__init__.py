@@ -17,7 +17,7 @@ import datetime  # Basic date and time types
 import inspect  # Inspect live objects
 import os  # Miscellaneous operating system interfaces
 import appdirs  # Determine appropriate platform-specific dirs
-import pkg_resources  # Manage package resource (from setuptools module)
+# import pkg_resources  # Manage package resource (from setuptools module)
 import doctest  # Test interactive Python examples
 
 # ======================================================================
@@ -118,6 +118,178 @@ else:
 
 
 # ======================================================================
+def find_all(
+        text,
+        pattern,
+        overlap=False):
+    """
+    Find all occurrencies of the pattern in the text.
+
+    Args:
+        text (str|bytes|bytearray): The input text.
+        pattern (str|bytes|bytearray): The pattern to find.
+        overlap (bool): Detect overlapping patterns.
+
+    Yields:
+        position (int): The position of the next finding.
+
+    Examples:
+        >>> list(find_all('0010120123012340123450123456', '0'))
+        [0, 1, 3, 6, 10, 15, 21]
+        >>> list(find_all('  1 12 123 1234 12345 123456', '0'))
+        []
+        >>> list(find_all('  1 12 123 1234 12345 123456', '12'))
+        [4, 7, 11, 16, 22]
+        >>> list(find_all(b'  1 12 123 1234 12345 123456', b'12'))
+        [4, 7, 11, 16, 22]
+        >>> list(find_all(bytearray(b'  1 12 123 1234 12345 123456'), b'12'))
+        [4, 7, 11, 16, 22]
+        >>> list(find_all('0123456789', ''))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> list(find_all('', ''))
+        []
+        >>> list(find_all('', '0123456789'))
+        []
+        >>> list(find_all(b'0123456789', b''))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> list(find_all(b'', b''))
+        []
+        >>> list(find_all(b'', b'0123456789'))
+        []
+    """
+    len_text = len(text)
+    offset = 1 if not overlap else (1 or len(pattern))
+    i = 0
+    while i < len_text:
+        i = text.find(pattern, i)
+        if i >= 0:
+            yield i
+            i += offset
+        else:
+            break
+
+
+# ======================================================================
+def nested_delimiters(
+        text,
+        l_delim,
+        r_delim,
+        including=True):
+    """
+    Find matching delimiters in a sequence.
+
+    The delimiters are matched according to nesting level.
+
+    Args:
+        text (str|bytes|bytearray): The input text.
+        l_delim (str|bytes|bytearray): The left delimiter.
+        r_delim (str|bytes|bytearray): The right delimiter.
+        including (bool): Include delimiters.
+
+    yields:
+        result (tuple[int]): The matching delimiters.
+
+    Examples:
+        >>> s = '{a} {b:{c}}'
+        >>> list(nested_delimiters(s, '{', '}'))
+        [(0, 3, 0), (7, 10, 1), (4, 11, 0)]
+        >>> [s[i:j] for i, j, depth in nested_delimiters(s, '{', '}')]
+        ['{a}', '{c}', '{b:{c}}']
+        >>> [s[i:j] for i, j, d in nested_delimiters(s, '{', '}') if d == 0]
+        ['{a}', '{b:{c}}']
+        >>> list(nested_delimiters('{a} {b:{c}', '{', '}'))
+        Traceback (most recent call last):
+            ...
+        ValueError: Found `1` unmatched left token(s) `{` (position: 4).
+        >>> list(nested_delimiters('{a}} {b:{c}}', '{', '}'))
+        Traceback (most recent call last):
+            ...
+        ValueError: Found `1` unmatched right token(s) `}` (position: 3).
+        >>> list(nested_delimiters(s.encode(), b'{', b'}'))
+        [(0, 3, 0), (7, 10, 1), (4, 11, 0)]
+        >>> list(nested_delimiters(bytearray(s.encode()), b'{', b'}'))
+        [(0, 3, 0), (7, 10, 1), (4, 11, 0)]
+
+    See Also:
+        - flyingcircus.base.nested_pairs()
+    """
+    l_offset = len(l_delim) if including else 0
+    r_offset = len(r_delim) if including else 0
+    stack = []
+
+    l_tokens = set(find_all(text, l_delim))
+    r_tokens = set(find_all(text, r_delim))
+    positions = l_tokens.union(r_tokens)
+    for pos in sorted(positions):
+        if pos in l_tokens:
+            stack.append(pos + 1)
+        elif pos in r_tokens:
+            if len(stack) > 0:
+                prev = stack.pop()
+                yield (prev - l_offset, pos + r_offset, len(stack))
+            else:
+                raise ValueError(
+                    'Found `{}` unmatched right token(s) `{}` (position: {}).'
+                        .format(len(r_tokens) - len(l_tokens), r_delim, pos))
+    if len(stack) > 0:
+        raise ValueError(
+            'Found `{}` unmatched left token(s) `{}` (position: {}).'
+                .format(
+                len(l_tokens) - len(r_tokens), l_delim, stack.pop() - 1))
+
+
+# ======================================================================
+def safe_format_map(
+        text,
+        source):
+    """
+    Perform safe string formatting from a mapping source.
+
+    If a value is missing from source, this is simply ignored, and no
+    `KeyError` is raised.
+
+    Args:
+        text (str): Text to format.
+        source (Mapping|None): The mapping to use as source.
+            If None, uses caller's `vars()`.
+
+    Returns:
+        result (str): The formatted text.
+
+    See Also:
+        - flyingcircus.fmt()
+        - flyingcircus.fmtm()
+
+    Examples:
+        >>> text = '{a} {b} {c}'
+        >>> safe_format_map(text, dict(a='-A-'))
+        '-A- {b} {c}'
+        >>> safe_format_map(text, dict(b='-B-'))
+        '{a} -B- {c}'
+        >>> safe_format_map(text, dict(c='-C-'))
+        '{a} {b} -C-'
+    """
+    stack = []
+    for i, j, depth in nested_delimiters(text, '{', '}'):
+        if depth == 0:
+            try:
+                replacing = text[i:j].format_map(source)
+            except KeyError:
+                pass
+            else:
+                stack.append((i, j, replacing))
+    result = ''
+    i, j = len(text), 0
+    while len(stack) > 0:
+        last_i = i
+        i, j, replacing = stack.pop()
+        result = replacing + text[j:last_i] + result
+    if i > 0:
+        result = text[0:i] + result
+    return result
+
+
+# ======================================================================
 def fmt(
         text,
         *_args,
@@ -126,12 +298,12 @@ def fmt(
     Perform string formatting using `text.format()`.
 
     Args:
-        text (str|Any): Text to format.
+        text (str): Text to format.
         *_args: Positional arguments for `str.format()`.
         **_kws: Keyword arguments for `str.format()`.
 
     Returns:
-        None.
+        result (str): The formatted text.
 
     Examples:
         >>> a, b, c = 1, 2, 3
@@ -147,6 +319,7 @@ def fmt(
 
     See Also:
         - flyingcircus.fmtm()
+        - flyingcircus.base.partial_format()
     """
     return text.format(*_args, **_kws)
 
@@ -154,17 +327,20 @@ def fmt(
 # ======================================================================
 def fmtm(
         text,
-        source=None):
+        source=None,
+        safe=True):
     """
-    Perform string formatting using `text.format_map()`.
+    Perform string formatting from a mapping source.
 
     Args:
-        text (str|Any): Text to format.
+        text (str): Text to format.
         source (Mapping|None): The mapping to use as source.
             If None, uses caller's `vars()`.
+        safe (bool): Apply mapping safely.
+            Uses `flyingcircus.partial_format()`.
 
     Returns:
-        None.
+        result (str): The formatted text.
 
     Examples:
         >>> a, b, c = 1, 2, 3
@@ -176,19 +352,23 @@ def fmtm(
         >>> fmtm('{} + {} = {}', 2, 2, 4)  # doctest:+ELLIPSIS
         Traceback (most recent call last):
             ...
-        TypeError: fmtm() takes from 1 to 2 positional arguments ...
-        >>> fmtm('{b} + {b} = {}', 4)
+        TypeError: fmtm() takes from 1 to 3 positional arguments ...
+        >>> fmtm('{b} + {b} = {}', 4)  # doctest:+ELLIPSIS
         Traceback (most recent call last):
             ...
-        TypeError: 'int' object is not subscriptable
+        TypeError: ...
 
     See Also:
         - flyingcircus.fmt()
+        - flyingcircus.base.partial_format()
     """
     if source is None:
         frame = inspect.currentframe()
         source = frame.f_back.f_locals
-    return text.format_map(source)
+    if safe:
+        return safe_format_map(text, source)
+    else:
+        return text.format_map(source)
 
 
 # ======================================================================
