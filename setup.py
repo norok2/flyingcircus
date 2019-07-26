@@ -165,7 +165,6 @@ setup(
     package_data={
         # 'flyingcircus': [
         #     'resources/icon.*',
-        #     'sequences/pulses/*.csv',
         # ],
     },
     include_package_data=True,
