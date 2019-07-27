@@ -156,9 +156,13 @@ def find_all(
         []
         >>> list(find_all(b'', b'0123456789'))
         []
+        >>> list(find_all('000000000', '000'))
+        [0, 3, 6]
+        >>> list(find_all('000000000', '000', True))
+        [0, 1, 2, 3, 4, 5, 6]
     """
     len_text = len(text)
-    offset = 1 if overlap else (1 and len(pattern))
+    offset = 1 if overlap else (len(pattern) or 1)
     i = 0
     while i < len_text:
         i = text.find(pattern, i)
