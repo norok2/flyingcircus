@@ -158,7 +158,7 @@ def find_all(
         []
     """
     len_text = len(text)
-    offset = 1 if not overlap else (1 or len(pattern))
+    offset = 1 if overlap else (1 and len(pattern))
     i = 0
     while i < len_text:
         i = text.find(pattern, i)
@@ -292,6 +292,10 @@ def safe_format_map(
         '4 {b} {f.values}'
         >>> safe_format_map('{a} {b} {e[0]}', source)
         '4 {b} 1'
+        >>> safe_format_map('{{a}} {b}', source)
+        '{a} {b}'
+        >>> safe_format_map('{{a}} {{b}}', source)
+        '{a} {b}'
     """
     stack = []
     for i, j, depth in nested_delimiters(text, '{', '}'):
