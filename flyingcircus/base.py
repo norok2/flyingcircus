@@ -3467,7 +3467,7 @@ def is_prime(num):
         return False
     i = 5
     while i * i <= num:
-        if num % i == 0 or num % (i + 2) == 0:
+        if not (num % i and num % (i + 2)):
             return False
         else:
             i += 6
