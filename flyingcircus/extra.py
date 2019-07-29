@@ -2818,7 +2818,7 @@ def ogrid2mgrid(ogrid):
         True
     """
     mgrid = np.zeros(
-        (len(ogrid),) + tuple(max([d for d in x.shape]) for x in ogrid),
+        (len(ogrid),) + tuple(max(d for d in x.shape) for x in ogrid),
         dtype=ogrid[0].dtype)
     for i, x in enumerate(ogrid):
         mgrid[i, ...] = x
@@ -5890,7 +5890,7 @@ def multi_reframe(
     # calculate new shape
     if new_shape is None:
         shapes = [arr.shape for arr in arrs]
-        new_shape = [1] * max([len(shape) for shape in shapes])
+        new_shape = [1] * max(len(shape) for shape in shapes)
         shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
         for i, shape in enumerate(shapes):
             shape_arr[i, :len(shape)] = np.array(shape)
@@ -6118,13 +6118,13 @@ def multi_resample(
     # calculate new shape
     if new_shape is None:
         shapes = [arr.shape for arr in arrs]
-        new_shape = [1] * max([len(shape) for shape in shapes])
+        new_shape = [1] * max(len(shape) for shape in shapes)
         shape_arr = np.ones((len(shapes), len(new_shape))).astype(np.int)
         for i, shape in enumerate(shapes):
             shape_arr[i, :len(shape)] = np.array(shape)
         combiner = fc.base.lcm if lossless else max
         new_shape = tuple(
-            combiner(*list(shape_arr[:, i]))
+            combiner(list(shape_arr[:, i]))
             for i in range(len(new_shape)))
     else:
         new_shape = tuple(new_shape)

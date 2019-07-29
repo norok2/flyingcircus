@@ -290,8 +290,11 @@ def join(
     """
     Join together multiple containers.
 
+    Note that since this function could not be extended with the `@star_magic`
+    decorator, the _star magic_ is embedded in its definition.
+
     Args:
-        *operands (*Iterable): The operands to join.
+        *operands (*Sequence): The operands to join.
         coerce (bool): Cast all operands into the type of the first.
 
     Returns:
@@ -1423,7 +1426,6 @@ def stretch(
     if not is_deep(items, **is_deep_kws):
         result = auto_repeat(items, shape)
     else:
-
         old_shape = nested_len(items, check_same=False)
         if len(old_shape) == 1 and len(shape) > 1 and shape[0] == old_shape[0]:
             result = tuple(
@@ -4084,55 +4086,57 @@ def _gcd(a, b):
 
 
 # =====================================================================
-def gcd(*vals):
+def gcd(values):
     """
     Find the greatest common divisor (GCD) of a list of numbers.
 
     Args:
-        *nums (*Iterable[float]): The input numbers.
+        values (Iterable[float]): The input numbers.
 
     Returns:
-        gcd_val (int): The value of the greatest common divisor (GCD).
+        result (int): The value of the greatest common divisor (GCD).
 
     Examples:
-        >>> gcd(12, 24, 18)
+        >>> gcd((12, 24, 18))
         6
-        >>> gcd(12, 24, 18, 42, 600, 66, 666, 768)
+        >>> gcd((12, 24, 18, 42, 600, 66, 666, 768))
         6
-        >>> gcd(12, 24, 18, 42, 600, 66, 666, 768, 101)
+        >>> gcd((12, 24, 18, 42, 600, 66, 666, 768, 101))
         1
-        >>> gcd(12, 24, 18, 3)
+        >>> gcd((12, 24, 18, 3))
         3
     """
-    gcd_val = vals[0]
-    for val in vals[1:]:
-        gcd_val = math.gcd(gcd_val, val)
-    return gcd_val
+    iter_values = iter(values)
+    result = next(iter_values)
+    for val in iter_values:
+        result = math.gcd(result, val)
+    return result
 
 
 # ======================================================================
-def lcm(*vals):
+def lcm(values):
     """
     Find the least common multiple (LCM) of a list of numbers.
 
     Args:
-        *nums (*Iterable[int]): The input numbers.
+        values (Iterable[int]): The input numbers.
 
     Returns:
-        gcd_val (int): The value of the least common multiple (LCM).
+        result (int): The value of the least common multiple (LCM).
 
     Examples:
-        >>> lcm(2, 3, 4)
+        >>> lcm((2, 3, 4))
         12
-        >>> lcm(9, 8)
+        >>> lcm((9, 8))
         72
-        >>> lcm(12, 23, 34, 45, 56)
+        >>> lcm((12, 23, 34, 45, 56))
         985320
     """
-    lcm_val = vals[0]
-    for val in vals[1:]:
-        lcm_val = lcm_val * val // math.gcd(lcm_val, val)
-    return lcm_val
+    iter_values = iter(values)
+    result = next(iter_values)
+    for value in iter_values:
+        result *= value // math.gcd(result, value)
+    return result
 
 
 # ======================================================================
@@ -4712,12 +4716,12 @@ def align(
 
 
 # ======================================================================
-def merge_dicts(*dicts):
+def merge_dicts(items):
     """
     Merge dictionaries into a new dict (new keys overwrite the old ones).
 
     Args:
-        dicts (*Iterable[dict]): Dictionaries to be merged together.
+        items (Iterable[dict]): Dictionaries to be merged together.
 
     Returns:
         merged (dict): The merged dict (new keys overwrite the old ones).
@@ -4726,15 +4730,15 @@ def merge_dicts(*dicts):
         >>> d1 = {1: 2, 3: 4, 5: 6}
         >>> d2 = {2: 1, 4: 3, 6: 5}
         >>> d3 = {1: 1, 3: 3, 6: 5}
-        >>> dd = merge_dicts(d1, d2)
+        >>> dd = merge_dicts((d1, d2))
         >>> print(tuple(sorted(dd.items())))
         ((1, 2), (2, 1), (3, 4), (4, 3), (5, 6), (6, 5))
-        >>> dd = merge_dicts(d1, d3)
+        >>> dd = merge_dicts((d1, d3))
         >>> print(tuple(sorted(dd.items())))
         ((1, 1), (3, 3), (5, 6), (6, 5))
     """
     merged = {}
-    for item in dicts:
+    for item in items:
         merged.update(item)
     return merged
 
@@ -5966,6 +5970,10 @@ def split_path(
         >>> split_path('/path/to/file')
         ('/path/to', 'file', '')
 
+        >>> root, base, ext = split_path('/path/to/file.ext')
+        >>> root + os.path.sep + base + ext
+        '/path/to/file.ext'
+
     See Also:
         - flyingcircus.base.join_path()
         - flyingcircus.base.multi_split_path()
@@ -5980,10 +5988,10 @@ def multi_split_path(
         filepath,
         auto_multi_ext=True):
     """
-    Split the filepath into (root, base, ext).
+    Split the filepath into (subdir, subdir, ..., base, ext).
 
-    Note that: os.path.sep.join(*dirs, base) + ext == path.
-    (and therfore: ''.join(dirs) + base + ext != path).
+    Note that: splits[0] + os.path.sep.join(splits[1:-1]) + ext == path
+    (and therfore e.g.: ''.join(splits) != path).
 
     `root` is everything that preceeds the last path separator.
     `base` is everything between the last path separator and the first
@@ -6016,6 +6024,10 @@ def multi_split_path(
         ('file', '.tar.gz')
         >>> multi_split_path('/path/to/file')
         ('/', 'path', 'to', 'file', '')
+
+        >>> splits = multi_split_path('/path/to/file.ext')
+        >>> splits[0] + os.path.sep.join(splits[1:-1]) + splits[-1]
+        '/path/to/file.ext'
 
     See Also:
         - flyingcircus.base.join_path()
