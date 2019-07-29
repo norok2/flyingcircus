@@ -208,7 +208,7 @@ def ndim_slice(
 
 
 # ======================================================================
-def ix_broadcast(*slicing):
+def ix_broadcast(slicing):
     """
     Automatically broadcast multiple-indexes for N-dim multi-slicing.
 
@@ -248,41 +248,42 @@ def ix_broadcast(*slicing):
     Examples:
         >>> arr = arange_nd((3, 4, 5))
         >>> ixb = ix_broadcast  # recommended usage
+        >>> ixb_ = ix_broadcast_  # recommended usage
         >>> slicing = (slice(None), (0, 2, 3), (0, 2, 3, 4))
-        >>> new_arr = arr[ixb(*slicing)]
+        >>> new_arr = arr[ixb(slicing)]
         >>> print(new_arr.shape)
         (3, 3, 4)
 
         >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
-        >>> new_arr = arr[ixb(*slicing)]
+        >>> new_arr = arr[ixb(slicing)]
         >>> print(new_arr.shape)
         (2, 3, 4)
 
         >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
-        >>> new_arr = arr[ixb(*slicing)]
+        >>> new_arr = arr[ixb(slicing)]
         >>> print(new_arr.shape)
         (2, 1, 4)
 
         >>> slicing = (slice(2), 1, (0, 2, 3, 4))
-        >>> new_arr = arr[ixb(*slicing)]
+        >>> new_arr = arr[ixb(slicing)]
         >>> print(new_arr.shape)
         (2, 4)
 
         >>> slicing = ((0, 1), slice(3), (0, 3, 4))
-        >>> new_arr = arr[ixb(*slicing)]
+        >>> new_arr = arr[ixb(slicing)]
         >>> print(new_arr.shape)
         (2, 3, 3)
 
-        >>> new_arr = arr[ixb(0, 0, slice(3))]
+        >>> new_arr = arr[ixb_(0, 0, slice(3))]
         >>> print(new_arr.shape)
         (3,)
 
-        >>> new_arr = arr[ixb(0, 0, 0)]
+        >>> new_arr = arr[ixb_(0, 0, 0)]
         >>> print(new_arr.shape)
         ()
 
         >>> slicing = (slice(0, 1), slice(3), (0, 1))
-        >>> new_slicing = ix_broadcast(*slicing)
+        >>> new_slicing = ix_broadcast(slicing)
         >>> print(new_slicing)
         (slice(0, 1, None), slice(None, 3, None), array([0, 1]))
         >>> new_arr = arr[slicing]
@@ -293,7 +294,7 @@ def ix_broadcast(*slicing):
         (1, 3, 2)
 
         >>> slicing = (0, slice(3), (0, 1))
-        >>> new_slicing = ix_broadcast(*slicing)
+        >>> new_slicing = ix_broadcast(slicing)
         >>> print(new_slicing)
         (0, slice(None, 3, None), array([0, 1]))
         >>> new_arr = arr[slicing]
@@ -304,12 +305,12 @@ def ix_broadcast(*slicing):
         (2, 3)
 
         >>> print(
-        ...     np.all(arr[ixb(slice(None), (0, 1), (0, 1))]
+        ...     np.all(arr[ixb((slice(None), (0, 1), (0, 1)))]
         ...     == arr[:, :2, :2]))
         True
 
         >>> print(  # False -> reordering in mixed simple/advanced indexing
-        ...     np.all(arr[ixb((0, 1), slice(2), (0, 1))]
+        ...     np.all(arr[ixb(((0, 1), slice(2), (0, 1)))]
         ...     == arr[:2, :2, :2]))
         False
     """
@@ -330,6 +331,14 @@ def ix_broadcast(*slicing):
         for j, i in enumerate(indexes):
             result[i] = broadcasted[j]
     return tuple(result)
+
+
+# ======================================================================
+def ix_broadcast_(*slicing):
+    """
+    Star magic version of `flyingcircus.extra.ix_broadcast()`.
+    """
+    return ix_broadcast(slicing)
 
 
 # ======================================================================
@@ -362,7 +371,7 @@ def multi_slicing(
         ...     == arr[:, (0, 2, 3), :][:, :, (0, 2, 3, 4)])
         True
         >>> np.all(
-        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(slicing)])
         True
 
         >>> slicing = (slice(2), (0, 2, 3), (0, 2, 3, 4))
@@ -374,7 +383,7 @@ def multi_slicing(
         ...     == arr[:2, (0, 2, 3), :][:2, :, (0, 2, 3, 4)])
         True
         >>> np.all(
-        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(slicing)])
         True
 
         >>> slicing = (slice(2), (0,), (0, 2, 3, 4))
@@ -386,7 +395,7 @@ def multi_slicing(
         ...     == arr[:2, (0,), :][:2, :, (0, 2, 3, 4)])
         True
         >>> np.all(
-        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(slicing)])
         True
 
         >>> slicing = (slice(2), 1, (0, 2, 3, 4))
@@ -398,7 +407,7 @@ def multi_slicing(
         ...     == arr[:2, 1, :][:2, (0, 2, 3, 4)])
         True
         >>> np.all(
-        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(slicing)])
         True
 
         >>> slicing = ((0, 1), slice(3), (0, 1, 2, 3))
@@ -413,7 +422,7 @@ def multi_slicing(
         ...     == arr[:2, :, :][:, :3, :][:, :, :4])
         True
         >>> np.all(  # False -> reordering in mixed simple/advanced indexing
-        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(*slicing)])
+        ...     multi_slicing(arr, slicing) == arr[ix_broadcast(slicing)])
         False
     """
     if sum(1 for obj in slicing if not isinstance(obj, (slice, int))) > 1:
@@ -1163,7 +1172,7 @@ def shuffle_on_axis(arr, axis=-1):
 
 
 # ======================================================================
-def is_broadcastable(*items):
+def is_broadcastable(items):
     """
     Check if some arrays (or their shapes) can be broadcasted together.
 
@@ -1171,7 +1180,7 @@ def is_broadcastable(*items):
     (starting from the last) are either the same or one of the is 1.
 
     Args:
-        items (*Sequence[Sequence|np.ndarray]): The shapes to test.
+        items (Iterable[Sequence|np.ndarray]): The shapes to test.
             Each item is either a NumPy array (more precisely any object
             with a `shape` attribute) or a Sequence representing the shape
             of an array.
@@ -1180,17 +1189,18 @@ def is_broadcastable(*items):
         result (bool): The result of the broadcastability test.
 
     Examples:
-        >>> is_broadcastable((2, 3, 1), (4,))
+        >>> is_broadcastable(((2, 3, 1), (4,)))
         True
-        >>> is_broadcastable((8, 1, 6, 1), (7, 1, 5))
+        >>> is_broadcastable(((8, 1, 6, 1), (7, 1, 5)))
         True
-        >>> is_broadcastable((2, 1), (8, 4, 3))
+        >>> is_broadcastable(((2, 1), (8, 4, 3)))
         False
-        >>> is_broadcastable((8, 1, 6, 1), (7, 1, 5), (7, 6, 5), (8, 1, 1, 1))
+        >>> is_broadcastable(
+        ...      ((8, 1, 6, 1), (7, 1, 5), (7, 6, 5), (8, 1, 1, 1)))
         True
-        >>> is_broadcastable(np.zeros((4, 3, 2, 1)), (3, 1, 5))
+        >>> is_broadcastable((np.zeros((4, 3, 2, 1)), (3, 1, 5)))
         True
-        >>> is_broadcastable((8, 4, 3), np.zeros((2, 1)))
+        >>> is_broadcastable(((8, 4, 3), np.zeros((2, 1))))
         False
     """
     shapes = tuple(
@@ -1406,7 +1416,7 @@ def unsqueeze(
         ValueError: Axis (10,) out of range.
 
         If `shape` is specified, `axis` can be omitted (USE WITH CARE!) or its
-        value is used for addiotional safety checks:
+        value is used for additional safety checks:
 
         >>> arr_ = unsqueeze(arr, shape=(2, 3, 4, 5, 6))
         >>> arr_.shape
@@ -1517,12 +1527,12 @@ def unsqueeze(
 
 
 # ======================================================================
-def mdot(*arrs):
+def mdot(arrs):
     """
     Cumulative application of multiple `numpy.dot` operation.
 
     Args:
-        *arrs (*Iterable[ndarray]): The input arrays.
+        arrs (Iterable[np.ndarray]): The input arrays.
 
     Returns:
         arr (np.ndarray|None): The result of the dot product.
@@ -1530,28 +1540,37 @@ def mdot(*arrs):
 
     Examples:
         >>> arrs = [i + np.arange(4).reshape((2, 2)) for i in range(6)]
-        >>> mdot(arrs[0], arrs[1], arrs[2])
+        >>> mdot((arrs[0], arrs[1], arrs[2]))
         array([[ 22,  29],
                [ 86, 113]])
-        >>> mdot(*arrs[:3])
+        >>> mdot(arrs[:3])
         array([[ 22,  29],
                [ 86, 113]])
-        >>> mdot(*arrs)
+        >>> mdot(arrs)
         array([[ 32303,  37608],
                [126003, 146696]])
-        >>> mdot(*arrs[::-1])
+        >>> mdot(arrs[::-1])
         array([[ 51152,  94155],
                [ 69456, 127847]])
-        >>> print(mdot(*[]))
+        >>> print(mdot([]))
         None
 
     See Also:
         - flyingcircus.extra.ndot()
+        - flyingcircus.extra.mdot_()
     """
     arr = arrs[0] if arrs else None
     for item in arrs[1:]:
         arr = np.dot(arr, item)
     return arr
+
+
+# ======================================================================
+def mdot_(*arrs):
+    """
+    Star magic version of `flyingcircus.extra.mdot()`.
+    """
+    return mdot(arrs)
 
 
 # ======================================================================
@@ -1601,6 +1620,7 @@ def ndot(
 
     See Also:
         - flyingcircus.extra.mdot()
+        - flyingcircus.extra.mdot_()
     """
     axis = axis % arr.ndim
     mask = tuple(
