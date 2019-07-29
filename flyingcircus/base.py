@@ -347,7 +347,7 @@ class Infix(object):
 
 # ======================================================================
 def join(
-        *operands,
+        operands,
         coerce=True):
     """
     Join together multiple containers.
@@ -356,42 +356,42 @@ def join(
     decorator, the _star magic_ is embedded in its definition.
 
     Args:
-        *operands (*Sequence): The operands to join.
+        operands (Iterable): The operands to join.
         coerce (bool): Cast all operands into the type of the first.
 
     Returns:
         result: The joined object.
 
     Examples:
-        >>> join([1], [2], [3])
+        >>> join(([1], [2], [3]))
         [1, 2, 3]
-        >>> join((1, 2), (3, 4))
+        >>> join(((1, 2), (3, 4)))
         (1, 2, 3, 4)
-        >>> join({1: 2}, {2: 3}, {3: 4})
+        >>> join(({1: 2}, {2: 3}, {3: 4}))
         {1: 2, 2: 3, 3: 4}
-        >>> join({1}, {2, 3}, {3, 4})
+        >>> join(({1}, {2, 3}, {3, 4}))
         {1, 2, 3, 4}
-        >>> join([1], [2], (3, 4))
+        >>> join(([1], [2], (3, 4)))
         [1, 2, 3, 4]
-        >>> join((1,), [2], (3, 4))
+        >>> join(((1,), [2], (3, 4)))
         (1, 2, 3, 4)
-        >>> join((1, 2), (3, 4), coerce=False)
+        >>> join(((1, 2), (3, 4)), coerce=False)
         (1, 2, 3, 4)
-        >>> join((1,), [2], (3, 4), coerce=False)
+        >>> join(((1,), [2], (3, 4)), coerce=False)
         Traceback (most recent call last):
             ...
         TypeError: can only concatenate tuple (not "list") to tuple
 
         These are side effect of duck-typing:
-        >>> join(1, 2.5, 3)
+        >>> join([1, 2.5, 3])
         6
-        >>> join(1.0, 2.5, 3)
+        >>> join([1.0, 2.5, 3])
         6.5
-        >>> join([1], 2, 3.0)
+        >>> join([[1], 2, 3.0])
         Traceback (most recent call last):
             ...
         TypeError: 'int' object is not iterable
-        >>> join(1, [2], 3.0)
+        >>> join([1, [2], 3.0])
         Traceback (most recent call last):
             ...
         TypeError: int() argument must be a string, a bytes-like object or a\
@@ -423,7 +423,35 @@ def join(
             result.update(operand)
         return result
     else:
-        raise ValueError('Cannot apply `join()` on `{}`'.format(operands))
+        raise ValueError(fmtm('Cannot apply `join()` on `{operands}`'))
+
+
+# ======================================================================
+def join_(*operands, **_kws):
+    """
+    Star magic version of `flyingcircus.base.join()`.
+
+    Examples:
+        >>> join_([1], [2], [3])
+        [1, 2, 3]
+        >>> join_((1, 2), (3, 4))
+        (1, 2, 3, 4)
+        >>> join_({1: 2}, {2: 3}, {3: 4})
+        {1: 2, 2: 3, 3: 4}
+        >>> join_({1}, {2, 3}, {3, 4})
+        {1, 2, 3, 4}
+        >>> join_([1], [2], (3, 4))
+        [1, 2, 3, 4]
+        >>> join_((1,), [2], (3, 4))
+        (1, 2, 3, 4)
+        >>> join_((1, 2), (3, 4), coerce=False)
+        (1, 2, 3, 4)
+        >>> join_((1,), [2], (3, 4), coerce=False)
+        Traceback (most recent call last):
+            ...
+        TypeError: can only concatenate tuple (not "list") to tuple
+    """
+    return join(operands, **_kws)
 
 
 # ======================================================================
@@ -4148,7 +4176,6 @@ def _gcd(a, b):
 
 
 # =====================================================================
-@auto_star_magic()
 def gcd(values):
     """
     Find the greatest common divisor (GCD) of a list of numbers.
@@ -4168,9 +4195,6 @@ def gcd(values):
         1
         >>> gcd((12, 24, 18, 3))
         3
-
-        >>> gcd(12, 24, 18, 60)
-        6
     """
     iter_values = iter(values)
     result = next(iter_values)
@@ -4182,7 +4206,24 @@ def gcd(values):
 
 
 # ======================================================================
-@auto_star_magic()
+def gcd_(*values):
+    """
+    Star magic version of `flyingcircus.base.gcd()`.
+
+    Examples:
+        >>> gcd_(12, 24, 18)
+        6
+        >>> gcd_(12, 24, 18, 42, 600, 66, 666, 768)
+        6
+        >>> gcd_(12, 24, 18, 42, 600, 66, 666, 768, 101)
+        1
+        >>> gcd_(12, 24, 18, 3)
+        3
+    """
+    return gcd(values)
+
+
+# ======================================================================
 def lcm(values):
     """
     Find the least common multiple (LCM) of a list of numbers.
@@ -4200,15 +4241,28 @@ def lcm(values):
         72
         >>> lcm((12, 23, 34, 45, 56))
         985320
-
-        >>> lcm(2, 3, 4)
-        12
     """
     iter_values = iter(values)
     result = next(iter_values)
     for value in iter_values:
         result *= value // math.gcd(result, value)
     return result
+
+
+# ======================================================================
+def lcm_(*items):
+    """
+    Star magic version of `flyingcircus.base.lcm()`.
+
+    Examples:
+        >>> lcm_(2, 3, 4)
+        12
+        >>> lcm_(9, 8)
+        72
+        >>> lcm_(12, 23, 34, 45, 56)
+        985320
+    """
+    return lcm(items)
 
 
 # ======================================================================
@@ -4828,7 +4882,7 @@ def p_ratio(x, y):
         y (int|float): Second input value.
 
     Returns:
-        result: 1 / ((x / y) + (y / x))
+        result (float): 1 / ((x / y) + (y / x))
 
     Examples:
         >>> p_ratio(2, 2)
@@ -4847,7 +4901,7 @@ def p_ratio(x, y):
 
 
 # =====================================================================
-def gen_p_ratio(*items):
+def gen_p_ratio(values):
     """
     Calculate the generalized pseudo-ratio of x_i: 1 / sum_ij [ x_i / x_j ]
 
@@ -4855,29 +4909,29 @@ def gen_p_ratio(*items):
         \\frac{1}{\\sum_{ij} \\frac{x_i}{x_j}}
 
     Args:
-        *items (*Iterable[int|float|]): Input values.
+        values (Iterable[int|float]): Input values.
 
     Returns:
-        result: 1 / sum_ij [ x_i / x_j ]
+        result (float): 1 / sum_ij [ x_i / x_j ]
 
     Examples:
-        >>> gen_p_ratio(2, 2, 2, 2, 2)
+        >>> gen_p_ratio((2, 2, 2, 2, 2))
         0.05
-        >>> gen_p_ratio(200, 200, 200, 200, 200)
+        >>> gen_p_ratio((200, 200, 200, 200, 200))
         0.05
-        >>> gen_p_ratio(1, 2)
+        >>> gen_p_ratio((1, 2))
         0.4
-        >>> gen_p_ratio(100, 200)
+        >>> gen_p_ratio((100, 200))
         0.4
-        >>> items1 = [x * 10 for x in range(2, 10)]
-        >>> items2 = [x * 1000 for x in range(2, 10)]
-        >>> gen_p_ratio(*items1) - gen_p_ratio(*items2) < 1e-10
+        >>> values1 = [x * 10 for x in range(2, 10)]
+        >>> values2 = [x * 1000 for x in range(2, 10)]
+        >>> gen_p_ratio(values1) - gen_p_ratio(values2) < 1e-10
         True
         >>> items = list(range(2, 10))
-        >>> gen_p_ratio(*items) - gen_p_ratio(*items[::-1]) < 1e-10
+        >>> gen_p_ratio(values2) - gen_p_ratio(items[::-1]) < 1e-10
         True
     """
-    return 1 / sum(x / y for x, y in itertools.permutations(items, 2))
+    return 1 / sum(x / y for x, y in itertools.permutations(values, 2))
 
 
 # ======================================================================
@@ -4969,11 +5023,11 @@ def common_subseq_2(
         commons (list[Sequence]): The longest common subsequence(s).
 
     Examples:
-        >>> common_subseq_2('academy','abracadabra')
+        >>> common_subseq_2('academy', 'abracadabra')
         ['acad']
-        >>> common_subseq_2('los angeles','lossless')
+        >>> common_subseq_2('los angeles', 'lossless')
         ['los', 'les']
-        >>> common_subseq_2('los angeles','lossless',lambda x: x)
+        >>> common_subseq_2('los angeles', 'lossless', lambda x: x)
         ['les', 'los']
         >>> common_subseq_2((1, 2, 3, 4, 5),(0, 1, 2))
         [(1, 2)]
@@ -6117,7 +6171,7 @@ def multi_split_path(
 
 
 # ======================================================================
-def join_path(*texts):
+def join_path(texts):
     """
     Join a list of items into a filepath.
 
@@ -6127,28 +6181,28 @@ def join_path(*texts):
     Note that this is the inverse of `split_path()`.
 
     Args:
-        *texts (*Sequence[str]): The path elements to be concatenated.
+        texts (Iterable[str]): The path elements to be concatenated.
             The last item is treated as the file extension.
 
     Returns:
         filepath (str): The output filepath.
 
     Examples:
-        >>> join_path('/path/to', 'file', '.txt')
+        >>> join_path(('/path/to', 'file', '.txt'))
         '/path/to/file.txt'
-        >>> join_path('/path/to', 'file', '.tar.gz')
+        >>> join_path(('/path/to', 'file', '.tar.gz'))
         '/path/to/file.tar.gz'
-        >>> join_path('', 'file', '.tar.gz')
+        >>> join_path(('', 'file', '.tar.gz'))
         'file.tar.gz'
-        >>> join_path('path/to', 'file', '')
+        >>> join_path(('path/to', 'file', ''))
         'path/to/file'
         >>> paths = [
         ...     '/path/to/file.txt', '/path/to/file.tar.gz', 'file.tar.gz']
-        >>> all([path == join_path(*split_path(path)) for path in paths])
+        >>> all([path == join_path(split_path(path)) for path in paths])
         True
         >>> paths = [
         ...     '/path/to/file.txt', '/path/to/file.tar.gz', 'file.tar.gz']
-        >>> all([path == join_path(*multi_split_path(path)) for path in paths])
+        >>> all([path == join_path(multi_split_path(path)) for path in paths])
         True
 
     See Also:
@@ -8166,8 +8220,6 @@ def remove_ansi_escapes(text):
 
     Examples:
         >>> s = '\u001b[0;35mfoo\u001b[0m \u001b[0;36mbar\u001b[0m'
-        >>> print(repr(s))
-        '\x1b[0;35mfoo\x1b[0m \x1b[0;36mbar\x1b[0m'
         >>> print(repr(remove_ansi_escapes(s)))
         'foo bar'
         >>> remove_ansi_escapes(s) == 'foo bar'
