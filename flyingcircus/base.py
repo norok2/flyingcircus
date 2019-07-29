@@ -192,6 +192,68 @@ def _is_special(stats_mode):
 
 
 # ======================================================================
+def parametric(decorator):
+    """
+    Generate a decorator-factory from a decorator.
+
+    Args:
+        decorator (callable): The input decorator.
+
+    Returns:
+        decorator_factory (callable): The decorated decorator-factory.
+    """
+
+    @functools.wraps(decorator)
+    def _decorator(*_args, **_kws):
+        def _wrapper(func):
+            return decorator(func, *_args, **_kws)
+
+        return _wrapper
+
+    return _decorator
+
+
+# ======================================================================
+@parametric
+def auto_star_magic(
+        func,
+        allow_empty=False):
+    """
+    Decorate a function to accept starred arguments instead of an iterable.
+
+    Args:
+        func (callable):
+        allow_empty (bool): Allow `func` to be called without parameters.
+            This is
+
+    Returns:
+        wrapper (callable): The decorated function.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kws):
+        sig = inspect.signature(func)
+        first_param_name = next(iter(sig.parameters))
+        func_name = func.__name__ if hasattr(func, '__name__') else '<unnamed>'
+        has_default = \
+            sig.parameters[first_param_name].default != inspect.Parameter.empty
+        if not allow_empty and not has_default and len(args) == 0:
+            raise TypeError(
+                fmtm(
+                    "{func_name}() missing 1 required positional argument:"
+                    " '{first_param_name}'"))
+        else:
+            try:
+                iter(args[0])
+            except (TypeError, IndexError):
+                return func(args, **kws)
+            else:
+                return func(*args, **kws)
+
+    return wrapper
+
+
+# ======================================================================
 class Infix(object):
     """
     Emulate an infix operator using an arbitrary variable.
@@ -4086,6 +4148,7 @@ def _gcd(a, b):
 
 
 # =====================================================================
+@auto_star_magic()
 def gcd(values):
     """
     Find the greatest common divisor (GCD) of a list of numbers.
@@ -4105,15 +4168,21 @@ def gcd(values):
         1
         >>> gcd((12, 24, 18, 3))
         3
+
+        >>> gcd(12, 24, 18, 60)
+        6
     """
     iter_values = iter(values)
     result = next(iter_values)
     for val in iter_values:
         result = math.gcd(result, val)
+        if result == 1:
+            break
     return result
 
 
 # ======================================================================
+@auto_star_magic()
 def lcm(values):
     """
     Find the least common multiple (LCM) of a list of numbers.
@@ -4131,6 +4200,9 @@ def lcm(values):
         72
         >>> lcm((12, 23, 34, 45, 56))
         985320
+
+        >>> lcm(2, 3, 4)
+        12
     """
     iter_values = iter(values)
     result = next(iter_values)
