@@ -217,17 +217,84 @@ def parametric(decorator):
 @parametric
 def auto_star_magic(
         func,
+        mode='type',
         allow_empty=False):
     """
     Decorate a function to accept starred arguments instead of an iterable.
 
     Args:
-        func (callable):
+        func (callable): The input function.
+        mode (str): The auto-star detection mode.
+            This determines on what condition `func` is decorated.
+            Allowed modes:
+             - 'type': if the first parameter is iterable.
+             - 'nargs': if `func` accepts a single parameter.
         allow_empty (bool): Allow `func` to be called without parameters.
-            This is
+            This is effective only if the first parameter of `func`
+            does not have a default value.
 
     Returns:
         wrapper (callable): The decorated function.
+
+    Raises:
+        TypeError: If `allow_empty` is False, `func`'s first parameter
+            does not have a default value and no value is specified when
+            calling the decorated function.
+
+    Examples:
+        >>> @auto_star_magic('type', True)
+        ... def my_prod(items, start=1):
+        ...     for item in items:
+        ...         start *= item
+        ...     return start
+        >>> print(my_prod(1, 2, 3))
+        6
+        >>> print(my_prod(range(1, 4)))
+        6
+        >>> print(my_prod())
+        1
+
+        >>> @auto_star_magic('type', False)
+        ... def my_prod(items, start=1):
+        ...     for item in items:
+        ...         start *= item
+        ...     return start
+        >>> print(my_prod(1, 2, 3))
+        6
+        >>> print(my_prod(range(1, 4)))
+        6
+        >>> print(my_prod())
+        Traceback (most recent call last):
+            ...
+        TypeError: my_prod() missing 1 required positional argument: 'items'
+
+        >>> @auto_star_magic('nargs', True)
+        ... def my_prod(items):
+        ...     start = 1
+        ...     for item in items:
+        ...         start *= item
+        ...     return start
+        >>> print(my_prod(1, 2, 3))
+        6
+        >>> print(my_prod(range(1, 4)))
+        6
+        >>> print(my_prod())
+        1
+
+        >>> @auto_star_magic('nargs', False)
+        ... def my_prod(items):
+        ...     start = 1
+        ...     for item in items:
+        ...         start *= item
+        ...     return start
+        >>> print(my_prod(1, 2, 3))
+        6
+        >>> print(my_prod(range(1, 4)))
+        6
+        >>> print(my_prod())
+        Traceback (most recent call last):
+            ...
+        TypeError: my_prod() missing 1 required positional argument: 'items'
     """
 
     @functools.wraps(func)
@@ -243,12 +310,18 @@ def auto_star_magic(
                     "{func_name}() missing 1 required positional argument:"
                     " '{first_param_name}'"))
         else:
-            try:
-                iter(args[0])
-            except (TypeError, IndexError):
-                return func(args, **kws)
+            if mode == 'type':
+                try:
+                    iter(args[0])
+                except (TypeError, IndexError):
+                    use_star = False
+                else:
+                    use_star = True
+            elif mode == 'nargs':
+                use_star = len(args) == 1
             else:
-                return func(*args, **kws)
+                use_star = False
+            return func(*args, **kws) if use_star else func(args, **kws)
 
     return wrapper
 
