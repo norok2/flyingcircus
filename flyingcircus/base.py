@@ -194,13 +194,44 @@ def _is_special(stats_mode):
 # ======================================================================
 def parametric(decorator):
     """
-    Generate a decorator-factory from a decorator.
+    Create a decorator-factory from a decorator.
+
+    This is for creating decorators with parameters.
 
     Args:
         decorator (callable): The input decorator.
 
     Returns:
         decorator_factory (callable): The decorated decorator-factory.
+
+    Examples:
+        >>> def multiply(func):
+        ...     @functools.wraps(func)
+        ...     def wrapper(*args, **kws):
+        ...         return 10 * func(*args, **kws)
+        ...     return wrapper
+        >>> @multiply
+        ... def my_sum(values):
+        ...     return sum(values)
+        >>> my_sum(range(10))
+        450
+
+        >>> @parametric
+        ... def multiply(func, factor=1):
+        ...     @functools.wraps(func)
+        ...     def wrapper(*args, **kws):
+        ...         return factor * func(*args, **kws)
+        ...     return wrapper
+        >>> @multiply()
+        ... def my_sum(values):
+        ...     return sum(values)
+        >>> my_sum(range(10))
+        45
+        >>> @multiply(10)
+        ... def my_sum(values):
+        ...     return sum(values)
+        >>> my_sum(range(10))
+        450
     """
 
     @functools.wraps(decorator)
