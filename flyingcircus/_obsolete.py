@@ -1015,13 +1015,13 @@ def reframe(
     """
     new_shape = base.auto_repeat(new_shape, arr.ndim, check=True)
     position = base.auto_repeat(position, arr.ndim, check=True)
-    if any([old > new for old, new in zip(arr.shape, new_shape)]):
+    if any(old > new for old, new in zip(arr.shape, new_shape)):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
         int(round((new - old) * x_i)) if isinstance(x_i, float) else x_i
         for old, new, x_i in zip(arr.shape, new_shape, position))
-    if any([old + x_i > new
-            for old, new, x_i in zip(arr.shape, new_shape, position)]):
+    if any(old + x_i > new
+           for old, new, x_i in zip(arr.shape, new_shape, position)):
         raise ValueError(
             'Incompatible `new_shape`, `array shape` and `position`.')
     result = np.full(new_shape, background)

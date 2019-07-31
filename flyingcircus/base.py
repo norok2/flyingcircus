@@ -3952,7 +3952,7 @@ def factorize(num):
         [-1]
         >>> list(factorize(987654321.0))
         [3, 3, 17, 17, 379721]
-        >>> all([n == prod(factorize(n)) for n in range(1000)])
+        >>> all(n == prod(factorize(n)) for n in range(1000))
         True
     """
     # deal with special numbers: 0, 1, and negative
@@ -6302,11 +6302,11 @@ def join_path(texts):
         'path/to/file'
         >>> paths = [
         ...     '/path/to/file.txt', '/path/to/file.tar.gz', 'file.tar.gz']
-        >>> all([path == join_path(split_path(path)) for path in paths])
+        >>> all(path == join_path(split_path(path)) for path in paths)
         True
         >>> paths = [
         ...     '/path/to/file.txt', '/path/to/file.tar.gz', 'file.tar.gz']
-        >>> all([path == join_path(multi_split_path(path)) for path in paths])
+        >>> all(path == join_path(multi_split_path(path)) for path in paths)
         True
 
     See Also:

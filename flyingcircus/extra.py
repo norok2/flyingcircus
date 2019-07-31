@@ -196,8 +196,8 @@ def ndim_slice(
         if isinstance(index, float) and index < 1.0:
             indexes[i] = int(arr.shape[axis] * index)
     # check index
-    if any([(index >= arr.shape[axis]) or (index < 0)
-            for index, axis in zip(indexes, axes)]):
+    if any((index >= arr.shape[axis]) or (index < 0)
+           for index, axis in zip(indexes, axes)):
         raise ValueError('Invalid array index in the specified direction')
     # determine slice index
     for index, axis in zip(indexes, axes):
@@ -1481,7 +1481,7 @@ def unsqueeze(
             raise ValueError(
                 'When `complement` is True, `shape` cannot be None.')
         # check that axis is properly constructed
-        if any([ax < -ndim - 1 or ax > ndim + 1 for ax in axis]):
+        if any(ax < -ndim - 1 or ax > ndim + 1 for ax in axis):
             raise ValueError('Axis {} out of range.'.format(axis))
         # normalize axis using `ndim`
         axis = sorted([ax % ndim for ax in axis])
@@ -1517,8 +1517,8 @@ def unsqueeze(
                     'Length of new shape {} does not match '
                     'expected length ({}).'.format(len(new_shape), ndim))
         else:
-            if not all([new_dim == 1 or new_dim == dim
-                        for new_dim, dim in zip(new_shape, shape)]):
+            if not all(new_dim == 1 or new_dim == dim
+                       for new_dim, dim in zip(new_shape, shape)):
                 raise ValueError(
                     'New shape {} cannot be broadcasted to shape {}'.format(
                         new_shape, shape))
@@ -2968,7 +2968,7 @@ def coord(
         else:
             xx = tuple(
                 scale(x, (0, d - 1)) for x, d in zip(xx, refs))
-    elif any([not isinstance(x, int) for x in xx]) and use_int:
+    elif any(not isinstance(x, int) for x in xx) and use_int:
         text = 'The value of `position` must be integer ' \
                'if `is_relative == False` and `use_int == True`.'
         raise TypeError(text)
@@ -3499,14 +3499,14 @@ def width_from_shapes(
     """
     new_shape = fc.base.auto_repeat(new_shape, len(shape), check=True)
     position = fc.base.auto_repeat(position, len(shape), check=True)
-    if any([dim > new_dim for dim, new_dim in zip(shape, new_shape)]):
+    if any(dim > new_dim for dim, new_dim in zip(shape, new_shape)):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset)
         for dim, new_dim, offset in zip(shape, new_shape, position))
-    if any([dim + offset > new_dim
-            for dim, new_dim, offset in zip(shape, new_shape, position)]):
+    if any(dim + offset > new_dim
+           for dim, new_dim, offset in zip(shape, new_shape, position)):
         raise ValueError(
             'Incompatible `shape`, `new_shape` and `position`.')
     width = tuple(
@@ -7374,10 +7374,10 @@ def moving_apply(
     Examples:
         >>> num = 8
         >>> arr = np.linspace(1, num, num)
-        >>> all([np.allclose(
-        ...                  moving_average(arr, n, mode=mode),
-        ...                  moving_apply(arr, n, mode=mode))
-        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
+        >>> all(np.allclose(
+        ...                 moving_average(arr, n, mode=mode),
+        ...                 moving_apply(arr, n, mode=mode))
+        ...     for n in range(num) for mode in ('valid', 'same', 'full'))
         True
         >>> moving_apply(arr, 4, mode='same', borders=100)
         array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
@@ -7505,10 +7505,10 @@ def running_apply(
     Examples:
         >>> num = 8
         >>> arr = np.linspace(1, num, num)
-        >>> all([np.allclose(
-        ...                  moving_average(arr, n, mode=mode),
-        ...                  running_apply(arr, n, mode=mode))
-        ...      for n in range(num) for mode in ('valid', 'same', 'full')])
+        >>> all(np.allclose(
+        ...                 moving_average(arr, n, mode=mode),
+        ...                 running_apply(arr, n, mode=mode))
+        ...     for n in range(num) for mode in ('valid', 'same', 'full'))
         True
         >>> running_apply(arr, 4, mode='same', borders=100)
         array([50.75, 26.5 ,  2.5 ,  3.5 ,  4.5 ,  5.5 ,  6.5 , 30.25])
