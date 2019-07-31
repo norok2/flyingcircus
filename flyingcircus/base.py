@@ -1891,9 +1891,9 @@ def complement(
         >>> print(vals)
         (3, 5, 7, 17, 101, -3, -5, -7, -17, -101, None)
         >>> sls = [slice(*x) for x in itertools.product(vals, vals, vals)]
-        >>> all([
+        >>> all(
         ...     set(complement(ll, sl)).intersection(ll[sl]) == set()
-        ...     for sl in sls])
+        ...     for sl in sls)
         True
     """
     to_exclude = set(range(len(items))[slice_])
