@@ -5039,6 +5039,62 @@ def gen_p_ratio(values):
 
 
 # ======================================================================
+def multi_split(
+        text,
+        seps,
+        sep=None,
+        filter_empty=True):
+    """
+    Split a string using multiple separators.
+
+    This is achieved by replacing all (secondary) separators with a base
+    separator, and finally split using the base separator.
+
+    Args:
+        text (str|bytes|bytearray): The input string.
+        seps (Iterable[str|bytes|bytearray]): The additional separators.
+        sep (str|bytes||bytearrayNone): The separator for the final splitting.
+            If None, uses `.split(None)` default behavior,
+            i.e. splits blank character (' ', '\t', '\n') simultaneously.
+        filter_empty (bool): Remove empty string from the results.
+
+    Returns:
+        result (list[str|bytes|bytearray]): The split strings.
+
+    Examples:
+        >>> text = 'no-go to go, where? anti-matter'
+        >>> print(multi_split(text, ('-', ',')))
+        ['no', 'go', 'to', 'go', 'where?', 'anti', 'matter']
+        >>> print(multi_split(text, ('-', ','), '?'))
+        ['no', 'go to go', ' where', ' anti', 'matter']
+        >>> print(multi_split(text, ('-', ',', ' '), '?'))
+        ['no', 'go', 'to', 'go', 'where', 'anti', 'matter']
+        >>> print(multi_split(text, ('-', ',', ' '), '?', False))
+        ['no', 'go', 'to', 'go', '', 'where', '', 'anti', 'matter']
+
+        >>> text = b'no-go to go, where? anti-matter'
+        >>> print(multi_split(text, (b'-', b',')))
+        [b'no', b'go', b'to', b'go', b'where?', b'anti', b'matter']
+        >>> print(multi_split(text, (b'-', b','), b'?'))
+        [b'no', b'go to go', b' where', b' anti', b'matter']
+        >>> print(multi_split(text, (b'-', b',', b' '), b'?'))
+        [b'no', b'go', b'to', b'go', b'where', b'anti', b'matter']
+        >>> print(multi_split(text, (b'-', b',', b' '), b'?', False))
+        [b'no', b'go', b'to', b'go', b'', b'where', b'', b'anti', b'matter']
+    """
+    _sep = (' ' if isinstance(text, str) else b' ') if sep is None else sep
+    # text = functools.reduce(lambda t, s: t.replace(s, _sep), seps, text)
+    for sep_ in seps:
+        text = text.replace(sep_, _sep)
+    if sep is None:
+        return text.split()
+    elif filter_empty:
+        return list(filter(bool, text.split(sep)))
+    else:
+        return text.split(sep)
+
+
+# ======================================================================
 def multi_replace(
         text,
         replaces):
@@ -5048,12 +5104,12 @@ def multi_replace(
     The replaces are concatenated together, therefore the order may matter.
 
     Args:
-        text (str): The input string.
-        replaces (tuple[tuple[str]]): The listing of the replacements.
+        text (str|bytes|bytearray): The input string.
+        replaces (tuple[tuple[str|bytes|bytearray]]): The replacements.
             Format: ((<old>, <new>), ...).
 
     Returns:
-        text (str): The string after the performed replacements.
+        text (str|bytes): The string after the performed replacements.
 
     Examples:
         >>> multi_replace('X Y', (('X', 'flying'), ('Y', 'circus')))
@@ -5066,8 +5122,22 @@ def multi_replace(
         'best-best-'
         >>> multi_replace('x-x-', (('te', 'be'), ('x-', 'test-')))
         'test-test-'
+
+        >>> multi_replace(b'X Y', ((b'X', b'flying'), (b'Y', b'circus')))
+        b'flying circus'
+        >>> multi_replace(b'x-x-x-x', ((b'x', b'est'), (b'est', b'test')))
+        b'test-test-test-test'
+        >>> multi_replace(b'x-x-', ((b'-x-', b'.test'),))
+        b'x.test'
+        >>> multi_replace(b'x-x-', ((b'x', b'test'), (b'te', b'be')))
+        b'best-best-'
+        >>> multi_replace(b'x-x-', ((b'te', b'be'), (b'x-', b'test-')))
+        b'test-test-'
     """
-    return functools.reduce(lambda s, r: s.replace(*r), replaces, text)
+    # return functools.reduce(lambda t, r: t.replace(*r), replaces, text)
+    for replace in replaces:
+        text = text.replace(*replace)
+    return text
 
 
 # ======================================================================
