@@ -4370,6 +4370,229 @@ def lcm_(*items):
 
 
 # ======================================================================
+def simplify_frac(
+        a,
+        b,
+        sign=True):
+    """
+    Simply a fraction.
+
+    Args:
+        a (int): The numerator.
+        b (int): The denominator.
+        sign (bool): Keep the sign in both the numerator and the denominator.
+            If False, the sign is kept only in the numerator,
+            unless the numerator is 0.
+
+    Returns:
+        result (tuple[int]): The tuple contains:
+            - `a_n`: The simplified numerator.
+            - `b_n`: The simplified denominator.
+
+    Examples:
+        >>> simplify_frac(12 * 7, 13 * 7)
+        (12, 13)
+        >>> simplify_frac(123, 321, True)
+        (41, 107)
+        >>> simplify_frac(123, -321, True)
+        (41, -107)
+        >>> simplify_frac(-123, 321, True)
+        (-41, 107)
+        >>> simplify_frac(-123, -321, True)
+        (-41, -107)
+        >>> simplify_frac(123, 321, False)
+        (41, 107)
+        >>> simplify_frac(123, -321, False)
+        (-41, 107)
+        >>> simplify_frac(-123, 321, False)
+        (-41, 107)
+        >>> simplify_frac(-123, -321, False)
+        (41, 107)
+        >>> simplify_frac(1234, 0)
+        (1, 0)
+        >>> simplify_frac(0, 1234)
+        (0, 1)
+        >>> simplify_frac(-1234, 0)
+        (-1, 0)
+        >>> simplify_frac(0, -1234)
+        (0, -1)
+        >>> simplify_frac(0, 0)
+        (0, 0)
+        >>> simplify_frac(-0, 0)
+        (0, 0)
+    """
+    gcd = math.gcd(a, b)
+    if gcd:
+        if not sign and (b < 0 and a):
+            return -a // gcd, -b // gcd
+        else:
+            return a // gcd, b // gcd
+    else:
+        return 0, 0
+
+
+# ======================================================================
+def cont_frac(b, a=1, limit=None):
+    """
+    Compute a fractional approximation of a continued fraction.
+
+    The continued fraction is expressed in terms of the denominators and the
+    numerators sequences:
+
+    .. math::
+
+        \\frac{a}{b} = b_0 + \\frac{a_1}{b_1 +} \\frac{a_2}{b_2 +} \ldots
+
+    Args:
+        b (int|Iterable[int]): Generalized continued fraction denominators.
+            This should include also the first integer.
+            The first `limit` values are used.
+            All but the first value must be positive.
+        a (int|Iterable[int]): Generalized continued fraction numerators.
+            The first value does not contribute to `a_n / b_n` and can
+            safely be set to 1.
+            All values must be positive.
+        limit (int|None): Maximum number of iterations to produce.
+
+    Returns:
+        result (tuple[int]): The tuple contains:
+            - `a_n`: The numerator at the specified iteration level.
+            - `b_n`: The denominator at the specified iteration level.
+
+    Examples:
+        >>> num, den = cont_frac([1, 2])
+        >>> print(num, den, round(num / den, 8))
+        3 2 1.5
+
+        >>> num, den = cont_frac([0, 1, 5, 2, 2])
+        >>> print(num, den, round(num / den, 8))
+        27 32 0.84375
+
+        >>> num, den = cont_frac([2, 2, 2], [1, 2, 2])
+        >>> print(num, den, round(num / den, 8))
+        8 3 2.66666667
+
+        >>> num, den = cont_frac([2, 2, 2, 2], [1, 2, 2, 2])
+        >>> print(num, den, round(num / den, 8))
+        11 4 2.75
+
+        >>> num, den = cont_frac([1, 2, 3, 4], [1, 2, 3, 4])
+        >>> print(num, den, round(num / den, 8))
+        19 11 1.72727273
+
+        >>> num, den = cont_frac(range(1, 10), range(1, 20), 4)
+        >>> print(num, den, round(num / den, 8))
+        19 11 1.72727273
+
+        >>> num, den = cont_frac(2, 2, 3)
+        >>> print(num, den, round(num / den, 8))
+        8 3 2.66666667
+
+        >>> num, den = cont_frac([1, 2, 3, 4], 2)
+        >>> print(num, den, round(num / den, 8))
+        16 9 1.77777778
+
+        >>> num, den = cont_frac(2, [1, 2, 3, 4])
+        >>> print(num, den, round(num / den, 8))
+        30 11 2.72727273
+
+        >>> num, den = cont_frac(2, [12, 2, 3, 4])
+        >>> print(num, den, round(num / den, 8))
+        30 11 2.72727273
+
+        Computing √2
+
+        >>> n = 12
+        >>> b = [1] + [2] * (n - 1)
+        >>> num, den = cont_frac(b)
+        >>> print(num, den, round(num / den, 8))
+        19601 13860 1.41421356
+
+        Computing Archimede's constant π
+
+        >>> num, den = cont_frac([3, 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1])
+        >>> print(num, den, round(num / den, 8))
+        5419351 1725033 3.14159265
+        >>> n = 16
+        >>> b = [0] + [(2 * i + 1) for i in range(n - 1)]
+        >>> a = [1, 4] + [(i + 1) ** 2 for i in range(n - 2)]
+        >>> num, den = cont_frac(b, a)
+        >>> print(num, den, round(num / den, 8))
+        10392576224 3308059755 3.14159265
+        >>> n = 16
+        >>> b = [3] + [6] * (n - 1)
+        >>> a = [1] + [(2 * i + 1) ** 2 for i in range(n - 1)]
+        >>> num, den = cont_frac(b, a)
+        >>> print(num, den, round(num / den, 8))
+        226832956041173 72201776446800 3.14165339
+        >>> n = 16
+        >>> b = [0, 1] + [2] * (n - 2)
+        >>> a = [1, 4] + [(2 * i + 1) ** 2 for i in range(n - 2)]
+        >>> num, den = cont_frac(b, a)
+        >>> print(num, den, round(num / den, 8))
+        467009482388 145568097675 3.20818565
+
+        Computing Euler's Number e
+
+        >>> n = 16
+        >>> b = [2] + [2 * i // 3 if not i % 3 else 1 for i in range(2, n + 1)]
+        >>> num, den = cont_frac(b)
+        >>> print(num, den, round(num / den, 8))
+        566827 208524 2.71828183
+
+        Computing Golden ratio φ
+
+        >>> n = 24
+        >>> num, den = cont_frac(1, 1, n)
+        >>> print(num, den, round(num / den, 8))
+        75025 46368 1.61803399
+    """
+    if limit is None:
+        try:
+            len_b = len(b)
+        except TypeError:
+            len_b = -1
+        try:
+            len_a = len(a)
+        except TypeError:
+            len_a = -1
+        if len_b < 0 and len_a < 0:
+            raise ValueError('Limit must be specified for given `a` and `b`.')
+        elif len_b > 0 and len_a > 0:
+            limit = min(len_b, len_a)
+        else:
+            limit = max(len_b, len_a)
+    try:
+        b = b[:limit]
+    except TypeError:
+        pass
+    try:
+        a = a[:limit]
+    except TypeError:
+        pass
+    try:
+        r_iter_b = reversed(b)
+    except TypeError:
+        try:
+            r_iter_b = [x for x, _ in zip(b, range(limit))][::-1]
+        except TypeError:
+            r_iter_b = itertools.cycle([b])
+    try:
+        r_iter_a = reversed(a)
+    except TypeError:
+        try:
+            r_iter_a = [x for x, _ in zip(a, range(limit))][::-1]
+        except TypeError:
+            r_iter_a = itertools.cycle([a])
+    a_i = 1
+    a_n, b_n = 1, 0
+    for a_i, b_i, _ in zip(r_iter_a, r_iter_b, range(limit)):
+        a_n, b_n = b_n + a_n * b_i, a_n * a_i
+    b_n //= a_i
+    return simplify_frac(a_n, b_n)
+
+
+# ======================================================================
 def sliding(
         func,
         items,
