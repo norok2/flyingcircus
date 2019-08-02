@@ -358,6 +358,88 @@ def auto_star_magic(
 
 
 # ======================================================================
+@parametric
+def iterize(
+        func,
+        container=None,
+        fill_param='fill'):
+    """
+    Decorator for iterize a function in its positional arguments.
+
+    Additionally, it adds support for an additional `fill` parameter
+    (the exact parameter name can be changed).
+    This parameter controls how shorter iterables are extented.
+    If `fill` is None, the iterable is extended using an infinite loop.
+    Otherwise, uses the `fill` value specified.
+
+    Args:
+        func (callable): The input function.
+        container (callable|None): The container for the result.
+            If callable, must accept a `map` object, otherwise
+            the `map` object itself will be used.
+        fill_param (str): The name of the extra parameter used for filling.
+
+
+    Returns:
+        wrapper (callable): The iterized function.
+
+    Examples:
+        >>> @iterize(list)
+        ... def isum(*x):
+        ...     return sum(x)
+        >>> isum(range(10), 100)
+        [100, 101, 102, 103, 104, 105, 106, 107, 108, 109]
+        >>> isum(range(10), 100, fill=0)
+        [100, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> isum(range(10), range(5))
+        [0, 2, 4, 6, 8, 5, 7, 9, 11, 13]
+        >>> isum(range(10), range(3))
+        [0, 2, 4, 3, 5, 7, 6, 8, 10, 9]
+        >>> isum(range(10), range(3), fill=0)
+        [0, 2, 4, 3, 4, 5, 6, 7, 8, 9]
+        >>> isum(range(4), range(8), range(12), fill=0)
+        [0, 3, 6, 9, 8, 10, 12, 14, 8, 9, 10, 11]
+        >>> isum(range(4), range(8), range(12))
+        [0, 3, 6, 9, 8, 11, 14, 17, 8, 11, 14, 17]
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kws):
+        fill = kws.pop(fill_param) if fill_param in kws else None
+        if fill is not None:
+            def extend(items):
+                for item in items:
+                    yield item
+                while True:
+                    yield fill
+        else:
+            extend = itertools.cycle
+        # find maximum length and sanitize arguments
+        max_len = 0
+        iargs = []
+        for arg in args:
+            try:
+                iter(arg)
+            except TypeError:
+                arg = [arg]
+            else:
+                try:
+                    max_len = max(max_len, len(arg))
+                except TypeError:
+                    pass
+            iargs.append(arg)
+        # extend the short arguments
+        iargs = (
+            iarg if len(iarg) == max_len else extend(iarg) for iarg in iargs)
+        result = map(func, *iargs, **kws)
+        if callable(container):
+            result = container(result)
+        return result
+
+    return wrapper
+
+
+# ======================================================================
 class Infix(object):
     """
     Emulate an infix operator using an arbitrary variable.
