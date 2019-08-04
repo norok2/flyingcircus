@@ -8,6 +8,8 @@ class BitMask(object):
     """
     Generic bit-mask class.
 
+    The recommended usage is to subclass for specialized representations.
+
     Examples:
         >>> repr(BitMask(127))
         '0b1111111'
@@ -18,25 +20,53 @@ class BitMask(object):
         >>> print(BitMask('a') + BitMask('d'))
         ad
     """
-    STR_TOKENS = '_' + string.ascii_letters + string.digits
-    STR_FULL = False
+    TOKENS = \
+        ' ' + string.ascii_letters + string.digits + string.punctuation
+    FULL_REPR = False
+    IGNORE_INVALID = True
 
     # ----------------------------------------------------------
     def __init__(
             self,
-            value=None,
-            num=None,
-            ignore=True):
+            value=None):
+        """
+        Instantiate a BitMask.
+
+        Args:
+            value (int|str): The input value.
+                If int, the flags of the bitmask are according to the bit
+                boolean values.
+                If str, uses `string.ascii_letters` + `string.digits` to set
+                single bits to True in the bitmask.
+            num (int): The maximum number of flags to hold.
+            ignore (bool): Ignore invalid characters in value.
+                Only effective if value is str.
+        """
         if isinstance(value, str):
-            self.value = self.from_tokens(value, self.STR_TOKENS, ignore)
+            self.value = self.from_tokens(
+                value, self.TOKENS, self.IGNORE_INVALID)
         else:
             self.value = value
-        if num:
-            self.STR_TOKENS = self.STR_TOKENS[:num + 1]
+
+    # ----------------------------------------------------------
+    @property
+    def max_len(self):
+        """
+        Compute the maximum lenght for the bitmask (given the class TOKENS).
+
+        Returns:
+            result (int): The maximum length for the bitmask.
+
+        Examples:
+            >>> BitMask().max_len
+            94
+        """
+        return len(self.TOKENS) - 1
 
     # ----------------------------------------------------------
     def __iter__(self):
         """
+        Iterate over the flags of the bitmask.
 
         Yields:
             value (bool): The value
@@ -45,6 +75,8 @@ class BitMask(object):
             >>> flags = BitMask('ac')
             >>> print([flag for flag in flags])
             [True, False, True]
+            >>> print([flag for flag in BitMask(11)])
+            [True, True, False, True]
         """
         value = self.value
         i = 0
@@ -226,9 +258,8 @@ class BitMask(object):
 
     # ----------------------------------------------------------
     def __str__(self):
-        return ''.join(
-            self.to_tokens(
-                self.STR_TOKENS[1:], self.STR_TOKENS[0], self.STR_FULL))
+        return str(self.to_tokens(
+            self.TOKENS[1:], self.TOKENS[0], self.FULL_REPR))
 
     # ----------------------------------------------------------
     def __mod__(self, tokens):
@@ -244,7 +275,7 @@ class BitMask(object):
             >>> flags % '-rwx'
             'rw-'
         """
-        return ''.join(self.to_tokens(tokens[1:], tokens[0], True))
+        return self.to_tokens(tokens[1:], tokens[0], True, None)
 
     # ----------------------------------------------------------
     def __truediv__(self, tokens):
@@ -260,7 +291,7 @@ class BitMask(object):
             >>> flags / '123'
             ['1', '2']
         """
-        return self.to_tokens(tokens, None, False)
+        return self.to_tokens(tokens, None, False, list)
 
     # ----------------------------------------------------------
     def toggle(self, i):
@@ -270,9 +301,10 @@ class BitMask(object):
     # ----------------------------------------------------------
     def to_tokens(
             self,
-            tokens,
-            empty,
-            full):
+            tokens=TOKENS[1:],
+            empty=TOKENS[0],
+            full=FULL_REPR,
+            container=None):
         """
 
         Args:
@@ -282,22 +314,33 @@ class BitMask(object):
 
         Returns:
 
+        Examples:
+            >>> BitMask(42).to_tokens()
+            'bdf'
         """
         if full:
-            return [
+            result = (
                 token if value else empty
                 for token, value in
-                itertools.zip_longest(tokens, self, fillvalue=False)]
+                itertools.zip_longest(tokens, self, fillvalue=False))
         else:
-            return [
-                token for token, value in zip(tokens, self) if value]
+            result = (token for token, value in zip(tokens, self) if value)
+        if container is None:
+            if isinstance(self.TOKENS, str):
+                return ''.join(result)
+            else:
+                return type(self.TOKENS)(result)
+        elif callable(container):
+            return container(result)
+        else:
+            return result
 
     # ----------------------------------------------------------
+    @staticmethod
     def from_tokens(
-            self,
             seq,
-            tokens,
-            ignore):
+            tokens=TOKENS,
+            ignore=IGNORE_INVALID):
         """
 
         Args:
@@ -307,9 +350,10 @@ class BitMask(object):
 
         Returns:
 
+        Examples:
+            >>> BitMask.from_tokens('acio')
+            16645
         """
-        if tokens is None:
-            tokens = self.STR_TOKENS
         tokens = tokens[1:]
         valid_tokens = set(tokens)
         value = 0
