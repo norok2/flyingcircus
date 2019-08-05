@@ -20,53 +20,83 @@ class BitMask(object):
         >>> print(BitMask('a') + BitMask('d'))
         ad
     """
-    TOKENS = \
-        ' ' + string.ascii_letters + string.digits + string.punctuation
+    KEYS = string.ascii_letters + string.digits + string.punctuation
+    EMPTY = ' '
     FULL_REPR = False
     IGNORE_INVALID = True
 
     # ----------------------------------------------------------
     def __init__(
             self,
-            value=None):
+            value=0):
         """
         Instantiate a BitMask.
 
         Args:
-            value (int|str): The input value.
+            value (int|Sequence): The input value.
                 If int, the flags of the bitmask are according to the bit
                 boolean values.
                 If str, uses `string.ascii_letters` + `string.digits` to set
                 single bits to True in the bitmask.
-            num (int): The maximum number of flags to hold.
-            ignore (bool): Ignore invalid characters in value.
-                Only effective if value is str.
         """
-        if isinstance(value, str):
-            self.value = self.from_tokens(
-                value, self.TOKENS, self.IGNORE_INVALID)
-        else:
+        if isinstance(value, int):
             self.value = value
+        else:
+            self.value = self.from_keys(
+                value, self.KEYS, self.EMPTY, self.IGNORE_INVALID)
 
     # ----------------------------------------------------------
     @property
-    def max_len(self):
+    def len(self):
         """
-        Compute the maximum lenght for the bitmask (given the class TOKENS).
+        Compute the maximum lenght for the bitmask (given the class keyS).
 
         Returns:
             result (int): The maximum length for the bitmask.
 
         Examples:
-            >>> BitMask().max_len
+            >>> BitMask().len
             94
         """
-        return len(self.TOKENS) - 1
+        return len(self.KEYS)
 
     # ----------------------------------------------------------
-    def __iter__(self):
+    @property
+    def set_len(self):
+        """
+        Compute the maximum lenght for the bitmask (given the class keyS).
+
+        Returns:
+            result (int): The maximum length for the bitmask.
+
+        Examples:
+            >>> BitMask().set_len
+            94
+        """
+        return self.value.bit_length()
+
+    # ----------------------------------------------------------
+    def values(self):
         """
         Iterate over the flags of the bitmask.
+
+        Yields:
+            value (bool): The value
+
+        Examples:
+            >>> flags = BitMask('ac')
+            >>> print([flag for flag in flags])
+            [True, False, True]
+            >>> print([flag for flag in BitMask(11)])
+            [True, True, False, True]
+        """
+        for i in range(self.len):
+            yield bool(self.value & (1 << i))
+
+    # ----------------------------------------------------------
+    def set_values(self):
+        """
+        Iterate over the set flags of the bitmask.
 
         Yields:
             value (bool): The value
@@ -85,9 +115,8 @@ class BitMask(object):
             i += 1
             value >>= 1
 
-    # ----------------------------------------------------------
-    def __len__(self):
-        return self.value.bit_length()
+    __iter__ = set_values
+    __len__ = set_len
 
     # ----------------------------------------------------------
     def __getitem__(self, i):
@@ -258,15 +287,15 @@ class BitMask(object):
 
     # ----------------------------------------------------------
     def __str__(self):
-        return str(self.to_tokens(
-            self.TOKENS[1:], self.TOKENS[0], self.FULL_REPR))
+        return str(self.to_keys(
+            self.KEYS, self.EMPTY, self.FULL_REPR))
 
     # ----------------------------------------------------------
-    def __mod__(self, tokens):
+    def __mod__(self, ext_keys):
         """
 
         Args:
-            tokens:
+            keys:
 
         Returns:
 
@@ -275,14 +304,14 @@ class BitMask(object):
             >>> flags % '-rwx'
             'rw-'
         """
-        return self.to_tokens(tokens[1:], tokens[0], True, None)
+        return self.to_keys(ext_keys[1:], ext_keys[0], True, None)
 
     # ----------------------------------------------------------
-    def __truediv__(self, tokens):
+    def __truediv__(self, keys):
         """
 
         Args:
-            tokens:
+            keys:
 
         Returns:
 
@@ -291,7 +320,7 @@ class BitMask(object):
             >>> flags / '123'
             ['1', '2']
         """
-        return self.to_tokens(tokens, None, False, list)
+        return self.to_keys(keys, None, False, list)
 
     # ----------------------------------------------------------
     def toggle(self, i):
@@ -299,37 +328,38 @@ class BitMask(object):
         return self[i]
 
     # ----------------------------------------------------------
-    def to_tokens(
+    def to_keys(
             self,
-            tokens=TOKENS[1:],
-            empty=TOKENS[0],
+            keys=KEYS,
+            empty=EMPTY,
             full=FULL_REPR,
             container=None):
         """
 
         Args:
-            tokens:
+            keys:
             empty:
             full:
+            container:
 
         Returns:
 
         Examples:
-            >>> BitMask(42).to_tokens()
+            >>> BitMask(42).to_keys()
             'bdf'
         """
         if full:
             result = (
-                token if value else empty
-                for token, value in
-                itertools.zip_longest(tokens, self, fillvalue=False))
+                key if value else empty
+                for key, value in
+                itertools.zip_longest(keys, self, fillvalue=False))
         else:
-            result = (token for token, value in zip(tokens, self) if value)
+            result = (key for key, value in zip(keys, self) if value)
         if container is None:
-            if isinstance(self.TOKENS, str):
+            if isinstance(self.KEYS, str):
                 return ''.join(result)
             else:
-                return type(self.TOKENS)(result)
+                return type(self.KEYS)(result)
         elif callable(container):
             return container(result)
         else:
@@ -337,30 +367,106 @@ class BitMask(object):
 
     # ----------------------------------------------------------
     @staticmethod
-    def from_tokens(
+    def from_keys(
             seq,
-            tokens=TOKENS,
+            keys=KEYS,
+            empty_key=EMPTY,
             ignore=IGNORE_INVALID):
         """
 
         Args:
             seq:
-            tokens:
+            keys:
+            empty_key:
             ignore:
 
         Returns:
 
         Examples:
-            >>> BitMask.from_tokens('acio')
+            >>> BitMask.from_keys('acio')
             16645
         """
-        tokens = tokens[1:]
-        valid_tokens = set(tokens)
+        valid_keys = set(keys)
+        valid_keys.add(empty_key)
         value = 0
         for i, item in enumerate(seq):
-            if item in valid_tokens:
-                value |= 1 << tokens.index(item)
+            if item in valid_keys:
+                if item != empty_key:
+                    value |= 1 << keys.index(item)
             elif not ignore:
                 raise ValueError(
                     fmtm('Invalid input `{item}` at index: {i}.'))
         return value
+
+    # ----------------------------------------------------------
+    def items(self):
+        for key, value in zip(self.KEYS, self.values()):
+            yield key, value
+
+    # ----------------------------------------------------------
+    def set_items(self):
+        for key, value in zip(self.KEYS, self.values()):
+            if value:
+                yield key, value
+
+    # ----------------------------------------------------------
+    def as_dict(self):
+        return dict(self.items())
+
+    # ----------------------------------------------------------
+    @property
+    def names(self):
+        class _Names(object):
+            def __getattr__(_self, key):
+                try:
+                    i = self.KEYS.index(key)
+                except ValueError:
+                    i = None
+                if i is None:
+                    raise AttributeError(fmtm('Unknown key `{key}`.'))
+                else:
+                    return self[i]
+
+            def __setattr__(_self, key, value):
+                try:
+                    i = self.KEYS.index(key)
+                except ValueError:
+                    i = None
+                if i is None:
+                    raise AttributeError(fmtm('Unknown key `{key}`.'))
+                else:
+                    self[i] = value
+
+            def __delattr__(_self, item):
+                try:
+                    i = self.KEYS.index(item)
+                except ValueError:
+                    i = None
+                if i is None:
+                    raise AttributeError(fmtm('Unknown key `{key}`.'))
+                else:
+                    del self[i]
+
+            def __str__(_self):
+                return 'Names: ' + str(list(self.KEYS))
+
+            __repr__ = __str__
+
+        return _Names()
+
+
+class Color(BitMask):
+    KEYS = ('RED', 'GREEN', 'BLUE')
+
+
+c = BitMask('dumb')
+
+print(c)
+print(repr(c))
+print(dict(c.items()))
+c.value = 7
+print(c)
+print(c.names)
+c.names.b = False
+print(c.names.b)
+print(c)
