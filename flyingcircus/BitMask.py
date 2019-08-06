@@ -3,24 +3,59 @@ import itertools
 from flyingcircus import fmtm
 
 
+class BitMaskMeta(type):
+    def __new__(mcs, cls_name, cls_bases, cls_dict):
+        keys = cls_dict['KEYS']
+        empty = cls_dict['EMPTY']
+        if sorted(keys) != sorted(set(keys)):
+            raise ValueError(
+                fmtm('{cls_name}.KEYS must be unique'))
+        if empty in keys:
+            raise ValueError(
+                fmtm('{cls_name}.EMPTY must not be in {cls_name}.KEYS'))
+        return type.__new__(mcs, cls_name, cls_bases, cls_dict)
+
+
 # ======================================================================
-class BitMask(object):
+class BitMask(object, metaclass=BitMaskMeta):
     """
     Generic bit-mask class.
 
     The recommended usage is to subclass for specialized representations.
 
+    Typically, while subclassing, `KEYS` and `EMPTY` should probably be
+    replaced.
+    Additionally, `FULL_REPR` and `IGNORE_INVALID` control the bit-mask
+    default behavior.
+    In particular:
+     - `KEYS` determines which flags to use for encoding/decoding the bit-mask.
+       **IMPORTANT!**: Items in `KEYS` must be unique.
+     - `EMPTY` is used during encoding/decoding for marking empty/unset flags.
+       **IMPORTANT!**: `EMPTY` must not be present in `KEYS`.
+     - `FULL_REPR` determines whether the default decoding, including its
+        string representation, should include empty/unset flags.
+     - `IGNORE_INVALID` determines whether invalid input values should be
+       ignored during encoding or rather a ValueError should be raised.
+
     Examples:
         >>> repr(BitMask(127))
-        '0b1111111'
+        "BitMask(0b1111111){'a': True, 'b': True, 'c': True, 'd': True,\
+ 'e': True, 'f': True, 'g': True, 'h': False, 'i': False, 'j': False,\
+ 'k': False, 'l': False, 'm': False, 'n': False, 'o': False, 'p': False,\
+ 'q': False, 'r': False, 's': False, 't': False, 'u': False, 'v': False,\
+ 'w': False, 'x': False, 'y': False, 'z': False, 'A': False, 'B': False,\
+ 'C': False, 'D': False, 'E': False, 'F': False, 'G': False, 'H': False,\
+ 'I': False, 'J': False, 'K': False, 'L': False, 'M': False, 'N': False,\
+ 'O': False, 'P': False, 'Q': False, 'R': False, 'S': False, 'T': False,\
+ 'U': False, 'V': False, 'W': False, 'X': False, 'Y': False, 'Z': False}"
         >>> print(BitMask(127))
-        abcdefg
+        BitMask(abcdefg)
         >>> print(BitMask(8) + BitMask(1))
-        ad
+        BitMask(ad)
         >>> print(BitMask('a') + BitMask('d'))
-        ad
+        BitMask(ad)
     """
-    KEYS = string.ascii_letters + string.digits + string.punctuation
+    KEYS = string.ascii_letters
     EMPTY = ' '
     FULL_REPR = False
     IGNORE_INVALID = True
@@ -28,183 +63,268 @@ class BitMask(object):
     # ----------------------------------------------------------
     def __init__(
             self,
-            value=0):
+            bitmask=0):
         """
-        Instantiate a BitMask.
+        Instantiate a BitMask object.
 
         Args:
-            value (int|Sequence): The input value.
-                If int, the flags of the bitmask are according to the bit
+            bitmask (int|Sequence): The input bit-mask.
+                If int, the flags of the bit-mask are according to the bit
                 boolean values.
-                If str, uses `string.ascii_letters` + `string.digits` to set
-                single bits to True in the bitmask.
+                If a sequence, uses `KEYS` to encode the input into the
+                corresponding bit-mask, using `from_keys()` method.
+                The value of `EMPTY` is used to mark empty / unset bits.
+                The value of `IGNORE_INVALID` determines whether invalid
+                items in the sequence are ignored or will raise a ValueError.
         """
-        if isinstance(value, int):
-            self.value = value
+        cls = type(self)
+        super(BitMask, self).__setattr__('_bitmask', None)
+        if isinstance(bitmask, int):
+            self.bitmask = bitmask
         else:
-            self.value = self.from_keys(
-                value, self.KEYS, self.EMPTY, self.IGNORE_INVALID)
+            self.bitmask = self.encode(
+                bitmask, cls.KEYS, cls.EMPTY, cls.IGNORE_INVALID)
+
+    # ----------------------------------------------------------
+    @property
+    def bitmask(self):
+        return super(BitMask, self).__getattribute__('_bitmask')
+
+    # ----------------------------------------------------------
+    @bitmask.setter
+    def bitmask(self, bitmask_):
+        max_bitmask = (1 << self.len) - 1
+        if 0 <= bitmask_ <= max_bitmask:
+            super(BitMask, self).__setattr__('_bitmask', bitmask_)
+        else:
+            raise ValueError(fmtm(
+                '{self.__class__.__name__}() bit-mask must be between'
+                ' 0 and {max_bitmask}, not `{bitmask_}`'))
+
+    # ----------------------------------------------------------
+    @bitmask.deleter
+    def bitmask(self):
+        del self._bitmask
+
+    # ----------------------------------------------------------
+    @classmethod
+    def is_valid(cls):
+        valid_keys = sorted(cls.KEYS) == sorted(set(cls.KEYS))
+        valid_empty = cls.EMPTY not in cls.KEYS
+        return valid_keys and valid_empty
 
     # ----------------------------------------------------------
     @property
     def len(self):
         """
-        Compute the maximum lenght for the bitmask (given the class keyS).
+        Compute the maximum lenght for the bit-mask (given the class keyS).
 
         Returns:
-            result (int): The maximum length for the bitmask.
+            result (int): The maximum length for the bit-mask.
 
         Examples:
             >>> BitMask().len
-            94
+            52
+            >>> BitMask(123).len
+            52
         """
-        return len(self.KEYS)
+        return len(type(self).KEYS)
 
     # ----------------------------------------------------------
     @property
-    def set_len(self):
+    def active_len(self):
         """
-        Compute the maximum lenght for the bitmask (given the class keyS).
+        Compute the maximum lenght for the bit-mask (given the class keyS).
 
         Returns:
-            result (int): The maximum length for the bitmask.
+            result (int): The maximum length for the bit-mask.
 
         Examples:
-            >>> BitMask().set_len
-            94
+            >>> BitMask().active_len
+            0
+            >>> BitMask(123).active_len
+            7
         """
-        return self.value.bit_length()
+        return self._bitmask.bit_length()
 
     # ----------------------------------------------------------
     def values(self):
         """
-        Iterate over the flags of the bitmask.
+        Iterate over the flags of the bit-mask.
 
         Yields:
             value (bool): The value
 
         Examples:
-            >>> flags = BitMask('ac')
-            >>> print([flag for flag in flags])
-            [True, False, True]
-            >>> print([flag for flag in BitMask(11)])
-            [True, True, False, True]
+            >>> print([flag for flag in BitMask('ac').values()])
+            [True, False, True, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False]
+            >>> print([flag for flag in BitMask(11).values()])
+            [True, True, False, True, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False, False,\
+ False, False, False, False, False, False, False, False, False, False]
         """
         for i in range(self.len):
-            yield bool(self.value & (1 << i))
+            yield bool(self._bitmask & (1 << i))
 
     # ----------------------------------------------------------
-    def set_values(self):
+    def active_values(self):
         """
-        Iterate over the set flags of the bitmask.
+        Iterate over the set flags of the bit-mask.
 
         Yields:
             value (bool): The value
 
         Examples:
             >>> flags = BitMask('ac')
-            >>> print([flag for flag in flags])
+            >>> print([flag for flag in flags.active_values()])
             [True, False, True]
-            >>> print([flag for flag in BitMask(11)])
+            >>> print([flag for flag in BitMask(11).active_values()])
             [True, True, False, True]
         """
-        value = self.value
+        bitmask = self.bitmask
         i = 0
-        while value:
-            yield bool(value & 1)
+        while bitmask:
+            yield bool(bitmask & 1)
             i += 1
-            value >>= 1
+            bitmask >>= 1
 
-    __iter__ = set_values
-    __len__ = set_len
+    __iter__ = values
+    __len__ = len
 
     # ----------------------------------------------------------
-    def __getitem__(self, i):
+    def items(self):
+        for key, value in zip(type(self).KEYS, self.values()):
+            yield key, value
+
+    # ----------------------------------------------------------
+    def active_items(self):
+        for key, value in zip(type(self).KEYS, self.active_values()):
+            if value:
+                yield key, value
+
+    # ----------------------------------------------------------
+    def keys(self):
+        for key in type(self).KEYS:
+            yield key
+
+    # ----------------------------------------------------------
+    def __getitem__(self, item):
         """
+        Get the item at the specified position.
 
         Args:
-            i:
+            item (int): The index of the item to access.
 
         Returns:
+            result (bool): The bit value at the given index in the bit-mask.
 
         Examples:
             >>> flags = BitMask('ac')
-            >>> print([flags[i] for i in range(4)])
-            [True, False, True, False]
-
+            >>> print([flags[i] for i in range(flags.active_len)])
+            [True, False, True]
         """
-        return bool(self.value & (1 << i))
+        return bool(self._bitmask & (1 << item))
 
     # ----------------------------------------------------------
-    def __setitem__(self, i, x):
+    def __setitem__(self, item, value):
         """
+        Set the item at the specified position.
 
         Args:
-            i:
+            item (int): The index of the item to modify.
+            value (bool): The bit value to set.
 
         Returns:
+            None.
 
         Examples:
             >>> flags = BitMask('c')
             >>> flags[0] = True
             >>> print(flags)
-            ac
+            BitMask(ac)
             >>> flags[0] = False
             >>> print(flags)
-            c
+            BitMask(c)
             >>> flags[1] = True
             >>> print(flags)
-            bc
+            BitMask(bc)
             >>> flags[2] = False
             >>> print(flags)
-            b
-
+            BitMask(b)
         """
-        if x:
-            self.value = self.value | (1 << i)
+        if value:
+            self._bitmask = self._bitmask | (1 << item)
         else:
-            self.value = self.value & ~(1 << i)
+            self._bitmask = self._bitmask & ~(1 << item)
 
     # ----------------------------------------------------------
-    def __delitem__(self, i):
+    def __delitem__(self, item):
         """
+        Unset the item at the specified position.
 
         Args:
-            i:
+            item (int): The index of the item to modify.
 
         Returns:
+            result (bool): The bit value before deletion.
 
+        Examples:
+            >>> flags = BitMask(7)
+            >>> print(flags)
+            BitMask(abc)
+            >>> del flags[0]
+            >>> print(flags)
+            BitMask(bc)
         """
-        bit_value = self[i]
-        self[i] = False
+        bit_value = self[item]
+        self[item] = False
         return bit_value
 
     # ----------------------------------------------------------
     def __ior__(self, other):
-        self.value |= other.value
-        return self
+        if type(self) == type(other):
+            self._bitmask |= other._bitmask
+            return self
+        else:
+            raise NotImplemented
 
     # ----------------------------------------------------------
     def __or__(self, other):
         """
+        Perform bitwise-or operation between two bit-masks.
 
         Args:
-            other:
+            other (BitMask): The other bit-mask.
 
         Returns:
+            result (BitMask): The result of the operation.
 
         Examples:
             >>> a = BitMask(1)
             >>> b = BitMask(2)
-            >>> print(a + b)
-            ab
+
+            >>> print(a | b)
+            BitMask(ab)
             >>> print(a)
-            a
+            BitMask(a)
             >>> print(b)
-            b
+            BitMask(b)
+
+            >>> print(a + b)
+            BitMask(ab)
+            >>> print(a)
+            BitMask(a)
+            >>> print(b)
+            BitMask(b)
 
         """
-        result = type(self)(self.value)
+        result = type(self)(self._bitmask)
         result |= other
         return result
 
@@ -213,30 +333,43 @@ class BitMask(object):
 
     # ----------------------------------------------------------
     def __iand__(self, other):
-        self.value &= other.value
-        return self
+        if type(self) == type(other):
+            self._bitmask &= other._bitmask
+            return self
+        else:
+            raise NotImplemented
 
     # ----------------------------------------------------------
     def __and__(self, other):
         """
+        Perform bitwise-and operation between two bit-masks.
 
         Args:
-            other:
+            other (BitMask): The other bit-mask.
 
         Returns:
+            result (BitMask): The result of the operation.
 
         Examples:
             >>> a = BitMask(3)
             >>> b = BitMask(6)
-            >>> print(a * b)
-            b
+
+            >>> print(a & b)
+            BitMask(b)
             >>> print(a)
-            ab
+            BitMask(ab)
             >>> print(b)
-            bc
+            BitMask(bc)
+
+            >>> print(a * b)
+            BitMask(b)
+            >>> print(a)
+            BitMask(ab)
+            >>> print(b)
+            BitMask(bc)
 
         """
-        result = type(self)(self.value)
+        result = type(self)(self._bitmask)
         result &= other
         return result
 
@@ -244,229 +377,267 @@ class BitMask(object):
     __imul__ = __iand__
 
     # ----------------------------------------------------------
-    def __ixor__(self, i):
-        if isinstance(i, int):
-            self.toggle(i)
+    def __ixor__(self, other):
+        if isinstance(other, int):
+            self.flip(other)
             return self
         else:
             raise NotImplemented
 
     # ----------------------------------------------------------
-    def __xor__(self, i):
+    def __xor__(self, item):
         """
-
+        Flip the specified bit from the bit-masks.
 
         Args:
-            i:
+            item (int): The position of the bit to flip.
 
         Returns:
+            result (BitMask): The result of the operation.
 
         Examples:
             >>> flags = BitMask('bd')
             >>> flags ^= 0
             >>> print(flags)
-            abd
+            BitMask(abd)
+            >>> flags ^= 0
+            >>> print(flags)
+            BitMask(bd)
             >>> print(flags ^ 0)
-            bd
+            BitMask(abd)
         """
-        result = type(self)(self.value)
-        result ^= i
+        result = type(self)(self._bitmask)
+        result ^= item
         return result
 
     # ----------------------------------------------------------
     def __eq__(self, other):
-        return type(self) == type(other) and self.value == other.value
+        return type(self) == type(other) and self._bitmask == other._bitmask
 
     # ----------------------------------------------------------
     def __ne__(self, other):
-        return type(self) != type(other) or self.value != other.value
+        return type(self) != type(other) or self._bitmask != other._bitmask
 
     # ----------------------------------------------------------
     def __repr__(self):
-        return bin(self.value)
+        return self.__class__.__name__ + '(' + bin(self._bitmask) + ')' \
+               + str(self.as_dict())
 
     # ----------------------------------------------------------
     def __str__(self):
-        return str(self.to_keys(
-            self.KEYS, self.EMPTY, self.FULL_REPR))
+        keys = self.decode()
+        text = str(keys) if keys else self.EMPTY
+        return self.__class__.__name__ + '(' + text + ')'
 
     # ----------------------------------------------------------
     def __mod__(self, ext_keys):
         """
+        Decode bit-mask using the specified extended keys.
+
+        Extended keys include the empty token as first element.
 
         Args:
-            keys:
+            ext_keys (Sequence): The extended decoding keys.
+                The first element is used for decoding the empty bits.
+                All the other keys follow.
 
         Returns:
+            result (Sequence): The decoded bit-mask.
 
         Examples:
             >>> flags = BitMask(3)
             >>> flags % '-rwx'
             'rw-'
         """
-        return self.to_keys(ext_keys[1:], ext_keys[0], True, None)
+        return self.decode(ext_keys[1:], ext_keys[0], True, True)
 
     # ----------------------------------------------------------
     def __truediv__(self, keys):
         """
+        Decode bit-mask using the specified keys.
 
         Args:
-            keys:
+            keys (Sequence): The decoding keys.
+                Unset bits are ignored.
 
         Returns:
+            result (Sequence): The decoded bit-mask.
 
         Examples:
             >>> flags = BitMask(3)
             >>> flags / '123'
             ['1', '2']
         """
-        return self.to_keys(keys, None, False, list)
+        return self.decode(keys, None, False, list)
 
     # ----------------------------------------------------------
-    def toggle(self, i):
-        self[i] = not self[i]
-        return self[i]
-
-    # ----------------------------------------------------------
-    def to_keys(
-            self,
-            keys=KEYS,
-            empty=EMPTY,
-            full=FULL_REPR,
-            container=None):
+    def flip(self, item):
         """
+        Flip (toggle) the item at the specified position.
 
         Args:
-            keys:
-            empty:
-            full:
-            container:
+            item (int): The index of the item to access.
 
         Returns:
+            result (bool): The value of the item after flipping.
 
         Examples:
-            >>> BitMask(42).to_keys()
+            >>> flags = BitMask(7)
+            >>> print(flags[0])
+            True
+            >>> print(flags.flip(0))
+            False
+            >>> print(flags[0])
+            False
+            >>> print(flags.flip(0))
+            True
+            >>> print(flags[0])
+            True
+        """
+        self[item] = not self[item]
+        return self[item]
+
+    toggle = flip
+
+    # ----------------------------------------------------------
+    def decode(
+            self,
+            keys=None,
+            empty=None,
+            full=FULL_REPR,
+            container=True):
+        """
+        Decode a bit-mask according to the specified keys.
+
+        Args:
+            keys (Iterable): The keys to use for decoding the bit-mask.
+            empty (Any|None): The value to use for unset flags.
+            full (bool): Represent all available flags.
+            container (bool|callable|None): Determine the container to use.
+                If callable, must be a sequence constructor.
+                If True, the container is inferred from the type of `KEYS`.
+                Otherwise, the generator itself is returned.
+
+        Returns:
+            result (Sequence|generator): The keys associated to the bit-mask.
+
+        Examples:
+            >>> BitMask(42).decode()
             'bdf'
         """
+        if keys is None:
+            keys = type(self).KEYS
+        if empty is None:
+            empty = type(self).EMPTY
         if full:
             result = (
                 key if value else empty
                 for key, value in
-                itertools.zip_longest(keys, self, fillvalue=False))
+                itertools.zip_longest(
+                    keys, self.active_values(), fillvalue=False))
         else:
-            result = (key for key, value in zip(keys, self) if value)
-        if container is None:
-            if isinstance(self.KEYS, str):
+            result = (
+                key for key, value in zip(keys, self.active_values()) if value)
+        if callable(container):
+            return container(result)
+        elif container:
+            if isinstance(keys, str):
                 return ''.join(result)
             else:
-                return type(self.KEYS)(result)
-        elif callable(container):
-            return container(result)
+                return type(keys)(result)
         else:
             return result
 
     # ----------------------------------------------------------
-    @staticmethod
-    def from_keys(
-            seq,
-            keys=KEYS,
-            empty_key=EMPTY,
-            ignore=IGNORE_INVALID):
+    @classmethod
+    def encode(
+            cls,
+            items,
+            keys=None,
+            empty=None,
+            ignore_invalid=None):
         """
+        Encode a bit-mask according to the specified keys.
 
         Args:
-            seq:
-            keys:
-            empty_key:
-            ignore:
+            items (Iterable): The items from the bit-mask.
+            keys (Iterable): The keys to use for decoding the bit-mask.
+            empty (Any|None): The value to use for unset flags.
+            ignore (bool): Ignore invalid items.
+                If False, a ValueError is raised if invalid items are present.
 
         Returns:
+            result (int): The value associated to the items in the bit-mask.
+
+        Raises:
+            ValueError: If ignore is False and invalid items are present in
+                in the input.
 
         Examples:
-            >>> BitMask.from_keys('acio')
+            >>> BitMask.encode('acio')
             16645
         """
+        if keys is None:
+            keys = cls.KEYS
+        if empty is None:
+            empty = cls.EMPTY
+        if ignore_invalid is None:
+            ignore_invalid = cls.IGNORE_INVALID
         valid_keys = set(keys)
-        valid_keys.add(empty_key)
+        valid_keys.add(empty)
         value = 0
-        for i, item in enumerate(seq):
+        for i, item in enumerate(items):
             if item in valid_keys:
-                if item != empty_key:
+                if item != empty:
                     value |= 1 << keys.index(item)
-            elif not ignore:
+            elif not ignore_invalid:
                 raise ValueError(
                     fmtm('Invalid input `{item}` at index: {i}.'))
         return value
 
     # ----------------------------------------------------------
-    def items(self):
-        for key, value in zip(self.KEYS, self.values()):
-            yield key, value
-
-    # ----------------------------------------------------------
-    def set_items(self):
-        for key, value in zip(self.KEYS, self.values()):
-            if value:
-                yield key, value
+    def __int__(self):
+        return self._bitmask
 
     # ----------------------------------------------------------
     def as_dict(self):
         return dict(self.items())
 
     # ----------------------------------------------------------
-    @property
-    def names(self):
-        class _Names(object):
-            def __getattr__(_self, key):
-                try:
-                    i = self.KEYS.index(key)
-                except ValueError:
-                    i = None
-                if i is None:
-                    raise AttributeError(fmtm('Unknown key `{key}`.'))
-                else:
-                    return self[i]
+    def __getattr__(self, name):
+        if name in {'KEYS', 'EMPTY'}:
+            return getattr(type(self), name)
+        else:
+            try:
+                i = type(self).KEYS.index(name)
+            except ValueError:
+                i = None
+            if i is None:
+                raise AttributeError(fmtm('Unknown key `{name}`.'))
+            else:
+                return self[i]
 
-            def __setattr__(_self, key, value):
-                try:
-                    i = self.KEYS.index(key)
-                except ValueError:
-                    i = None
-                if i is None:
-                    raise AttributeError(fmtm('Unknown key `{key}`.'))
-                else:
-                    self[i] = value
+    # ----------------------------------------------------------
+    def __setattr__(self, name, value):
+        if name in {'bitmask', '_bitmask'}:
+            super(BitMask, self).__setattr__(name, value)
+        else:
+            try:
+                i = type(self).KEYS.index(name)
+            except ValueError:
+                i = None
+            if i is None:
+                raise AttributeError(fmtm('Unknown key `{name}`.'))
+            else:
+                self[i] = value
 
-            def __delattr__(_self, item):
-                try:
-                    i = self.KEYS.index(item)
-                except ValueError:
-                    i = None
-                if i is None:
-                    raise AttributeError(fmtm('Unknown key `{key}`.'))
-                else:
-                    del self[i]
-
-            def __str__(_self):
-                return 'Names: ' + str(list(self.KEYS))
-
-            __repr__ = __str__
-
-        return _Names()
-
-
-class Color(BitMask):
-    KEYS = ('RED', 'GREEN', 'BLUE')
-
-
-c = BitMask('dumb')
-
-print(c)
-print(repr(c))
-print(dict(c.items()))
-c.value = 7
-print(c)
-print(c.names)
-c.names.b = False
-print(c.names.b)
-print(c)
+    # ----------------------------------------------------------
+    def __delattr__(self, name):
+        try:
+            i = type(self).KEYS.index(name)
+        except ValueError:
+            i = None
+        if i is None:
+            raise AttributeError(fmtm('Unknown key `{name}`.'))
+        else:
+            del self[i]

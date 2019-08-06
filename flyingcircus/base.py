@@ -57,6 +57,8 @@ from flyingcircus import do_nothing_decorator
 from flyingcircus import HAS_JIT, jit
 from flyingcircus import find_all, nested_delimiters, safe_format_map
 
+from flyingcircus.BitMask import BitMask
+
 # ======================================================================
 # :: Custom defined constants
 
