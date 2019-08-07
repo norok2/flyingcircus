@@ -174,7 +174,8 @@ class BitMask(object, metaclass=BitMaskMeta):
             yield bool(self._bitmask & (1 << i))
 
     # ----------------------------------------------------------
-    def active_values(self):
+    @staticmethod
+    def active_values(bitmask):
         """
         Iterate over the set flags of the bit-mask.
 
@@ -183,12 +184,11 @@ class BitMask(object, metaclass=BitMaskMeta):
 
         Examples:
             >>> flags = BitMask('ac')
-            >>> print([flag for flag in flags.active_values()])
+            >>> print([flag for flag in BitMask.active_values(flags.bitmask)])
             [True, False, True]
-            >>> print([flag for flag in BitMask(11).active_values()])
+            >>> print([flag for flag in BitMask.active_values(11)])
             [True, True, False, True]
         """
-        bitmask = self.bitmask
         i = 0
         while bitmask:
             yield bool(bitmask & 1)
@@ -205,7 +205,8 @@ class BitMask(object, metaclass=BitMaskMeta):
 
     # ----------------------------------------------------------
     def active_items(self):
-        for key, value in zip(type(self).KEYS, self.active_values()):
+        for key, value in zip(
+                type(self).KEYS, self.active_values(self.bitmask)):
             if value:
                 yield key, value
 
@@ -426,7 +427,7 @@ class BitMask(object, metaclass=BitMaskMeta):
 
     # ----------------------------------------------------------
     def __str__(self):
-        keys = self.decode()
+        keys = self.decode(self.bitmask)
         text = str(keys) if keys else self.EMPTY
         return self.__class__.__name__ + '(' + text + ')'
 
@@ -450,7 +451,7 @@ class BitMask(object, metaclass=BitMaskMeta):
             >>> flags % '-rwx'
             'rw-'
         """
-        return self.decode(ext_keys[1:], ext_keys[0], True, True)
+        return self.decode(self.bitmask, ext_keys[1:], ext_keys[0], True, True)
 
     # ----------------------------------------------------------
     def __truediv__(self, keys):
@@ -467,9 +468,28 @@ class BitMask(object, metaclass=BitMaskMeta):
         Examples:
             >>> flags = BitMask(3)
             >>> flags / '123'
+            '12'
+        """
+        return self.decode(self.bitmask, keys, None, False, True)
+
+# ----------------------------------------------------------
+    def __floordiv__(self, keys):
+        """
+        Decode bit-mask using the specified keys (and a list container).
+
+        Args:
+            keys (Sequence): The decoding keys.
+                Unset bits are ignored.
+
+        Returns:
+            result (Sequence): The decoded bit-mask.
+
+        Examples:
+            >>> flags = BitMask(3)
+            >>> flags // '123'
             ['1', '2']
         """
-        return self.decode(keys, None, False, list)
+        return self.decode(self.bitmask, keys, None, False, list)
 
     # ----------------------------------------------------------
     def flip(self, item):
@@ -501,8 +521,10 @@ class BitMask(object, metaclass=BitMaskMeta):
     toggle = flip
 
     # ----------------------------------------------------------
+    @classmethod
     def decode(
-            self,
+            cls,
+            bitmask,
             keys=None,
             empty=None,
             full=FULL_REPR,
@@ -523,22 +545,23 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (Sequence|generator): The keys associated to the bit-mask.
 
         Examples:
-            >>> BitMask(42).decode()
+            >>> BitMask.decode(42)
             'bdf'
         """
         if keys is None:
-            keys = type(self).KEYS
+            keys = cls.KEYS
         if empty is None:
-            empty = type(self).EMPTY
+            empty = cls.EMPTY
         if full:
             result = (
                 key if value else empty
                 for key, value in
                 itertools.zip_longest(
-                    keys, self.active_values(), fillvalue=False))
+                    keys, cls.active_values(bitmask), fillvalue=False))
         else:
             result = (
-                key for key, value in zip(keys, self.active_values()) if value)
+                key for key, value in zip(keys, cls.active_values(bitmask))
+                if value)
         if callable(container):
             return container(result)
         elif container:
