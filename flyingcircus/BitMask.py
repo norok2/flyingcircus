@@ -1,5 +1,24 @@
-import string
-import itertools
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+flyingcircus.BitMask: BitMask class.
+"""
+
+# ======================================================================
+# :: Future Imports
+from __future__ import (
+    division, absolute_import, print_function, unicode_literals, )
+
+# ======================================================================
+# :: Python Standard Library Imports
+import itertools  # Functions creating iterators for efficient looping
+import string  # Common string operations
+
+# :: External Imports
+
+# :: External Imports Submodules
+
+# :: Local Imports
 from flyingcircus import fmtm
 
 
