@@ -3360,6 +3360,211 @@ def mapseq2seqmap(
 
 
 # ======================================================================
+def bits(value):
+    """
+    Get the bit values for a number.
+
+    Args:
+        value (int): The input value.
+
+    Yields:
+        result (int): The bits.
+
+    Examples:
+        >>> list(bits(100))
+        [0, 0, 1, 0, 0, 1, 1]
+    """
+    # : this alternative is faster for larger values
+    # return map(int, bin(value)[:1:-1])
+    while value:
+        yield value & 1
+        value >>= 1
+
+
+# ======================================================================
+def get_bit(value, i):
+    """
+    Get the bit value for a number at a given position.
+
+    Args:
+        value (int): The input value.
+        i (int): The bit position.
+
+    Returns:
+        result (int): The bit value.
+
+    Examples:
+        >>> get_bit(100, 2)
+        1
+        >>> [get_bit(100, i) for i in range(10)]
+        [0, 0, 1, 0, 0, 1, 1, 0, 0, 0]
+    """
+    return value >> i & 1
+
+
+# ======================================================================
+def put_bit(value, i, x):
+    """
+    Put a bit value on a number at a given position.
+
+    Args:
+        value (int): The input value.
+        i (int): The bit position.
+        x (int|bool): The bit value.
+
+    Returns:
+        result (int): The output value.
+
+    Examples:
+        >>> put_bit(100, 2, 1)
+        100
+        >>> put_bit(100, 2, 0)
+        96
+        >>> put_bit(100, 3, 1)
+        108
+        >>> put_bit(100, 3, 0)
+        100
+    """
+    # : slower alternative
+    # return (value & ~(1 << i)) | (x << i)
+    if x:
+        return value | (1 << i)
+    else:
+        return value & ~(1 << i)
+
+
+# ======================================================================
+def set_bit(value, i):
+    """
+    Set the bit value for a number at a given position.
+
+    Args:
+        value (int): The input value.
+        i (int): The bit position.
+
+    Returns:
+        result (int): The output value.
+
+    Examples:
+        >>> set_bit(100, 2)
+        100
+        >>> set_bit(96, 2)
+        100
+    """
+    return value | (1 << i)
+
+
+# ======================================================================
+def unset_bit(value, i):
+    """
+    Unset the bit value for a number at a given position.
+
+    Args:
+        value (int): The input value.
+        i (int): The bit position.
+
+    Returns:
+        result (int): The output value.
+
+    Examples:
+        >>> unset_bit(100, 2)
+        96
+        >>> unset_bit(96, 2)
+        96
+    """
+    return value & ~(1 << i)
+
+
+# ======================================================================
+def flip_bit(value, i):
+    """
+    Flip (toggle) the bit value for a number at a given position.
+
+    Args:
+        value (int): The input value.
+        i (int): The bit position.
+
+    Returns:
+        result (int): The output value.
+
+    Examples:
+        >>> flip_bit(100, 2)
+        96
+        >>> flip_bit(96, 2)
+        100
+
+        >>> all(
+        ...      x == flip_bit(flip_bit(x, j), j)
+        ...      for x in range(1024) for j in range(10))
+        True
+    """
+    return value ^ (1 << i)
+
+
+# ======================================================================
+def decode_bits(value, tokens):
+    """
+    Decode the bits for a number according to the specified tokens.
+
+    Args:
+        value (int): The input value.
+        tokens (Sequence): The tokens for decoding.
+
+    Yields:
+        token (Any): The codified bit as token.
+
+    Examples:
+        >>> ''.join(decode_bits(5, 'abc'))
+        'ac'
+    """
+    for token, bit in zip(tokens, bits(value)):
+        if bit:
+            yield token
+
+
+# ======================================================================
+def encode_bits(items, tokens):
+    """
+    Encode the items into a number according to the specified tokens.
+
+    Args:
+        items (Iterable): The input items.
+        tokens (Sequence): The tokens for encoding.
+
+    Returns:
+        result (int): The encoded number.
+
+    Examples:
+        >>> encode_bits('abc', 'abc')
+        7
+        >>> encode_bits('ac', 'abc')
+        5
+    """
+    value = 0
+    for item in items:
+        value = set_bit(value, tokens.index(item))
+    return value
+
+
+# ======================================================================
+def unravel_bits(value, tokens):
+    """
+    Unravel the bits for a number according to the specified tokens.
+
+    This is similar to `decode_bits()` except that this yields additional info.
+
+    Args:
+        value (int): The input value.
+        tokens (Sequence): The tokens for decoding.
+
+    Yields:
+        token (tuple): The position, token and bit value.
+    """
+    for i, token in enumerate(tokens):
+        yield i, token, get_bit(value, i)
+
+
+# ======================================================================
 def prod(
         items,
         start=1):
