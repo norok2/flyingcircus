@@ -474,7 +474,7 @@ class BitMask(object, metaclass=BitMaskMeta):
         """
         return self.decode(self.bitmask, keys, None, False, True)
 
-# ----------------------------------------------------------
+    # ----------------------------------------------------------
     def __floordiv__(self, keys):
         """
         Decode bit-mask using the specified keys (and a list container).
