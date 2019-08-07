@@ -4,6 +4,13 @@ from flyingcircus import fmtm
 
 
 # ======================================================================
+def _bits(value):
+    while value:
+        yield bool(value & 1)
+        value >>= 1
+
+
+# ======================================================================
 class BitMaskMeta(type):
     def __new__(mcs, cls_name, cls_bases, cls_dict):
         keys = cls_dict['KEYS']
@@ -174,8 +181,7 @@ class BitMask(object, metaclass=BitMaskMeta):
             yield bool(self._bitmask & (1 << i))
 
     # ----------------------------------------------------------
-    @staticmethod
-    def active_values(bitmask):
+    def active_values(self):
         """
         Iterate over the set flags of the bit-mask.
 
@@ -184,16 +190,12 @@ class BitMask(object, metaclass=BitMaskMeta):
 
         Examples:
             >>> flags = BitMask('ac')
-            >>> print([flag for flag in BitMask.active_values(flags.bitmask)])
+            >>> print([flag for flag in flags.active_values()])
             [True, False, True]
-            >>> print([flag for flag in BitMask.active_values(11)])
+            >>> print([flag for flag in BitMask(11).active_values()])
             [True, True, False, True]
         """
-        i = 0
-        while bitmask:
-            yield bool(bitmask & 1)
-            i += 1
-            bitmask >>= 1
+        return _bits(self._bitmask)
 
     __iter__ = values
     __len__ = len
@@ -556,12 +558,9 @@ class BitMask(object, metaclass=BitMaskMeta):
             result = (
                 key if value else empty
                 for key, value in
-                itertools.zip_longest(
-                    keys, cls.active_values(bitmask), fillvalue=False))
+                itertools.zip_longest(keys, _bits(bitmask), fillvalue=False))
         else:
-            result = (
-                key for key, value in zip(keys, cls.active_values(bitmask))
-                if value)
+            result = (key for key, value in zip(keys, _bits(bitmask)) if value)
         if callable(container):
             return container(result)
         elif container:
