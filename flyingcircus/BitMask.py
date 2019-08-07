@@ -6,7 +6,9 @@ from flyingcircus import fmtm
 # ======================================================================
 def _bits(value):
     while value:
-        yield bool(value & 1)
+        # : equivalent to, but faster than:
+        # yield bool(value & 1)
+        yield (value & 1) == 1
         value >>= 1
 
 
@@ -178,7 +180,9 @@ class BitMask(object, metaclass=BitMaskMeta):
  False, False, False, False, False, False, False, False, False, False]
         """
         for i in range(self.len):
-            yield bool(self._bitmask & (1 << i))
+            # : equivalent to, but faster than:
+            # yield bool(self._bitmask & (1 << i))
+            yield (self._bitmask & (1 << i)) > 0
 
     # ----------------------------------------------------------
     def active_values(self):
@@ -233,7 +237,9 @@ class BitMask(object, metaclass=BitMaskMeta):
             >>> print([flags[i] for i in range(flags.active_len)])
             [True, False, True]
         """
-        return bool(self._bitmask & (1 << item))
+        # : equivalent to, but faster than:
+        # return bool(self._bitmask & (1 << item))
+        return (self._bitmask & (1 << item)) > 0
 
     # ----------------------------------------------------------
     def __setitem__(self, item, value):

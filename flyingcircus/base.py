@@ -3516,6 +3516,8 @@ def decode_bits(value, tokens):
     Examples:
         >>> ''.join(decode_bits(5, 'abc'))
         'ac'
+        >>> ''.join(decode_bits(6, 'rwx'))
+        'wx'
     """
     for token, bit in zip(tokens, bits(value)):
         if bit:
@@ -3538,6 +3540,10 @@ def encode_bits(items, tokens):
         >>> encode_bits('abc', 'abc')
         7
         >>> encode_bits('ac', 'abc')
+        5
+        >>> encode_bits('rw', 'rwx')
+        3
+        >>> encode_bits('rx', 'rwx')
         5
     """
     value = 0
@@ -7315,7 +7321,7 @@ def strip_decorator(
 
 # ======================================================================
 def to_bool(
-        text,
+        value,
         mappings=(('false', 'true'), ('0', '1'), ('off', 'on')),
         case_sensitive=False,
         strip=True):
@@ -7327,7 +7333,7 @@ def to_bool(
     True for non-empty strings.
 
     Args:
-        text (str|Any): The input value.
+        value (str|Any): The input value.
             If not string, attempt the built-in `bool()` casting.
         mappings (Sequence[Sequence]): The string values to map as boolean.
             Each item consists of an Sequence. Within the inner Sequence,
@@ -7371,22 +7377,24 @@ def to_bool(
             ....
         ValueError: Cannot convert to bool
     """
-    if isinstance(text, str):
+    if isinstance(value, str):
         if strip:
-            text = text.strip()
+            value = value.strip()
         if not case_sensitive:
-            text = text.lower()
+            value = value.lower()
             mappings = tuple(
                 tuple(match.lower() for match in mapping)
                 for mapping in mappings)
         for mapping in mappings:
             for i, match in enumerate(mapping):
-                if text == match:
-                    return bool(i)
+                if value == match:
+                    # : equivalento to, but faster than:
+                    # return bool(i)
+                    return i > 0
         else:
             raise ValueError('Cannot convert to bool')
     else:
-        return bool(text)
+        return bool(value)
 
 
 # ======================================================================
