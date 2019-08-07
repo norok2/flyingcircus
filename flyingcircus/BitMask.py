@@ -3,6 +3,7 @@ import itertools
 from flyingcircus import fmtm
 
 
+# ======================================================================
 class BitMaskMeta(type):
     def __new__(mcs, cls_name, cls_bases, cls_dict):
         keys = cls_dict['KEYS']
