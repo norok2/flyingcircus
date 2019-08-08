@@ -554,15 +554,16 @@ class BitMask(object, metaclass=BitMaskMeta):
             bitmask,
             keys=None,
             empty=None,
-            full=FULL_REPR,
+            full_repr=None,
             container=True):
         """
         Decode a bit-mask according to the specified keys.
 
         Args:
+            bitmask (int): The input bitmask.
             keys (Iterable): The keys to use for decoding the bit-mask.
             empty (Any|None): The value to use for unset flags.
-            full (bool): Represent all available flags.
+            full_repr (bool): Represent all available flags.
             container (bool|callable|None): Determine the container to use.
                 If callable, must be a sequence constructor.
                 If True, the container is inferred from the type of `KEYS`.
@@ -579,7 +580,9 @@ class BitMask(object, metaclass=BitMaskMeta):
             keys = cls.KEYS
         if empty is None:
             empty = cls.EMPTY
-        if full:
+        if full_repr is None:
+            full_repr = cls.FULL_REPR
+        if full_repr:
             result = (
                 key if value else empty
                 for key, value in
@@ -611,7 +614,7 @@ class BitMask(object, metaclass=BitMaskMeta):
             items (Iterable): The items from the bit-mask.
             keys (Iterable): The keys to use for decoding the bit-mask.
             empty (Any|None): The value to use for unset flags.
-            ignore (bool): Ignore invalid items.
+            ignore_invalid (bool): Ignore invalid items.
                 If False, a ValueError is raised if invalid items are present.
 
         Returns:
