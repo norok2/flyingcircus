@@ -2934,14 +2934,24 @@ def unique_permutations(
     Examples:
         >>> list(unique_permutations([0, 0, 0]))
         [[0, 0, 0]]
+        >>> list(itertools.permutations([0, 0, 0]))
+        [(0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+
         >>> list(unique_permutations([0, 0, 2]))
         [[0, 0, 2], [0, 2, 0], [2, 0, 0]]
+        >>> list(itertools.permutations([0, 0, 2]))
+        [(0, 0, 2), (0, 2, 0), (0, 0, 2), (0, 2, 0), (2, 0, 0), (2, 0, 0)]
+
         >>> list(unique_permutations([0, 1, 2]))
         [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
+        >>> list(itertools.permutations([0, 1, 2]))
+        [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
+
         >>> list(unique_permutations([]))
         [[]]
-        >>> p1 = sorted(unique_permutations((0, 1, 2, 3, 4)))
-        >>> p2 = sorted(itertools.permutations((0, 1, 2, 3, 4)))
+
+        >>> p1 = sorted(unique_permutations(tuple(range(10))))
+        >>> p2 = sorted(itertools.permutations(tuple(range(10))))
         >>> p1 == p2
         True
 
