@@ -194,6 +194,35 @@ def _is_special(stats_mode):
 
 
 # ======================================================================
+def _guess_container(items, container=None):
+    """
+    Guess container for combinatorial computations.
+
+    Args:
+        items (Sequence): The input items.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Returns:
+        container (callable): The container function.
+    """
+    if container is None:
+        container = type(items)
+    if not callable(container):
+        container = tuple
+    elif container is str:
+        container = str_join
+    elif container in (bytes, bytearray):
+        container = bytes
+    try:
+        container(items)
+    except TypeError:
+        container = tuple
+    return container
+
+
+# ======================================================================
 def parametric(decorator):
     """
     Create a decorator-factory from a decorator.
@@ -534,14 +563,47 @@ class Infix(object):
 
 
 # ======================================================================
+def str_join(items):
+    """
+    Join string together.
+
+    Args:
+        items (Iterable[str]): The input items.
+
+    Returns:
+        result (str): The output string.
+
+    Examples:
+        >>> str_join(map(str, range(10)))
+        '0123456789'
+    """
+    return ''.join(items)
+
+
+# ======================================================================
+def bytes_join(items):
+    """
+    Join bytes together.
+
+    Args:
+        items (Iterable[bytes]): The input items.
+
+    Returns:
+        result (str): The output bytes.
+
+    Examples:
+        >>> bytes_join(map(lambda x: str(x).encode(), range(10)))
+        b'0123456789'
+    """
+    return b''.join(items)
+
+
+# ======================================================================
 def join(
         operands,
         coerce=True):
     """
     Join together multiple containers.
-
-    Note that since this function could not be extended with the `@star_magic`
-    decorator, the _star magic_ is embedded in its definition.
 
     Args:
         operands (Iterable): The operands to join.
@@ -570,7 +632,7 @@ def join(
             ...
         TypeError: can only concatenate tuple (not "list") to tuple
 
-        These are side effect of duck-typing:
+        # These are side effect of duck-typing:
         >>> join([1, 2.5, 3])
         6
         >>> join([1.0, 2.5, 3])
@@ -584,34 +646,80 @@ def join(
             ...
         TypeError: int() argument must be a string, a bytes-like object or a\
  number, not 'list'
+
+        >>> join(['aaa', 'bbb', 'ccc'])
+        'aaabbbccc'
+        >>> join([b'aaa', b'bbb', b'ccc'])
+        b'aaabbbccc'
+        >>> join(x for x in string.ascii_lowercase)
+        'abcdefghijklmnopqrstuvwxyz'
+        >>> join(x.encode() for x in string.ascii_lowercase)
+        b'abcdefghijklmnopqrstuvwxyz'
+
+        >>> join(['aaa', b'bbb', 'ccc'])
+        'aaabbbccc'
+        >>> join([b'aaa', 'bbb', b'ccc'])
+        b'aaabbbccc'
+        >>> join(['aaa', b'bbb', 'ccc'], False)
+        Traceback (most recent call last):
+            ...
+        TypeError: sequence item 0: expected str instance, bytes found
+        >>> join([b'aaa', 'bbb', b'ccc'], False)
+        Traceback (most recent call last):
+            ...
+        TypeError: sequence item 0: expected a bytes-like object, str found
+
+    See Also:
+        - flyingcircus.base.join_()
     """
-    if all(hasattr(x, '__iadd__') for x in operands):
-        iter_operands = iter(operands)
-        result = next(iter_operands).copy()
-        for operand in iter_operands:
-            result += operand
-        return result
-    elif all(hasattr(x, '__add__') for x in operands):
-        iter_operands = iter(operands)
-        result = copy.copy(next(iter_operands))
+    iter_operands = iter(operands)
+    result = next(iter_operands)
+    type_result = type(result)
+    if type_result == str:
         if coerce:
-            result_type = type(result)
-            for operand in iter_operands:
-                if result_type != type(operand):
-                    operand = result_type(operand)
-                result = result + operand
+            for x in iter_operands:
+                if isinstance(x, bytes):
+                    x = x.decode()
+                elif not isinstance(x, str):
+                    x = str(x)
+                result += x
         else:
-            for operand in iter_operands:
-                result = result + operand
-        return result
-    elif all(hasattr(x, 'update') for x in operands):
-        iter_operands = iter(operands)
-        result = next(iter_operands).copy()
-        for operand in iter_operands:
-            result.update(operand)
-        return result
+            result += ''.join(iter_operands)
+    elif type_result in (bytes, bytearray):
+        if coerce:
+            for x in iter_operands:
+                if isinstance(x, str):
+                    x = x.encode()
+                elif not isinstance(x, (bytes, bytearray)):
+                    x = bytes(x)
+                result += x
+        else:
+            result += b''.join(iter_operands)
+    elif hasattr(result, '__iadd__'):
+        if coerce:
+            for x in iter_operands:
+                result += x if isinstance(x, type_result) else type_result(x)
+        else:
+            for x in iter_operands:
+                result += x
+    elif hasattr(result, '__add__'):
+        if coerce:
+            for x in iter_operands:
+                result = result + (
+                    x if isinstance(x, type_result) else type_result(x))
+        else:
+            for x in iter_operands:
+                result = result + x
+    elif hasattr(result, 'update'):
+        if coerce:
+            for x in iter_operands:
+                result.update(type_result(x) if type_result != type(x) else x)
+        else:
+            for x in iter_operands:
+                result.update(x)
     else:
         raise ValueError(fmtm('Cannot apply `join()` on `{operands}`'))
+    return result
 
 
 # ======================================================================
@@ -638,6 +746,9 @@ def join_(*operands, **_kws):
         Traceback (most recent call last):
             ...
         TypeError: can only concatenate tuple (not "list") to tuple
+
+    See Also:
+        - flyingcircus.base.join()
     """
     return join(operands, **_kws)
 
@@ -762,6 +873,17 @@ def multi_at(
         361
         >>> print(multi_at(items, slice(3, 9, 2)))
         [9, 25, 49]
+
+        >>> items = string.ascii_letters
+        >>> print(multi_at(items, (0, 6, 7, 0, 1, 3)))
+        ('a', 'g', 'h', 'a', 'b', 'd')
+        >>> indexes = (0, 6, 7, slice(1, 3))
+        >>> print(multi_at(items, (12, 4, 11, slice(1, 3))))
+        ('m', 'e', 'l', 'bc')
+        >>> print(multi_at(items, 19))
+        t
+        >>> print(multi_at(items, slice(3, 9, 2)))
+        dfh
 
     See Also:
         - flyingcircus.base.iter_at()
@@ -2387,6 +2509,8 @@ def uniques(items):
         (1, 2, 3, 4, 5)
         >>> sorted(set(items)) == sorted(uniques(items))
         True
+        >>> tuple(uniques('abcde'))
+        ('a', 'b', 'c', 'd', 'e')
     """
     seen = set()
     for item in items:
@@ -2776,6 +2900,526 @@ def chunks(
 
 
 # ======================================================================
+def combinations(
+        items,
+        k,
+        container=None):
+    """
+    Generate all possible k-combinations of given items.
+
+    This is similar to `itertools.combinations()`.
+    The `itertools` version should be preferred to this function.
+
+    Args:
+        items (Sequence): The input items.
+        k (int): The number of items to select.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(combinations(range(3), 2))
+        [(0, 1), (0, 2), (1, 2)]
+
+        >>> list(combinations(range(4), 0))
+        []
+        >>> list(combinations(range(4), 1))
+        [(0,), (1,), (2,), (3,)]
+        >>> list(combinations(range(4), 2))
+        [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+        >>> list(combinations(range(4), 3))
+        [(0, 1, 2), (0, 1, 3), (0, 2, 3), (1, 2, 3)]
+        >>> list(combinations(range(4), 4))
+        [(0, 1, 2, 3)]
+        >>> list(combinations(range(4), 5))
+        []
+
+        >>> list(combinations([], 0))
+        []
+        >>> list(combinations([], 1))
+        []
+
+        >>> list(combinations(range(2), 2))
+        [(0, 1)]
+
+        >>> list(combinations(tuple(range(3)), 2))
+        [(0, 1), (0, 2), (1, 2)]
+        >>> list(combinations(list(range(3)), 2))
+        [[0, 1], [0, 2], [1, 2]]
+        >>> list(combinations(range(3), 2))
+        [(0, 1), (0, 2), (1, 2)]
+        >>> list(combinations('abc', 2))
+        ['ab', 'ac', 'bc']
+        >>> list(combinations(b'abc', 2))
+        [b'ab', b'ac', b'bc']
+
+        >>> p1 = sorted(combinations(range(10), 3))
+        >>> p2 = sorted(itertools.combinations(range(10), 3))
+        >>> p1 == p2
+        True
+
+    See Also:
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.unique_permutations()
+        - flyingcircus.base.cartesian_product()
+    """
+    container = _guess_container(items, container)
+    num = len(items)
+    if not num or k > num or k < 1:
+        return
+    indices = list(range(k))
+    yield container(items[i] for i in indices)
+    while True:
+        for i in reversed(range(k)):
+            if indices[i] != i + num - k:
+                break
+        else:
+            return
+        indices[i] += 1
+        for j in range(i + 1, k):
+            indices[j] = indices[j - 1] + 1
+        yield container(items[i] for i in indices)
+
+
+# ======================================================================
+def multi_combinations(
+        items,
+        k,
+        container=None):
+    """
+    Generate all possible k-multi-combinations of given items.
+
+    These are also called combinations with repetitions.
+
+    This is similar to `itertools.combinations_with_replacement()`.
+    The `itertools` version should be preferred to this function.
+
+    Args:
+        items (Sequence): The input items.
+        k (int): The number of items to select.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(multi_combinations(range(2), 0))
+        []
+        >>> list(multi_combinations(range(2), 1))
+        [(0,), (1,)]
+        >>> list(multi_combinations(range(2), 2))
+        [(0, 0), (0, 1), (1, 1)]
+        >>> list(multi_combinations(range(2), 3))
+        [(0, 0, 0), (0, 0, 1), (0, 1, 1), (1, 1, 1)]
+        >>> list(multi_combinations(range(2), 4))
+        [(0, 0, 0, 0), (0, 0, 0, 1), (0, 0, 1, 1), (0, 1, 1, 1), (1, 1, 1, 1)]
+
+        >>> list(multi_combinations([], 0))
+        []
+        >>> list(multi_combinations([], 1))
+        []
+
+        >>> list(multi_combinations(tuple(range(3)), 2))
+        [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]
+        >>> list(multi_combinations(list(range(3)), 2))
+        [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2], [2, 2]]
+        >>> list(multi_combinations(range(3), 2))
+        [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]
+        >>> list(multi_combinations('abc', 2))
+        ['aa', 'ab', 'ac', 'bb', 'bc', 'cc']
+        >>> list(multi_combinations(b'abc', 2))
+        [b'aa', b'ab', b'ac', b'bb', b'bc', b'cc']
+
+        >>> p1 = sorted(multi_combinations(range(10), 3))
+        >>> p2 = sorted(itertools.combinations_with_replacement(range(10), 3))
+        >>> p1 == p2
+        True
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.unique_permutations()
+        - flyingcircus.base.cartesian_product()
+    """
+    container = _guess_container(items, container)
+    num = len(items)
+    if not num or not k:
+        return
+    indices = [0] * k
+    yield container(items[i] for i in indices)
+    while True:
+        for i in reversed(range(k)):
+            if indices[i] != num - 1:
+                break
+        else:
+            return
+        indices[i:] = [indices[i] + 1] * (k - i)
+        yield container(items[i] for i in indices)
+
+
+# ======================================================================
+def permutations(
+        items,
+        k=None,
+        container=None):
+    """
+    Generate all possible k-permutations of given items.
+
+    If k is smaller than the number of input items, generates partial
+    permutations.
+
+    This is similar to `itertools.permutations()`.
+    The `itertools` version should be preferred to this function.
+
+    Args:
+        items (Sequence): The input items.
+        k (int|None): The number of items to select.
+            If k is None, all permutations are generated.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(permutations(range(3), 0))
+        []
+        >>> list(permutations(range(3), 1))
+        [(0,), (1,), (2,)]
+        >>> list(permutations(range(3), 2))
+        [(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        >>> list(permutations(range(3), 3))
+        [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
+        >>> list(permutations(range(3), 4))
+        []
+
+        >>> list(permutations([], 0))
+        []
+        >>> list(permutations([], 1))
+        []
+
+        >>> list(permutations(tuple(range(3)), 2))
+        [(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        >>> list(permutations(list(range(3)), 2))
+        [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]]
+        >>> list(permutations(range(3), 2))
+        [(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
+        >>> list(permutations('abc', 2))
+        ['ab', 'ac', 'ba', 'bc', 'ca', 'cb']
+        >>> list(permutations(b'abc', 2))
+        [b'ab', b'ac', b'ba', b'bc', b'ca', b'cb']
+
+        >>> p1 = sorted(permutations(range(10), 3))
+        >>> p2 = sorted(itertools.permutations(range(10), 3))
+        >>> p1 == p2
+        True
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.unique_permutations()
+        - flyingcircus.base.cartesian_product()
+    """
+    container = _guess_container(items, container)
+    num = len(items)
+    k = num if k is None else k
+    if k > num or k < 1 or num < 1:
+        return
+    indices = list(range(num))
+    cycles = list(range(num, num - k, -1))
+    yield container(items[i] for i in indices[:k])
+    while num:
+        for i in reversed(range(k)):
+            cycles[i] -= 1
+            if cycles[i] == 0:
+                indices[i:] = indices[i + 1:] + indices[i:i + 1]
+                cycles[i] = num - i
+            else:
+                j = cycles[i]
+                indices[i], indices[-j] = indices[-j], indices[i]
+                yield container(items[i] for i in indices[:k])
+                break
+        else:
+            return
+
+
+# ======================================================================
+def multi_permutations(
+        items,
+        k=None,
+        container=None):
+    """
+    Generate all possible k-multi-permutations of given items.
+
+    These are also called permutations with repetitions or k-cartesian product.
+
+    This is similar to `itertools.product()`.
+    The `itertools` version should be preferred to this function.
+
+    Args:
+        items (Sequence): The input items.
+        k (int|None): The number of items to select.
+            If k is None, all permutations are generated.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(multi_permutations(range(2), 0))
+        []
+        >>> list(multi_permutations(range(2), 1))
+        [(0,), (1,)]
+        >>> list(multi_permutations(range(2), 2))
+        [(0, 0), (0, 1), (1, 0), (1, 1)]
+        >>> list(multi_permutations(range(2), 3))
+        [(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),\
+ (1, 1, 0), (1, 1, 1)]
+
+        >>> list(multi_permutations([], 0))
+        []
+        >>> list(multi_permutations([], 1))
+        []
+
+        >>> list(multi_permutations(tuple(range(3)), 2))
+        [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1),\
+ (2, 2)]
+        >>> list(multi_permutations(list(range(3)), 2))
+        [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1],\
+ [2, 2]]
+        >>> list(multi_permutations(range(4), 1))
+        [(0,), (1,), (2,), (3,)]
+        >>> list(multi_permutations('abc', 2))
+        ['aa', 'ab', 'ac', 'ba', 'bb', 'bc', 'ca', 'cb', 'cc']
+        >>> list(multi_permutations(b'abc', 2))
+        [b'aa', b'ab', b'ac', b'ba', b'bb', b'bc', b'ca', b'cb', b'cc']
+
+        >>> p1 = sorted(multi_permutations(range(10), 3))
+        >>> p2 = sorted(itertools.product(range(10), repeat=3))
+        >>> p1 == p2
+        True
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.unique_permutations()
+        - flyingcircus.base.cartesian_product()
+    """
+    container = _guess_container(items, container)
+    num = len(items)
+    if not num or k < 1:
+        return
+    indices = [0] * k
+    yield container(items[i] for i in indices)
+    while True:
+        for i in reversed(range(k)):
+            if indices[i] != num - 1:
+                break
+            else:
+                for j in range(i, k):
+                    indices[j] = 0
+        else:
+            return
+        indices[i] += 1
+        yield container(items[i] for i in indices)
+
+
+# ======================================================================
+def cyclic_permutations(
+        items,
+        forward=True):
+    """
+    Generate cyclic permutations of given items
+
+    Args:
+        items (Sequence): The input items.
+        forward (bool): Determine how to advance through permutations.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.unique_permutations()
+        - flyingcircus.base.cartesian_product()
+
+    Examples:
+        >>> list(cyclic_permutations(tuple(range(4))))
+        [(0, 1, 2, 3), (1, 2, 3, 0), (2, 3, 0, 1), (3, 0, 1, 2)]
+        >>> list(cyclic_permutations(list(range(4))))
+        [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]]
+
+        >>> list(cyclic_permutations(list(range(3)), True))
+        [[0, 1, 2], [1, 2, 0], [2, 0, 1]]
+        >>> list(cyclic_permutations(list(range(3)), False))
+        [[0, 1, 2], [2, 0, 1], [1, 2, 0]]
+
+        >>> list(cyclic_permutations('abcdef', True))
+        ['abcdef', 'bcdefa', 'cdefab', 'defabc', 'efabcd', 'fabcde']
+        >>> list(cyclic_permutations('abcdef', False))
+        ['abcdef', 'fabcde', 'efabcd', 'defabc', 'cdefab', 'bcdefa']
+        >>> list(cyclic_permutations(b'abcdef', True))
+        [b'abcdef', b'bcdefa', b'cdefab', b'defabc', b'efabcd', b'fabcde']
+        >>> list(cyclic_permutations(b'abcdef', False))
+        [b'abcdef', b'fabcde', b'efabcd', b'defabc', b'cdefab', b'bcdefa']
+    """
+    sign = 1 if forward else -1
+    for i in range(len(items)):
+        yield items[sign * i:] + items[:sign * i]
+
+
+# ======================================================================
+def unique_permutations(
+        items,
+        container=None):
+    """
+    Generate unique permutations of items in an efficient way.
+
+    If items does not contain repeating elements, this is equivalent to
+    `flyingcircus.base.permutations()`.
+
+    Args:
+        items (Sequence): The input items.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(unique_permutations([0, 0, 0]))
+        [[0, 0, 0]]
+        >>> list(itertools.permutations([0, 0, 0]))
+        [(0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+
+        >>> list(unique_permutations([0, 0, 2]))
+        [[0, 0, 2], [0, 2, 0], [2, 0, 0]]
+        >>> list(itertools.permutations([0, 0, 2]))
+        [(0, 0, 2), (0, 2, 0), (0, 0, 2), (0, 2, 0), (2, 0, 0), (2, 0, 0)]
+
+        >>> list(unique_permutations([0, 1, 2]))
+        [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
+        >>> list(permutations([0, 1, 2]))
+        [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
+        >>> list(itertools.permutations([0, 1, 2]))
+        [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
+
+        >>> list(unique_permutations([]))
+        [[]]
+
+        >>> list(unique_permutations('aabb'))
+        ['aabb', 'abab', 'abba', 'baab', 'baba', 'bbaa']
+        >>> list(unique_permutations(b'aabb'))
+        [b'aabb', b'abab', b'abba', b'baab', b'baba', b'bbaa']
+
+        >>> p1 = sorted(unique_permutations(tuple(range(10))))
+        >>> p2 = sorted(itertools.permutations(tuple(range(10))))
+        >>> p1 == p2
+        True
+
+    References:
+        - Donald Knuth, The Art of Computer Programming, Volume 4, Fascicle
+          2: Generating All Permutations.
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.cartesian_product()
+    """
+    container = _guess_container(items, container)
+    indexes = range(len(items) - 1, -1, -1)
+    items = sorted(items)
+    while True:
+        yield container(items)
+
+        for k in indexes[1:]:
+            if items[k] < items[k + 1]:
+                break
+        else:
+            return
+
+        k_val = items[k]
+        for i in indexes:
+            if k_val < items[i]:
+                break
+        else:
+            i = 0
+
+        items[k], items[i] = items[i], items[k]
+        items[k + 1:] = items[-1:k:-1]
+
+
+# ======================================================================
+def cartesian_product(
+        *seqs,
+        container=None):
+    """
+    Generate the cartesian product of the input sequences.
+
+    This is similar to `itertools.product()`.
+    The `itertools` version should be preferred to this function.
+
+    Args:
+        *seqs (Sequence[Sequence]): The input sequences.
+        container (callable|None): The container for the result.
+            If None, this is inferred from `items` if possible, otherwise
+            uses `tuple`.
+
+    Yields:
+        result (Sequence): The next output elements.
+
+    Examples:
+        >>> list(cartesian_product([1, 2], [3, 4, 5]))
+        [[1, 3], [1, 4], [1, 5], [2, 3], [2, 4], [2, 5]]
+        >>> list(cartesian_product((1, 2), (3, 4, 5)))
+        [(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5)]
+        >>> list(cartesian_product(range(2), range(3)))
+        [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
+        >>> list(cartesian_product('abc', 'ABC'))
+        ['aA', 'aB', 'aC', 'bA', 'bB', 'bC', 'cA', 'cB', 'cC']
+
+    See Also:
+        - flyingcircus.base.combinations()
+        - flyingcircus.base.multi_combinations()
+        - flyingcircus.base.permutations()
+        - flyingcircus.base.multi_permutations()
+        - flyingcircus.base.cyclic_permutations()
+        - flyingcircus.base.unique_permutations()
+    """
+    containers = [_guess_container(seq, container) for seq in seqs]
+    container = tuple if not all_equal(containers) else containers[0]
+    results = [[]]
+    for pool in map(container, seqs):
+        results = [x + [y] for x in results for y in pool]
+    for result in results:
+        yield container(result)
+
+
+# ======================================================================
 def partitions(
         items,
         k,
@@ -2796,10 +3440,24 @@ def partitions(
             Each partition contains `k` grouped items from the source.
 
     Examples:
-        >>> tuple(partitions(tuple(range(3)), 2))
+        >>> items = tuple(range(3))
+        >>> tuple(partitions(items, 2))
         (((0,), (1, 2)), ((0, 1), (2,)))
-        >>> tuple(partitions(tuple(range(3)), 3))
+        >>> tuple(partitions(items, 3))
         (((0,), (1,), (2,)),)
+
+        >>> items = 'abc'
+        >>> tuple(partitions(items, 2))
+        (('a', 'bc'), ('ab', 'c'))
+        >>> tuple(partitions(items, 3))
+        (('a', 'b', 'c'),)
+
+        >>> items = range(3)
+        >>> tuple(partitions(items, 2))
+        ((range(0, 1), range(1, 3)), (range(0, 2), range(2, 3)))
+        >>> tuple(partitions(items, 3))
+        ((range(0, 1), range(1, 2), range(2, 3)),)
+
         >>> tuple(partitions(tuple(range(4)), 3))
         (((0,), (1,), (2, 3)), ((0,), (1, 2), (3,)), ((0, 1), (2,), (3,)))
         >>> tuple(partitions(list(range(4)), 3))
@@ -2807,15 +3465,18 @@ def partitions(
     """
     if container is None:
         container = type(items)
-    if not callable(container):
+    if not callable(container) or container in (str, bytes, bytearray):
+        container = tuple
+    try:
+        container(items)
+    except TypeError:
         container = tuple
     num = len(items)
     indexes = tuple(
         (0,) + tuple(index) + (num,)
         for index in itertools.combinations(range(1, num), k - 1))
     for index in indexes:
-        yield container(container(
-            items[index[i]:index[i + 1]] for i in range(k)))
+        yield container(items[index[i]:index[i + 1]] for i in range(k))
 
 
 # ======================================================================
@@ -2884,9 +3545,9 @@ def random_unique_combinations_k(
         for num, comb_gen in enumerate(comb_gens):
             random.shuffle(list(comb_gens[num]))
         # get the first `k` combinations
-        combinations = list(itertools.islice(itertools.product(*comb_gens), k))
-        random.shuffle(combinations)
-        for combination in itertools.islice(combinations, k):
+        combs = list(itertools.islice(itertools.product(*comb_gens), k))
+        random.shuffle(combs)
+        for combination in itertools.islice(combs, k):
             yield container(combination)
     else:
         max_lens = [len(list(item)) for item in items]
@@ -2913,76 +3574,6 @@ def random_unique_combinations_k(
             random.shuffle(index_combs)
             for index_comb in itertools.islice(index_combs, k):
                 yield container(item[i] for i, item in zip(index_comb, items))
-
-
-# ======================================================================
-def unique_permutations(
-        items,
-        container=None):
-    """
-    Yield unique permutations of items in an efficient way.
-
-    Args:
-        items (Sequence): The input items.
-        container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
-            uses `tuple`.
-
-    Yields:
-        items (Sequence): The next unique permutation of the items.
-
-    Examples:
-        >>> list(unique_permutations([0, 0, 0]))
-        [[0, 0, 0]]
-        >>> list(itertools.permutations([0, 0, 0]))
-        [(0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
-
-        >>> list(unique_permutations([0, 0, 2]))
-        [[0, 0, 2], [0, 2, 0], [2, 0, 0]]
-        >>> list(itertools.permutations([0, 0, 2]))
-        [(0, 0, 2), (0, 2, 0), (0, 0, 2), (0, 2, 0), (2, 0, 0), (2, 0, 0)]
-
-        >>> list(unique_permutations([0, 1, 2]))
-        [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
-        >>> list(itertools.permutations([0, 1, 2]))
-        [(0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)]
-
-        >>> list(unique_permutations([]))
-        [[]]
-
-        >>> p1 = sorted(unique_permutations(tuple(range(10))))
-        >>> p2 = sorted(itertools.permutations(tuple(range(10))))
-        >>> p1 == p2
-        True
-
-    References:
-        - Donald Knuth, The Art of Computer Programming, Volume 4, Fascicle
-          2: Generating All Permutations.
-    """
-    if container is None:
-        container = type(items)
-    if not callable(container):
-        container = tuple
-    indexes = range(len(items) - 1, -1, -1)
-    items = sorted(items)
-    while True:
-        yield container(items)
-
-        for k in indexes[1:]:
-            if items[k] < items[k + 1]:
-                break
-        else:
-            return
-
-        k_val = items[k]
-        for i in indexes:
-            if k_val < items[i]:
-                break
-        else:
-            i = 0
-
-        items[k], items[i] = items[i], items[k]
-        items[k + 1:] = items[-1:k:-1]
 
 
 # ======================================================================
@@ -3016,8 +3607,8 @@ def unique_partitions(
         container = type(items)
     if not callable(container):
         container = tuple
-    for permutations in unique_permutations(items):
-        yield container(partitions(container(permutations), k))
+    for perms in unique_permutations(items):
+        yield container(partitions(container(perms), k))
 
 
 # ======================================================================
@@ -3039,8 +3630,7 @@ def latin_square(
             whereas for non-cyclic permutations (`cyclic == False`), this is
             equivalent to reversing the items order prior to generating the
             permutations, i.e.
-            `tuple(itertools.permutations(reversed(items)))
-             == tuple(reversed(tuple(itertools.permutations(items))))`.
+            `permutations(reversed(items)) == reversed(permutations(items))`.
 
     Returns:
         result (list[Sequence]): The latin square.
@@ -3048,44 +3638,57 @@ def latin_square(
     Examples:
         >>> random.seed(0)
         >>> latin_square(list(range(4)))
-        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
+        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
 
         >>> latin_square(list(range(4)), False, False, False)
-        [(3, 2, 1, 0), (2, 3, 0, 1), (1, 0, 3, 2), (0, 1, 2, 3)]
+        [[3, 2, 1, 0], [2, 3, 0, 1], [1, 0, 3, 2], [0, 1, 2, 3]]
         >>> latin_square(list(range(4)), False, True, False)
-        [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]]
-        >>> latin_square(list(range(4)), False, False, True)
-        [(0, 1, 2, 3), (1, 0, 3, 2), (2, 3, 0, 1), (3, 2, 1, 0)]
-        >>> latin_square(list(range(4)), False, True, True)
         [[0, 1, 2, 3], [3, 0, 1, 2], [2, 3, 0, 1], [1, 2, 3, 0]]
+        >>> latin_square(list(range(4)), False, False, True)
+        [[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]]
+        >>> latin_square(list(range(4)), False, True, True)
+        [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]]
 
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, False, False)
-        [(1, 0, 3, 2), (3, 2, 1, 0), (2, 3, 0, 1), (0, 1, 2, 3)]
+        [[1, 0, 3, 2], [3, 2, 1, 0], [2, 3, 0, 1], [0, 1, 2, 3]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, True, False)
-        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
+        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, False, True)
-        [(2, 3, 0, 1), (0, 1, 2, 3), (1, 0, 3, 2), (3, 2, 1, 0)]
+        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 0, 3, 2], [3, 2, 1, 0]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, True, True)
-        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
+        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
 
         >>> random.seed(0)
         >>> latin_square(tuple(range(4)))
-        [(2, 3, 0, 1), (0, 1, 2, 3), (3, 0, 1, 2), (1, 2, 3, 0)]
+        [(2, 3, 0, 1), (0, 1, 2, 3), (1, 2, 3, 0), (3, 0, 1, 2)]
+
+        >>> random.seed(0)
+        >>> latin_square('abcde')
+        ['cdeab', 'bcdea', 'abcde', 'eabcd', 'deabc']
+        >>> print('\\n'.join(latin_square('0123456789')))
+        1234567890
+        0123456789
+        4567890123
+        5678901234
+        3456789012
+        2345678901
+        9012345678
+        6789012345
+        7890123456
+        8901234567
     """
     if cyclic:
-        sign = -1 if forward else 1
-        result = [
-            items[sign * i:] + items[:sign * i] for i in range(len(items))]
+        result = list(cyclic_permutations(items, forward))
     else:
         result = []
         # note: reversed(permutations(items)) == permutations(reversed(items))
         if not forward:
             items = items[::-1]
-        for elems in itertools.permutations(items):
+        for elems in permutations(items):
             valid = True
             for i, elem in enumerate(elems):
                 orthogonals = [x[i] for x in result] + [elem]
@@ -5731,7 +6334,7 @@ def common_subseq_2(
         ['los', 'les']
         >>> common_subseq_2('los angeles', 'lossless', lambda x: x)
         ['les', 'los']
-        >>> common_subseq_2((1, 2, 3, 4, 5),(0, 1, 2))
+        >>> common_subseq_2((1, 2, 3, 4, 5), (0, 1, 2))
         [(1, 2)]
     """
     # note: [[0] * (len(seq2) + 1)] * (len(seq1) + 1) will not work!
@@ -5887,6 +6490,27 @@ def blocks(
         block (bytes|str): The data within the blocks.
 
     Examples:
+        >>> src = 'flyingcircus-' * 4
+        >>> tgt = ''.join(blocks(io.StringIO(src), 3))
+        >>> print(tgt)
+        flyingcircus-flyingcircus-flyingcircus-flyingcircus-
+        >>> print(src == tgt)
+        True
+
+        >>> src = b'flyingcircus-' * 4
+        >>> tgt = b''.join(blocks(io.BytesIO(src), 3))
+        >>> print(tgt)
+        b'flyingcircus-flyingcircus-flyingcircus-flyingcircus-'
+        >>> print(src == tgt)
+        True
+
+        >>> src = 'φλυινγκιρκυσ-' * 4
+        >>> tgt = ''.join(blocks(io.StringIO(src), 3))
+        >>> print(tgt)
+        φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-
+        >>> print(src == tgt)
+        True
+
         >>> with open(__file__, 'r') as file_obj:
         ...     content = file_obj.read()
         ...     content2 = ''.join([b for b in blocks(file_obj, 100)])
@@ -5938,6 +6562,27 @@ def blocks_r(
         block (bytes|str): The data within the blocks.
 
     Examples:
+        >>> src = 'flyingcircus-' * 4
+        >>> tgt = ''.join([b for b in blocks_r(io.StringIO(src), 3)][::-1])
+        >>> print(tgt)
+        flyingcircus-flyingcircus-flyingcircus-flyingcircus-
+        >>> print(src == tgt)
+        True
+
+        >>> src = b'flyingcircus-' * 4
+        >>> tgt = b''.join([b for b in blocks_r(io.BytesIO(src), 3)][::-1])
+        >>> print(tgt)
+        b'flyingcircus-flyingcircus-flyingcircus-flyingcircus-'
+        >>> print(src == tgt)
+        True
+
+        >>> src = 'φλυινγκιρκυσ-' * 4
+        >>> tgt = ''.join([b for b in blocks_r(io.StringIO(src), 3)][::-1])
+        >>> print(tgt)
+        φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-
+        >>> print(src == tgt)
+        True
+
         >>> with open(__file__, 'r') as file_obj:
         ...     content = file_obj.read()
         ...     content2 = ''.join([b for b in blocks_r(file_obj, 100)][::-1])
@@ -5962,7 +6607,7 @@ def blocks_r(
             block = file_obj.read(min(remaining_size, size + adjust))
         except UnicodeDecodeError:
             offset -= size + adjust
-            adjust += 1
+            adjust += 4
         else:
             if not isinstance(block, bytes):
                 real_size = len(
@@ -6106,7 +6751,7 @@ def from_cached(
         result (Any): The result of the cached computation.
     """
     kws = dict(kws) if kws else {}
-    hash_key = hash_object((func, kws))
+    hash_key = hash_object((func, kws))  # can be used in filename
     filepath = os.path.join(dirpath, fmtm(filename))
     if os.path.isfile(filepath) and not force:
         result = load_func(open(filepath, 'rb'))
@@ -8380,6 +9025,28 @@ def string_between(
 
 
 # ======================================================================
+def remove_ansi_escapes(text):
+    """
+    Remove ANSI escape sequences from text.
+
+    Args:
+        text (str): The input text.
+
+    Returns:
+        result (str): The output text.
+
+    Examples:
+        >>> s = '\u001b[0;35mfoo\u001b[0m \u001b[0;36mbar\u001b[0m'
+        >>> print(repr(remove_ansi_escapes(s)))
+        'foo bar'
+        >>> remove_ansi_escapes(s) == 'foo bar'
+        True
+    """
+    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
+    return ansi_escape.sub('', text)
+
+
+# ======================================================================
 def check_redo(
         in_filepaths,
         out_filepaths,
@@ -8822,9 +9489,10 @@ def time_profile(
             scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
             scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
             SI_ORDER_STEP, 6)
-        t_units = order_to_prefix(val_order)
-        num = int(round(scale_to_order(summary['num'], 10, 3, num_order)))
-        n_units = order_to_prefix(num_order)
+        t_units = order_to_prefix(val_order, SI_PREFIX['base1000'])
+        num = int(round(
+            scale_to_order(summary['num'], 10, SI_ORDER_STEP, num_order)))
+        n_units = order_to_prefix(num_order, SI_PREFIX['base1000'])
         if verbose >= VERB_LVL['medium']:
             kws_list = [
                 elide(k + '=' + str(v), kws_limit)
@@ -8903,34 +9571,12 @@ def time_profile(
                 gc.enable()
             else:
                 gc.disable()
-            msg(format_summary(summary), verbose, D_VERB_LVL)
+            msg(format_summary(summary), verbose, D_VERB_LVL, False)
             return result, summary
 
         return wrapper_profile_time
 
     return decorator_profile_time
-
-
-# ======================================================================
-def remove_ansi_escapes(text):
-    """
-    Remove ANSI escape sequences from text.
-
-    Args:
-        text (str): The input text.
-
-    Returns:
-        result (str): The output text.
-
-    Examples:
-        >>> s = '\u001b[0;35mfoo\u001b[0m \u001b[0;36mbar\u001b[0m'
-        >>> print(repr(remove_ansi_escapes(s)))
-        'foo bar'
-        >>> remove_ansi_escapes(s) == 'foo bar'
-        True
-    """
-    ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
-    return ansi_escape.sub('', text)
 
 
 # ======================================================================
