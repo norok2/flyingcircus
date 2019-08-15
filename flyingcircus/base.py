@@ -6512,14 +6512,14 @@ def blocks(
         True
 
         >>> with open(__file__, 'r') as file_obj:
-        ...     content = file_obj.read()
-        ...     content2 = ''.join([b for b in blocks(file_obj, 100)])
-        ...     content == content2
+        ...     src = file_obj.read()
+        ...     tgt = ''.join([b for b in blocks(file_obj, 100)])
+        ...     src == tgt
         True
         >>> with open(__file__, 'rb') as file_obj:
-        ...     content = file_obj.read()
-        ...     content2 = b''.join([b for b in blocks(file_obj, 100)])
-        ...     content == content2
+        ...     src = file_obj.read()
+        ...     tgt = b''.join([b for b in blocks(file_obj, 100)])
+        ...     src == tgt
         True
     """
     if reset_offset:
@@ -6536,15 +6536,13 @@ def blocks(
 def blocks_r(
         file_obj,
         size=64 * 1024,
-        reset_offset=True,
-        encoding=None):
+        reset_offset=True):
     """
     Yields the data within a file in reverse order blocks of given (max) size.
 
     Note that:
      - the content of the block is NOT reversed.
-     - if the file is open in text mode, the actual size of the block may be
-       shorter for multi-byte encodings (such as `utf8`, which is the default).
+     - files opened in text mode are not supported!
 
     Args:
         file_obj (file): The input file.
@@ -6554,68 +6552,67 @@ def blocks_r(
         reset_offset (bool): Reset the file offset.
             If True, starts reading from the end of the file.
             Otherwise, starts reading from where the file current position is.
-        encoding (str|None): The encoding for correct block size computation.
-            If `str`, must be a valid string encoding.
-            If None, the default encoding is used.
 
     Yields:
         block (bytes|str): The data within the blocks.
 
     Examples:
-        >>> src = 'flyingcircus-' * 4
-        >>> tgt = ''.join([b for b in blocks_r(io.StringIO(src), 3)][::-1])
+        >>> src = 'flyingcircus' * 4
+        >>> my_blocks = list(blocks_r(io.StringIO(src), 12))
+        >>> tgt = ''.join(my_blocks[::-1])
+        >>> print(my_blocks)
+        ['flyingcircus', 'flyingcircus', 'flyingcircus', 'flyingcircus']
+        >>> print(src)
+        flyingcircusflyingcircusflyingcircusflyingcircus
         >>> print(tgt)
-        flyingcircus-flyingcircus-flyingcircus-flyingcircus-
+        flyingcircusflyingcircusflyingcircusflyingcircus
         >>> print(src == tgt)
         True
 
-        >>> src = b'flyingcircus-' * 4
-        >>> tgt = b''.join([b for b in blocks_r(io.BytesIO(src), 3)][::-1])
+        >>> src = b'flyingcircus' * 4
+        >>> my_blocks = list(blocks_r(io.BytesIO(src), 12))
+        >>> tgt = b''.join(my_blocks[::-1])
+        >>> print(my_blocks)
+        [b'flyingcircus', b'flyingcircus', b'flyingcircus', b'flyingcircus']
+        >>> print(src)
+        b'flyingcircusflyingcircusflyingcircusflyingcircus'
         >>> print(tgt)
-        b'flyingcircus-flyingcircus-flyingcircus-flyingcircus-'
+        b'flyingcircusflyingcircusflyingcircusflyingcircus'
         >>> print(src == tgt)
         True
 
-        >>> src = 'φλυινγκιρκυσ-' * 4
-        >>> tgt = ''.join([b for b in blocks_r(io.StringIO(src), 3)][::-1])
+        >>> src = 'φλυινγκιρκυσ' * 4
+        >>> my_blocks = list(blocks_r(io.StringIO(src), 12))
+        >>> tgt = ''.join(my_blocks[::-1])
+        >>> print(my_blocks)
+        ['φλυινγκιρκυσ', 'φλυινγκιρκυσ', 'φλυινγκιρκυσ', 'φλυινγκιρκυσ']
+        >>> print(src)
+        φλυινγκιρκυσφλυινγκιρκυσφλυινγκιρκυσφλυινγκιρκυσ
         >>> print(tgt)
-        φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-φλυινγκιρκυσ-
+        φλυινγκιρκυσφλυινγκιρκυσφλυινγκιρκυσφλυινγκιρκυσ
         >>> print(src == tgt)
         True
 
-        >>> with open(__file__, 'r') as file_obj:
-        ...     content = file_obj.read()
-        ...     content2 = ''.join([b for b in blocks_r(file_obj, 100)][::-1])
-        ...     content == content2
-        True
+        # THIS IS NOT SUPPORTED!
+        # >>> with open(__file__, 'r') as file_obj:
+        # ...     src = file_obj.read()
+        # ...     tgt = ''.join([b for b in blocks_r(file_obj, 100)][::-1])
+        # ...     src == tgt
+        # True
         >>> with open(__file__, 'rb') as file_obj:
-        ...     content = file_obj.read()
-        ...     content2 = b''.join([b for b in blocks_r(file_obj, 100)][::-1])
-        ...     content == content2
+        ...     src = file_obj.read()
+        ...     tgt = b''.join([b for b in blocks_r(file_obj, 100)][::-1])
+        ...     src == tgt
         True
     """
-    offset = 0
-    if reset_offset:
-        file_size = remaining_size = file_obj.seek(0, os.SEEK_END)
-    else:
-        file_size = remaining_size = file_obj.tell()
-    rounding = adjust = 0
-    while remaining_size > 0:
-        try:
-            offset = min(file_size, size + offset + adjust)
-            file_obj.seek(file_size - offset)
-            block = file_obj.read(min(remaining_size, size + adjust))
-        except UnicodeDecodeError:
-            offset -= size + adjust
-            adjust += 4
-        else:
-            if not isinstance(block, bytes):
-                real_size = len(
-                    block.encode(encoding) if encoding else block.encode())
-                rounding = len(block) - real_size
-            remaining_size -= size + adjust
-            yield block[:len(block) + rounding] if rounding else block
-            adjust = 0
+    # : does not work well for files opened in text mode
+    offset = file_obj.seek(0, os.SEEK_END) if reset_offset else file_obj.tell()
+    while offset > 0:
+        block_size = min(offset, size)
+        offset -= block_size
+        file_obj.seek(offset)
+        block = file_obj.read(block_size)
+        yield block
 
 
 # ======================================================================
