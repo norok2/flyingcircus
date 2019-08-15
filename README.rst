@@ -52,7 +52,6 @@ The package ``base`` contains a number of generic functions like
    list of list of tuples to flat list).
 -  ``uniques()``: extract unique items from an iterable while
    keeping the order of appearance.
--  ``grouping()``: generates a tuple of grouped items.
 
 etc.
 
