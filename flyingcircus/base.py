@@ -1149,6 +1149,32 @@ def span(
 
 
 # ======================================================================
+def is_bin_file(file_obj):
+    """
+    Check if a file object is in binary mode.
+
+    Args:
+        file_obj (File):
+
+    Returns:
+        result (bool): The binary mode status.
+
+    Examples:
+        >>> is_bin_file(open(__file__, 'rb'))
+        True
+        >>> is_bin_file(open(__file__, 'r'))
+        False
+        >>> is_bin_file(io.BytesIO(b'ciao'))
+        True
+        >>> is_bin_file(io.StringIO('ciao'))
+        False
+    """
+    # : alternative implementation (not working for `io` objects)
+    # return 'b' in file_obj.mode
+    return not hasattr(file_obj, 'encoding')
+
+
+# ======================================================================
 def read_stream(
         in_file,
         dtype,
