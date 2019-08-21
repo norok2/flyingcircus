@@ -1171,7 +1171,9 @@ def is_bin_file(file_obj):
     """
     # : alternative implementation (not working for `io` objects)
     # return 'b' in file_obj.mode
-    return not hasattr(file_obj, 'encoding')
+    # : alternative implementation (relying on `file_obj` attributes)
+    # return not hasattr(file_obj, 'encoding')
+    return isinstance(file_obj.read(0), bytes)
 
 
 # ======================================================================
@@ -6826,7 +6828,7 @@ def readline(
         ...     lines == lines_r
         True
     """
-    is_bytes = isinstance(file_obj.read(0), bytes)
+    is_bytes = is_bin_file(file_obj)
     newline = b'\n' if is_bytes else '\n'
     empty = b'' if is_bytes else ''
     remainder = empty
@@ -6835,7 +6837,6 @@ def readline(
         block_generator = blocks
     else:
         block_generator = blocks_r
-        block_generator_kws.update(dict(encoding=encoding))
     for block in block_generator(file_obj, **block_generator_kws):
         lines = block.split(newline)
         if remainder:
@@ -9439,7 +9440,9 @@ def multi_scale_to_int(
 
 
 # ======================================================================
+@parametric
 def time_profile(
+        func,
         timeout=2.0,
         max_iter=1000000000,
         min_iter=7,
@@ -9456,6 +9459,7 @@ def time_profile(
     but also works as a decorator.
 
     Args:
+        func (callable): The input function.
         timeout (int|float): Max time for testing in s.
             Note that this may be overridden by the `min_iter` parameter.
         max_iter (int): Max number of iterations.
@@ -9548,58 +9552,54 @@ def time_profile(
         return result
 
     # ----------------------------------------------------------
-    def decorator_profile_time(func):
-
-        # ----------------------------------------------------------
-        def wrapper_profile_time(*_args, **_kws):
-            gc_was_enabled = gc.isenabled()
-            if use_gc:
-                gc.enable()
-            else:
-                gc.disable()
-            mean_time = sosd_time = min_time = max_time = 0.0
-            init_time = timer()
-            total_time = 0.0
-            result = None
-            i = j = 1
-            run_times = [0.0] * batch_size
-            while i < max_iter:
-                for j in range(batch_size):
-                    begin_time = timer()
-                    result = func(*_args, **_kws)
-                    end_time = timer()
-                    run_times[j] = end_time - begin_time
-                    total_time = end_time - init_time
-                    if total_time > timeout:
-                        break
-                run_time = batch_combine(run_times)
-                if run_time < min_time or i == 1:
-                    min_time = run_time
-                if run_time > max_time or i == 1:
-                    max_time = run_time
-                mean_time, sosd_time = next_mean_sosd(
-                    run_time, mean_time, sosd_time, i - 1)
-                if total_time > timeout and (i > min_iter or quick):
+    @functools.wraps(func)
+    def wrapper(*_args, **_kws):
+        gc_was_enabled = gc.isenabled()
+        if use_gc:
+            gc.enable()
+        else:
+            gc.disable()
+        mean_time = sosd_time = min_time = max_time = 0.0
+        init_time = timer()
+        total_time = 0.0
+        result = None
+        i = j = 1
+        run_times = [0.0] * batch_size
+        while i < max_iter:
+            for j in range(batch_size):
+                begin_time = timer()
+                result = func(*_args, **_kws)
+                end_time = timer()
+                run_times[j] = end_time - begin_time
+                total_time = end_time - init_time
+                if total_time > timeout:
                     break
-                else:
-                    i += 1
-            summary = dict(
-                result=result, func_name=func.__name__, args=_args, kws=_kws,
-                num=i, mean=mean_time, sosd=sosd_time,
-                var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i),
-                min=min_time, max=max_time,
-                batch_name=batch_combine.__name__,
-                batch_size=j + 1 if i == 1 else batch_size)
-            if gc_was_enabled:
-                gc.enable()
+            run_time = batch_combine(run_times)
+            if run_time < min_time or i == 1:
+                min_time = run_time
+            if run_time > max_time or i == 1:
+                max_time = run_time
+            mean_time, sosd_time = next_mean_sosd(
+                run_time, mean_time, sosd_time, i - 1)
+            if total_time > timeout and (i > min_iter or quick):
+                break
             else:
-                gc.disable()
-            msg(format_summary(summary), verbose, D_VERB_LVL, False)
-            return result, summary
+                i += 1
+        summary = dict(
+            result=result, func_name=func.__name__, args=_args, kws=_kws,
+            num=i, mean=mean_time, sosd=sosd_time,
+            var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, i),
+            min=min_time, max=max_time,
+            batch_name=batch_combine.__name__,
+            batch_size=j + 1 if i == 1 else batch_size)
+        if gc_was_enabled:
+            gc.enable()
+        else:
+            gc.disable()
+        msg(format_summary(summary), verbose, D_VERB_LVL, False)
+        return result, summary
 
-        return wrapper_profile_time
-
-    return decorator_profile_time
+    return wrapper
 
 
 # ======================================================================
@@ -9612,7 +9612,7 @@ def multi_benchmark(
         equal_output=lambda a, b: a == b,
         time_prof_kws=None,
         store_all=False,
-        msg_text='  {eq:>4s},  input_size={input_size}',
+        msg_text='{func.__name__}  {eq:>4s},  input_size={input_size}',
         verbose=D_VERB_LVL):
     """
     Benchmark multiple functions for varying input size.
