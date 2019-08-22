@@ -3361,8 +3361,8 @@ def unique_permutations(
         >>> list(unique_permutations(b'aabb'))
         [b'aabb', b'abab', b'abba', b'baab', b'baba', b'bbaa']
 
-        >>> p1 = sorted(unique_permutations(tuple(range(10))))
-        >>> p2 = sorted(itertools.permutations(tuple(range(10))))
+        >>> p1 = sorted(unique_permutations(tuple(range(8))))
+        >>> p2 = sorted(itertools.permutations(tuple(range(8))))
         >>> p1 == p2
         True
 
@@ -9440,10 +9440,85 @@ def multi_scale_to_int(
 
 
 # ======================================================================
+def _format_summary(
+        summary,
+        template='',
+        kws_limit=8,
+        line_limit=79,
+        more=False):
+    """
+    Format summary result from `flyingcircus.base.time_profile()`.
+
+    Args:
+        summary (dict): The input summary.
+        template (str): The template to use
+        kws_limit (int): The maximum number of chars to use for input preview.
+            This is only effective if `more == True`.
+        line_limit (int): Limit for single line.
+        more (bool): Display more information.
+
+    Returns:
+        result (str): The formatted summary.
+
+    See Also:
+        - flyingcircus.base.time_profile()
+        - flyingcircus.base.multi_benchmark()
+    """
+    val_order = order_of_magnitude(summary['mean'], 10, SI_ORDER_STEP)
+    err_order = order_of_magnitude(summary['stdev'], 10, SI_ORDER_STEP)
+    num_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
+    val, err = format_value_error(
+        scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
+        scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
+        SI_ORDER_STEP, 6)
+    t_units = order_to_prefix(val_order, SI_PREFIX['base1000'])
+    num = int(round(
+        scale_to_order(summary['num'], 10, SI_ORDER_STEP, num_order)))
+    n_units = order_to_prefix(num_order, SI_PREFIX['base1000'])
+    if more:
+        kws_list = [
+            elide(k + '=' + str(v), kws_limit)
+            for k, v in summary['kws'].items()]
+        args_list = [
+            elide(str(arg), line_limit // 2) for arg in summary['args']]
+        args = '(' + ', '.join(args_list + kws_list) + ')'
+        if len(args) > line_limit // 2:
+            args = '(' + '\n\t' + ',\n\t'.join(args_list + kws_list) + ')'
+    else:
+        args = '(..)'
+    name = summary['func_name']
+    batch_name = summary['batch_name']
+    batch_num = summary['batch_size']
+    name_s = fmtm('{name}{args}')
+    time_s = fmtm('({val} ± {err}) {t_units}s')
+    time_ss = fmtm('t = {time_s}')
+    time_ls = fmtm('time = {time_s}')
+    num_s = fmtm('{num}{n_units}')
+    num_ss = fmtm('l = {num_s}')
+    num_ls = fmtm('loops = {num_s}')
+    batch_s = fmtm('{batch_name}({batch_num})')
+    if template:
+        result = fmtm(template)
+    else:
+        result = ': ' + '; '.join([name_s, time_ls, num_ls, batch_s])
+    if line_limit > 0:
+        result = '\n'.join(
+            [elide(line, line_limit) for line in result.splitlines()])
+    if not template and more:
+        result += \
+            '\n  ' + 'mean_time = ' + str(summary['mean']) + ';  ' \
+            + 'stdev_time = ' + str(summary['stdev']) + ';\n  ' \
+            + 'min_time = ' + str(summary['min']) + ';  ' \
+            + 'max_time = ' + str(summary['max']) + ';\n  ' \
+            + 'minmax_range = ' + str(summary['minmax_range'])
+    return result
+
+
+# ======================================================================
 @parametric
 def time_profile(
         func,
-        timeout=2.0,
+        timeout=5.0,
         max_iter=1000000000,
         min_iter=7,
         batch_size=7,
@@ -9451,6 +9526,7 @@ def time_profile(
         timer=time.time,
         use_gc=True,
         quick=True,
+        text=': {name_s};  {time_ls};  {num_ls}; {batch_s}',
         verbose=D_VERB_LVL):
     """
     Estimate the execution time of a function with multiple repetitions.
@@ -9477,27 +9553,28 @@ def time_profile(
         quick (bool): Force exiting the repetition loops.
             If this is True, the `max_time` is forced within the execution
             time of a single instance.
+        text (str): Text to use for printing output.
         verbose (int): Set level of verbosity.
 
     Returns:
         decorator_profile_time (callable): The decorator.
 
     Examples:
-        >>> @time_profile(timeout=1.0)
+        >>> @time_profile(timeout=0.1)
         ... def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
         >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
 
         >>> def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
-        >>> my_func = time_profile(timeout=1.0)(my_func)
+        >>> my_func = time_profile(timeout=0.1)(my_func)
         >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
         >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...;  min(7)
+        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
 
         >>> print(list(summary.keys()))
         ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var',\
@@ -9506,50 +9583,6 @@ def time_profile(
     See Also:
         - flyingcircus.base.multi_benchmark()
     """
-
-    # ----------------------------------------------------------
-    def format_summary(summary, kws_limit=8, line_limit=79):
-        val_order = order_of_magnitude(summary['mean'], 10, SI_ORDER_STEP)
-        err_order = order_of_magnitude(summary['stdev'], 10, SI_ORDER_STEP)
-        num_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
-        val, err = format_value_error(
-            scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
-            scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
-            SI_ORDER_STEP, 6)
-        t_units = order_to_prefix(val_order, SI_PREFIX['base1000'])
-        num = int(round(
-            scale_to_order(summary['num'], 10, SI_ORDER_STEP, num_order)))
-        n_units = order_to_prefix(num_order, SI_PREFIX['base1000'])
-        if verbose >= VERB_LVL['medium']:
-            kws_list = [
-                elide(k + '=' + str(v), kws_limit)
-                for k, v in summary['kws'].items()]
-            args_list = [
-                elide(str(arg), line_limit // 2) for arg in summary['args']]
-            args = '(' + ', '.join(args_list + kws_list) + ')'
-            if len(args) > line_limit // 2:
-                args = '(' + '\n\t' + ',\n\t'.join(args_list + kws_list) + ')'
-        else:
-            args = '(..)'
-        name = summary['func_name']
-        batch_name = summary['batch_name']
-        batch_num = summary['batch_size']
-        name_s = fmtm('{name}{args}')
-        time_s = fmtm('time = ({val} ± {err}) {t_units}s')
-        num_s = fmtm('loops = {num}{n_units}')
-        batch_s = fmtm('{batch_name}({batch_num})')
-        result = ': ' + ';  '.join([name_s, time_s, num_s, batch_s])
-        if len(result) > line_limit:
-            result = ': ' + name_s + '\n  ' \
-                     + ';  '.join([time_s, num_s, batch_s])
-        if verbose >= VERB_LVL['medium']:
-            result += \
-                '\n  ' + 'mean_time = ' + str(summary['mean']) + ';  ' \
-                + 'stdev_time = ' + str(summary['stdev']) + ';\n  ' \
-                + 'min_time = ' + str(summary['min']) + ';  ' \
-                + 'max_time = ' + str(summary['max']) + ';\n  ' \
-                + 'minmax_range = ' + str(summary['minmax_range'])
-        return result
 
     # ----------------------------------------------------------
     @functools.wraps(func)
@@ -9596,7 +9629,8 @@ def time_profile(
             gc.enable()
         else:
             gc.disable()
-        msg(format_summary(summary), verbose, D_VERB_LVL, False)
+        if text:
+            msg(_format_summary(summary, text), verbose, D_VERB_LVL, False)
         return result, summary
 
     return wrapper
@@ -9607,15 +9641,40 @@ def multi_benchmark(
         funcs,
         argss=None,
         kwss=None,
-        input_sizes=(10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000),
+        input_sizes=tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(10)),
         gen_input=lambda n: [random.random() for _ in range(n)],
         equal_output=lambda a, b: a == b,
         time_prof_kws=None,
         store_all=False,
-        msg_text='{func.__name__}  {eq:>4s},  input_size={input_size}',
+        text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
+                   '  {time_s:<20s}  {num_s:>5} / {batch_s}',
+        text_inputs=' ',
         verbose=D_VERB_LVL):
     """
-    Benchmark multiple functions for varying input size.
+    Benchmark multiple functions for varying input sizes.
+
+    Sensible choices for input sizes are:
+
+    - for linear (n) problems
+
+      - (5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000)
+      - tuple(10 * (i + 1) for i in range(24))
+        # lin-spaced
+      - tuple(2 ** (i + 1) for i in range(16))
+        # geom-spaced
+      - tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(20))
+        # frac-pow-spaced
+
+    - for quadratic (n²) problems
+
+      - (5, 10, 50, 100, 500, 1000, 5000)
+      - tuple(10 * (i + 1) for i in range(24))
+        # lin-space
+      - tuple(2 ** (i + 1) for i in range(12))
+        # geom-space
+      - tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(15))
+        # frac-pow-spaced
+
 
     Args:
         funcs (Iterable[callable]): The functions to test.
@@ -9634,12 +9693,14 @@ def multi_benchmark(
             These are passed to `flyingcircus.base.time_profile()`.
         store_all (bool): Store all results.
             If True, all results are stores.
-        msg_text (str): Text to use for printing output.
+        text_funcs (str): Text to use for printing output for functions.
+        text_inputs (str): Text to use for printing output for inputs.
         verbose (int): Set level of verbosity.
 
     Returns:
         result (tuple): The tuple
             contains:
+
              - summaries (list[list[dict]]): The summary for each benchmark.
              - labels (list[str]): The function names.
              - results (list): The full results.
@@ -9652,11 +9713,25 @@ def multi_benchmark(
         ...     return [item ** 2 for item in items]
         >>> funcs = f1, f2
         >>> summaries, labels, results = multi_benchmark(
-        ...     funcs, input_sizes=(10, 100, 1000),
-        ...     time_prof_kws=dict(timeout=0.1), verbose=VERB_LVL['none'])
-        >>> print(labels, results, list(summaries[0][0].keys()))
-        ['f1', 'f2'] [] ['result', 'func_name', 'args', 'kws', 'num', 'mean',\
- 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
+        ...     funcs, input_sizes=tuple(10 ** (i + 1) for i in range(3)),
+        ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
+        N = (10, 100, 1000)
+        <BLANKLINE>
+        :f1(..)  N=10      OK  (... ± ...) ...s       ... / min(...)
+        :f2(..)  N=10      OK  (... ± ...) ...s       ... / min(...)
+        <BLANKLINE>
+        :f1(..)  N=100     OK  (... ± ...) ...s       ... / min(...)
+        :f2(..)  N=100     OK  (... ± ...) ...s     ... / min(...)
+        <BLANKLINE>
+        :f1(..)  N=1000    OK  (... ± ...) ...s     ... / min(...)
+        :f2(..)  N=1000    OK  (... ± ...) ...s     ... / min(...)
+        >>> print(labels, results)
+        ['f1', 'f2'] []
+        >>> summary_headers = list(summaries[0][0].keys())
+        >>> print(summary_headers[:8])
+        ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var']
+        >>> print(summary_headers[8:])
+        ['stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
 
     See Also:
         - flyingcircus.base.time_profile()
@@ -9668,13 +9743,17 @@ def multi_benchmark(
         kwss = ()
     time_prof_kws = dict(time_prof_kws) if time_prof_kws is not None else {}
     if 'verbose' not in time_prof_kws:
-        time_prof_kws['verbose'] = verbose
+        time_prof_kws['verbose'] = VERB_LVL['none']
+    len_n = max(map(lambda x: int(math.ceil(math.log10(x))), input_sizes)) + 1
+    msg(fmtm('N = {input_sizes}'), verbose, D_VERB_LVL)
     summaries = []
     results = []
     for i, input_size in enumerate(input_sizes):
         inner_summaries = []
         input_data = gen_input(input_size)
         truth = None
+        if text_inputs:
+            msg(fmtm(text_inputs), verbose, D_VERB_LVL)
         for j, (func, args, kws) in \
                 enumerate(itertools.zip_longest(funcs, argss, kwss)):
             args = tuple(args) if args is not None else ()
@@ -9684,8 +9763,10 @@ def multi_benchmark(
             if j == 0:
                 truth = result
             is_equal = equal_output(truth, result)
-            eq = 'OK' if is_equal else 'FAIL'
-            msg(fmtm(msg_text), verbose, D_VERB_LVL)
+            is_equal_s = 'OK' if is_equal else 'FAIL'
+            if text_funcs:
+                msg(_format_summary(summary, fmtm(text_funcs)),
+                    verbose, D_VERB_LVL)
             summary['is_equal'] = is_equal
             inner_summaries.append(summary)
             if store_all:
