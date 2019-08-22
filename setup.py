@@ -137,9 +137,9 @@ setup(
         'Topic :: Utilities',
     ],
 
-    keywords=('utils', 'misc', 'iterators', 'metaprogramming', 'science',
+    keywords=['utils', 'misc', 'iterators', 'metaprogramming', 'science',
               'mathematics', 'math', 'physics', 'format', 'formatting',
-              'numpy', 'scipy',),
+              'numpy', 'scipy',],
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
 
@@ -150,12 +150,12 @@ setup(
         'numpy',
         'scipy',
         'numexpr',
+        'appdirs',
     ],
 
     setup_requires=[
         'setuptools',
         'setuptools_scm',
-        'appdirs',
     ],
 
     extras_require={
