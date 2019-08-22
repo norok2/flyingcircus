@@ -86,7 +86,7 @@ SI_PREFIX = {
         for v, k in enumerate(('k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'))},
     'base1000-': {
         k: -(v + 1)
-        for v, k in enumerate(('m', 'µ', 'n', 'p', 'f', 'a', 'z', 'y'))},
+        for v, k in enumerate(('m', 'μ', 'n', 'p', 'f', 'a', 'z', 'y'))},
     'base1000': {'': 0},
     'base10': {'': 0},
     'base10+': {'da': 1, 'h': 2},
@@ -100,9 +100,13 @@ SI_PREFIX['base10-'].update({
 SI_PREFIX['base10'].update(SI_PREFIX['base10+'])
 SI_PREFIX['base10'].update(SI_PREFIX['base10-'])
 SI_PREFIX_ASCII = copy.deepcopy(SI_PREFIX)
+SI_PREFIX_EXTRA = copy.deepcopy(SI_PREFIX)
+# handle multiple micro signs: u, µ, μ
 for _mode in ('base1000-', 'base10-', 'base1000', 'base10'):
-    SI_PREFIX_ASCII[_mode]['u'] = SI_PREFIX_ASCII[_mode]['µ']
-    del SI_PREFIX_ASCII[_mode]['µ']
+    SI_PREFIX_EXTRA[_mode]['u'] = SI_PREFIX[_mode]['μ']
+    SI_PREFIX_EXTRA[_mode]['µ'] = SI_PREFIX[_mode]['μ']
+    SI_PREFIX_ASCII[_mode]['u'] = SI_PREFIX[_mode]['μ']
+    del SI_PREFIX_ASCII[_mode]['μ']
 
 # ======================================================================
 # :: define C types
@@ -8203,7 +8207,7 @@ def order_of_magnitude(
 # ======================================================================
 def prefix_to_order(
         prefix,
-        prefixes=freeze(SI_PREFIX['base10'])):
+        prefixes=freeze(SI_PREFIX_EXTRA['base10'])):
     """
     Get the order corresponding to a given prefix.
 
@@ -8213,6 +8217,7 @@ def prefix_to_order(
         prefix (str): The prefix to inspect.
         prefixes (Mappable): The conversion table for the prefixes.
             This must have the form: (prefix, order).
+            Multiple prefixes can point to the same order.
 
     Returns:
         order (int|float): The order associate to the prefix.
@@ -8227,6 +8232,8 @@ def prefix_to_order(
         >>> [prefix_to_order(x)
         ...     for x in ('', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y')]
         [0, -3, -6, -9, -12, -15, -18, -21, -24]
+        >>> [prefix_to_order(x) for x in ('u', 'µ', 'μ')]
+        [-6, -6, -6]
         >>> all(prefix_to_order(order_to_prefix(i)) == i
         ...     for i in range(-24, 25, SI_ORDER_STEP))
         True
@@ -8257,7 +8264,7 @@ def order_to_prefix(
     Args:
         order (int): The order of magnitude.
         prefixes (Mappable): The conversion table for the prefixes.
-            This must have the form: (prefix, order).
+            This must have the form: (prefix, order). Must be 1-to-1.
 
     Returns:
         prefix (str): The prefix for the corresponding order.
@@ -8269,7 +8276,7 @@ def order_to_prefix(
         >>> [order_to_prefix(i * SI_ORDER_STEP) for i in range(9)]
         ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
         >>> [order_to_prefix(-i * SI_ORDER_STEP) for i in range(9)]
-        ['', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y']
+        ['', 'm', 'μ', 'n', 'p', 'f', 'a', 'z', 'y']
         >>> order_to_prefix(10)
         Traceback (most recent call last):
             ...
@@ -8354,7 +8361,7 @@ def factor_to_order(
 # ======================================================================
 def prefix_to_factor(
         prefix,
-        prefixes=freeze(SI_PREFIX['base10']),
+        prefixes=freeze(SI_PREFIX_EXTRA['base10']),
         base=10):
     """
     Get the order corresponding to a given prefix.
@@ -8365,6 +8372,7 @@ def prefix_to_factor(
         prefix (str): The prefix to inspect.
         prefixes (Mappable): The conversion table for the prefixes.
             This must have the form: (prefix, order).
+            Multiple prefixes can point to the same order.
         base (int|float): The base to use for the factor.
 
     Returns:
@@ -8376,6 +8384,8 @@ def prefix_to_factor(
         >>> [prefix_to_factor(x)
         ...     for x in ('', 'm', 'µ', 'n', 'p', 'f', 'a', 'z', 'y')]
         [1, 0.001, 1e-06, 1e-09, 1e-12, 1e-15, 1e-18, 1e-21, 1e-24]
+        >>> [prefix_to_factor(x) for x in ('u', 'µ', 'μ')]
+        [1e-06, 1e-06, 1e-06]
         >>> all(prefix_to_order(order_to_prefix(i)) == i
         ...     for i in range(-24, 25, SI_ORDER_STEP))
         True
@@ -8403,7 +8413,7 @@ def factor_to_prefix(
     Args:
         factor (int|float): The factor to inspect.
         prefixes (Mappable): The conversion table for the prefixes.
-            This must have the form: (prefix, order).
+            This must have the form: (prefix, order). Must be 1-to-1.
         base (int|float): The base to use for the order-to-factor conversion.
             Must be strictly positive.
 
@@ -9582,6 +9592,7 @@ def time_profile(
  
     See Also:
         - flyingcircus.base.multi_benchmark()
+        - flyingcircus.base._format_summary()
     """
 
     # ----------------------------------------------------------
@@ -9700,7 +9711,6 @@ def multi_benchmark(
     Returns:
         result (tuple): The tuple
             contains:
-
              - summaries (list[list[dict]]): The summary for each benchmark.
              - labels (list[str]): The function names.
              - results (list): The full results.
@@ -9735,6 +9745,7 @@ def multi_benchmark(
 
     See Also:
         - flyingcircus.base.time_profile()
+        - flyingcircus.base._format_summary()
     """
     labels = [func.__name__ for func in funcs]
     if argss is None:
