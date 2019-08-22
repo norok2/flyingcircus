@@ -9658,7 +9658,7 @@ def multi_benchmark(
         time_prof_kws=None,
         store_all=False,
         text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
-                   '  {time_s:<20s}  {num_s:>5} / {batch_s}',
+                   '  {time_s:<24s}  {num_s:>5} / {batch_s}',
         text_inputs=' ',
         verbose=D_VERB_LVL):
     """
@@ -9731,10 +9731,10 @@ def multi_benchmark(
         :f2(..)  N=10      OK  (... ± ...) ...s       ... / min(...)
         <BLANKLINE>
         :f1(..)  N=100     OK  (... ± ...) ...s       ... / min(...)
-        :f2(..)  N=100     OK  (... ± ...) ...s     ... / min(...)
+        :f2(..)  N=100     OK  (... ± ...) ...s       ... / min(...)
         <BLANKLINE>
-        :f1(..)  N=1000    OK  (... ± ...) ...s     ... / min(...)
-        :f2(..)  N=1000    OK  (... ± ...) ...s     ... / min(...)
+        :f1(..)  N=1000    OK  (... ± ...) ...s       ... / min(...)
+        :f2(..)  N=1000    OK  (... ± ...) ...s       ... / min(...)
         >>> print(labels, results)
         ['f1', 'f2'] []
         >>> summary_headers = list(summaries[0][0].keys())
