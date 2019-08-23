@@ -2742,6 +2742,66 @@ def slide(
 
 
 # ======================================================================
+def sliding(
+        func,
+        items,
+        size,
+        step=1,
+        truncate=True,
+        fill=None,
+        star=False):
+    """
+    Apply a function to a sliding grouping / window of the items.
+
+    Args:
+        func (callable): The function to apply.
+        items (Iterable): The input items.
+        size (int): The windowing size.
+        step (int|None): The windowing step.
+            If int, must be larger than 0.
+        truncate (bool): Determine how to handle uneven splits.
+            If True, last groups are skipped if smaller than `size`.
+        fill (Any): Value to use for filling the last group.
+            This is only used when `truncate` is False.
+        star(bool): Pass arguments to func using star magic.
+
+    Yields:
+        result: The function applied to the slided items.
+
+    Examples:
+        >>> items = list(range(10))
+        >>> print(items)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> print(list(sliding(sum, items, 2)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17]
+        >>> print(list(sliding(sum, items, 3)))
+        [3, 6, 9, 12, 15, 18, 21, 24]
+        >>> print(list(sliding(sum, items, 3, 2)))
+        [3, 9, 15, 21]
+
+        >>> print(list(sliding(sum, items, 3, 2, False, 0)))
+        [3, 9, 15, 21, 17]
+        >>> print(list(sliding(sum, items, 3, 2, False)))
+        Traceback (most recent call last):
+            ...
+        TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'
+
+        >>> print(list(sliding(operator.add, items, 2, star=True)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17]
+        >>> print(list(sliding(operator.add, items, 2)))
+        Traceback (most recent call last):
+            ...
+        TypeError: add expected 2 arguments, got 1
+    """
+    if star:
+        for batch in slide(items, size, step, truncate, fill):
+            yield func(*batch)
+    else:
+        for batch in slide(items, size, step, truncate, fill):
+            yield func(batch)
+
+
+# ======================================================================
 def separate(
         items,
         size,
@@ -5535,69 +5595,44 @@ def cont_frac(b, a=1, limit=None):
 
 
 # ======================================================================
-def sliding(
-        func,
-        items,
-        size,
-        step=1,
-        truncate=True,
-        fill=None,
-        star=False):
+def scale_to_int(
+        val,
+        scale,
+        rounding=True):
     """
-    Apply a function to a sliding grouping / window of the items.
+    Scale a value by the specified size.
 
     Args:
-        func (callable): The function to apply.
-        items (Iterable): The input items.
-        size (int): The windowing size.
-        step (int|None): The windowing step.
-            If int, must be larger than 0.
-        truncate (bool): Determine how to handle uneven splits.
-            If True, last groups are skipped if smaller than `size`.
-        fill (Any): Value to use for filling the last group.
-            This is only used when `truncate` is False.
-        star(bool): Pass arguments to func using star magic.
+        val (Number): The value to scale.
+        scale (Number): The scale size.
+        rounding (bool): Perform rounding.
+            If True, call `round()` before int conversion.
 
-    Yields:
-        result: The function applied to the slided items.
+    Returns:
+        result (Any): The scaled value.
 
     Examples:
-        >>> items = list(range(10))
-        >>> print(items)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        >>> print(list(sliding(sum, items, 2)))
-        [1, 3, 5, 7, 9, 11, 13, 15, 17]
-        >>> print(list(sliding(sum, items, 3)))
-        [3, 6, 9, 12, 15, 18, 21, 24]
-        >>> print(list(sliding(sum, items, 3, 2)))
-        [3, 9, 15, 21]
-
-        >>> print(list(sliding(sum, items, 3, 2, False, 0)))
-        [3, 9, 15, 21, 17]
-        >>> print(list(sliding(sum, items, 3, 2, False)))
-        Traceback (most recent call last):
-            ...
-        TypeError: unsupported operand type(s) for +: 'int' and 'NoneType'
-
-        >>> print(list(sliding(operator.add, items, 2, star=True)))
-        [1, 3, 5, 7, 9, 11, 13, 15, 17]
-        >>> print(list(sliding(operator.add, items, 2)))
-        Traceback (most recent call last):
-            ...
-        TypeError: add expected 2 arguments, got 1
+        >>> scale_to_int(0.1, 10)
+        1
+        >>> scale_to_int(0.1, 10.0)
+        1
+        >>> scale_to_int(1.0, 10.0)
+        10
+        >>> scale_to_int(0.5, 11.0)
+        6
+        >>> scale_to_int(0.5, 11.0, False)
+        5
+        >>> scale_to_int(1, 10.0)
+        1
     """
-    if star:
-        for batch in slide(items, size, step, truncate, fill):
-            yield func(*batch)
-    else:
-        for batch in slide(items, size, step, truncate, fill):
-            yield func(batch)
+    return int(round(val * scale) if rounding else (val * scale)) \
+        if not isinstance(val, int) else val
 
 
 # ======================================================================
 def mean(items):
     """
-    Compute the mean of an arbitrary sequence.
+    Compute the mean of a numeric sequence.
 
     For iterative computation see:
      - `flyingcircus.base.next_mean()`
@@ -5625,7 +5660,7 @@ def mean(items):
 # ======================================================================
 def variance(items):
     """
-    Compute the variance of an arbitrary sequence.
+    Compute the variance of a numeric sequence.
 
     For iterative computation see:
      - `flyingcircus.base.next_mean_var()`
@@ -5658,7 +5693,7 @@ def mean_var(
         items,
         ddof=0):
     """
-    Compute the mean and variance of an arbitrary sequence.
+    Compute the mean and variance of a numeric sequence.
 
     For iterative computation see:
      - `flyingcircus.base.next_mean_var()`
@@ -5691,7 +5726,7 @@ def stdev(
         items,
         ddof=0):
     """
-    Compute the standard deviation of an arbitrary sequence.
+    Compute the standard deviation of a numeric sequence.
 
     For iterative computation see:
      - `flyingcircus.base.next_mean_var()`
@@ -5717,9 +5752,11 @@ def stdev(
 
 
 # ======================================================================
-def median(items):
+def median(
+        items,
+        force_sort=True):
     """
-    Compute the median of an arbitrary sequence.
+    Compute the median of a numeric sequence.
 
     For iterative computation see:
      - `flyingcircus.base.next_median()`
@@ -5730,9 +5767,12 @@ def median(items):
     Args:
         items (Sequence): The input items.
             The values within the sequence should be numeric.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
 
     Returns:
-        result (Number): The variance of the items.
+        result (Number): The median of the items.
 
     Examples:
         >>> items = range(0, 20, 2)
@@ -5741,18 +5781,60 @@ def median(items):
         >>> statistics.median(items) == median(items)
         True
     """
-    sorted_items = sorted(items)
+    sorted_items = sorted(items) if force_sort else items
     n = len(items)
-    n_2 = n // 2
-    if n % 2 == 0 and sorted_items[n_2 - 1] != sorted_items[n_2]:
-        median_ = (sorted_items[n_2 - 1] + sorted_items[n_2]) / 2
+    i = n // 2
+    if n % 2 == 0 and sorted_items[i - 1] != sorted_items[i]:
+        median_ = (sorted_items[i - 1] + sorted_items[i]) / 2
     else:
-        median_ = sorted_items[n_2]
+        median_ = sorted_items[i]
     return median_
 
 
 # ======================================================================
-def medoid(items):
+def quantile(
+        items,
+        factor,
+        force_sort=True,
+        int_base=100):
+    """
+    Compute the quantile of a numeric sequence.
+
+    Args:
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
+        factor (int|float|Iterable[int|float]): The quantile index.
+            If float, must be a number in the [0, 1] range.
+            If int, it is divided by `int_base`.
+            If k == 0.5, this is equivalent to the median.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+        int_base (int|float): The denominator used to scale integer factors.
+
+    Returns:
+        result (Number|tuple[Number]): The quantiles of the item(s).
+            Returns the tuple if `factor` is a sequence (of any length),
+            otherwise returns a Number.
+
+    Examples:
+        >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> quantile(items, 0.25)
+        (2.5,)
+        >>> quantile(items, range(0, 101, 10))
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        >>> ((min(items), median(items), max(items))
+        ...     == quantile(items, (0.0, 0.5, 1.0)))
+        True
+    """
+    raise NotImplementedError
+
+
+# ======================================================================
+def medoid(
+        items,
+        force_sort=True,
+        lower=True):
     """
     Compute the medoid of an arbitrary sequence.
 
@@ -5760,25 +5842,130 @@ def medoid(items):
      - `flyingcircus.base.next_medoid()`
      - `flyingcircus.base.imedoid()`
 
-    If the number of items is not odd, returns the medoid from the upper half.
+    If the number of items is not odd, returns the medoid from the lower or
+    upper half depending on the value of `lower` being True or False.
 
     Args:
         items (Sequence): The input items.
             The values within the sequence should be numeric.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it should be set to True.
+        lower (bool): Pick the lower medoid for even-sized items.
 
     Returns:
-        result (Number): The variance of the items.
+        result (Any): The medoid of the items.
 
     Examples:
+        >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> medoid(items)
+        5
+        >>> medoid(items, lower=False)
+        5
+
         >>> items = range(0, 20, 2)
-        >>> median(items)
-        9.0
-        >>> statistics.median(items) == median(items)
+        >>> medoid(items)
+        8
+        >>> medoid(items, lower=False)
+        10
+
+        >>> items = string.ascii_lowercase
+        >>> medoid(items)
+        'm'
+        >>> medoid(items, lower=False)
+        'n'
+    """
+    sorted_items = sorted(items) if force_sort else items
+    i = int(round((len(items) - 1) / 2)) if lower else len(items) // 2
+    medoid_ = sorted_items[i]
+    return medoid_
+
+
+# ======================================================================
+def quantiloid(
+        items,
+        factor,
+        force_sort=True,
+        int_base=100):
+    """
+    Compute the quantiloid of an arbitrary sequence.
+
+    Args:
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
+        factor (int|float|Iterable[int|float]): The quantile index.
+            If float, must be a number in the [0, 1] range.
+            If int, it is divided by `int_base` to get to the [0, 1] range.
+        force_sort (bool): Force sorting of the input items.
+            If the items are in the intended order, it should be set to False.
+            Otherwise, it should be set to True.
+        int_base (int|float): The denominator used to scale integer factors.
+
+    Returns:
+        result (Any|tuple[Any]): The quantiloid of the item(s).
+            Returns the tuple if `factor` is a sequence (of any length),
+            otherwise returns an element of items.
+
+    Examples:
+        >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> quantiloid(items, 0.25)
+        2
+        >>> quantiloid(items, range(0, 101, 10))
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        >>> ((min(items), medoid(items), max(items))
+        ...     == quantiloid(items, (0.0, 0.5, 1.0)))
+        True
+
+        >>> items = string.ascii_lowercase
+        >>> quantiloid(items, 0.25)
+        'g'
+        >>> quantiloid(items, range(0, 101, 10))
+        ('a', 'c', 'f', 'i', 'k', 'm', 'p', 's', 'u', 'w', 'z')
+        >>> ((min(items), medoid(items), max(items))
+        ...     == quantiloid(items, (0.0, 0.5, 1.0)))
         True
     """
-    sorted_items = sorted(items)
-    medoid_ = sorted_items[len(items) // 2]
-    return medoid_
+    use_tuple = is_deep(factor)
+    kk = auto_repeat(factor, 1, False, False)
+    n = len(items)
+    sorted_items = sorted(items) if force_sort else items
+    result = tuple(
+        sorted_items[scale_to_int(
+            k if isinstance(k, float) else k / int_base, n - 1, True)]
+        for k in kk)
+    return result if use_tuple else result[0]
+
+
+# ======================================================================
+def interquantilic_range(
+        items,
+        k_a=0.75,
+        k_b=0.25,
+        force_sort=True,
+        quantilic_func=quantile):
+    """
+    Compute the interquantilic range of a numeric sequence.
+
+    Args:
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
+        k_a (float|Iterable[float]): The first quantilic index.
+            Must be a number in the [0, 1] range.
+        k_b (float|Iterable[float]): The second quantilic index.
+            Must be a number in the [0, 1] range.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+        quantilic_func (callable): The quantilic function.
+            Must be either `flyingcircus.base.quantile()` or
+            `flyingcircus.base.quantiloid()` (or any other callable
+            implementing the same signature).
+
+    Returns:
+        result (Number): The inter-quantilic range.
+    """
+    q_a, q_b = quantilic_func(items, (k_a, k_b), force_sort)
+    return q_a - q_b
 
 
 # ======================================================================
@@ -5792,7 +5979,7 @@ def next_mean(
     This is useful for low memory footprint computation.
 
     Args:
-        value (Number): The next to consider.
+        value (Number): The next value to consider.
         mean_ (Number): The aggregate mean of the previous n items.
         num (int): The number of items in the aggregate.
 
@@ -5940,13 +6127,8 @@ def next_median(
     else:
         # equivalent to: `buffer.append(value); buffer.sort()` but faster
         bisect.insort(buffer, value)
-        n = len(buffer)
-        n_2 = n // 2
-        if n % 2 == 0 and buffer[n_2 - 1] != buffer[n_2]:
-            median_ = (buffer[n_2 - 1] + buffer[n_2]) / 2
-        else:
-            median_ = buffer[n_2]
-        if n > max_buffer:
+        median_ = median(buffer, False)
+        if len(buffer) > max_buffer:
             if value > median_:
                 del buffer[0]
             else:
@@ -5958,6 +6140,7 @@ def next_median(
 def next_medoid(
         value,
         buffer,
+        lower=True,
         max_buffer=2 ** 10 + 1):
     """
     Compute the (approximate) medoid for (num + 1) items.
@@ -5971,6 +6154,7 @@ def next_medoid(
     Args:
         value (Any): The next value to consider.
         buffer (list): The buffer from previous iterations.
+        lower (bool): Pick the lower medoid for even-sized items.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
 
@@ -5983,9 +6167,8 @@ def next_medoid(
     else:
         # equivalent to: `buffer.append(value); buffer.sort()` but faster
         bisect.insort(buffer, value)
-        n = len(buffer)
-        medoid_ = buffer[n // 2]
-        if n > max_buffer and n % 2:
+        medoid_ = medoid(buffer, False, lower)
+        if len(buffer) > max_buffer and len(buffer) % 2:
             if value > medoid_:
                 del buffer[0]
             else:
@@ -6037,7 +6220,7 @@ def i_mean(
         mean_=0.0,
         num=0):
     """
-    Compute the mean of arbitrary items.
+    Compute the mean a numeric iterable.
 
     Internally uses `flyingcircus.base.next_mean()`.
 
@@ -6068,7 +6251,7 @@ def i_var(
         num=0,
         ddof=0):
     """
-    Compute the variance of arbitrary items.
+    Compute the variance a numeric iterable.
 
     Internally uses `flyingcircus.base.next_mean_sosd()` and
     `flyingcircus.base.sosd2var()`.
@@ -6108,7 +6291,7 @@ def i_stdev(
         num=0,
         ddof=0):
     """
-    Compute the standard deviation of arbitrary items.
+    Compute the standard deviation a numeric iterable.
 
     Internally uses `flyingcircus.base.next_mean_sosd()` and
     `flyingcircus.base.sosd2stdev()`.
@@ -6148,7 +6331,7 @@ def i_mean_var(
         num=0,
         ddof=0):
     """
-    Compute the mean and the variance of arbitrary items.
+    Compute the mean and the variance a numeric iterable.
 
     Internally uses `flyingcircus.base.next_mean_sosd()` and
     `flyingcircus.base.sosd2var()`.
@@ -6191,7 +6374,7 @@ def i_mean_stdev(
         num=0,
         ddof=0):
     """
-    Compute the mean and standard deviation of arbitrary items.
+    Compute the mean and standard deviation a numeric iterable.
 
     Internally uses `flyingcircus.base.next_mean_sosd()` and
     `flyingcircus.base.sosd2stdev()`.
@@ -6231,7 +6414,7 @@ def i_median(
         items,
         max_buffer=2 ** 10):
     """
-    Compute the (approximate) median for (num + 1) items.
+    Compute the (approximate) median for a numeric iterable.
 
     This computes an approximate value.
     Relies on the robustness of the median.
@@ -6284,9 +6467,10 @@ def i_median(
 # ======================================================================
 def i_medoid(
         items,
+        lower=True,
         max_buffer=2 ** 10 + 1):
     """
-    Compute the (approximate) medoid for (num + 1) items.
+    Compute the (approximate) medoid for an arbitrary iterable.
 
     This computes an approximate value.
     Relies on the robustness of the medoid.
@@ -6295,8 +6479,10 @@ def i_medoid(
 
     Args:
         items (Iterable): The input items.
+        lower (bool): Pick the lower medoid for even-sized items.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
+            If `max_buffer` is 0, use all items.
 
     Returns:
         result (Any): The medoid value.
@@ -6310,17 +6496,17 @@ def i_medoid(
         >>> sorted(items)
         [8, 35, 40, 46, 50, 51, 53, 73, 75, 81, 86, 87, 94, 99]
         >>> i_medoid(items)
-        73
-        >>> [i_medoid(items, i) for i in range(3, len(items))]
-        [51, 51, 51, 51, 51, 51, 51, 51, 53, 53, 73]
-
-        >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 51, 53, 35]
-        >>> sorted(items)
-        [8, 35, 40, 46, 50, 51, 53, 73, 75, 81, 86, 94, 99]
-        >>> i_medoid(items)
         53
-        >>> [i_medoid(items, i) for i in range(3, len(items))]
-        [51, 51, 51, 51, 51, 51, 51, 51, 53, 53]
+        >>> [i_medoid(items, max_buffer=i) for i in range(3, len(items))]
+        [51, 51, 51, 51, 51, 51, 51, 51, 53, 53, 53]
+
+        >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 53, 35, 87]
+        >>> sorted(items)
+        [8, 35, 40, 46, 50, 53, 73, 75, 81, 86, 87, 94, 99]
+        >>> i_medoid(items)
+        73
+        >>> [i_medoid(items, max_buffer=i) for i in range(3, len(items))]
+        [50, 50, 50, 50, 50, 50, 53, 53, 73, 73]
 
         >>> all([i_medoid(range(i)) == medoid(range(i)) for i in range(1, 40)])
         True
@@ -6328,11 +6514,14 @@ def i_medoid(
         ...     for i in range(1, 40, 2)])
         True
     """
-    iter_items = iter(items)
-    medoid_ = next(iter_items)
-    buffer = [medoid_]
-    for item in iter_items:
-        medoid_ = next_medoid(item, buffer=buffer, max_buffer=max_buffer)
+    if max_buffer:
+        iter_items = iter(items)
+        medoid_ = next(iter_items)
+        buffer = [medoid_]
+        for item in iter_items:
+            medoid_ = next_medoid(item, buffer, lower, max_buffer)
+    else:
+        medoid_ = medoid(tuple(items), True, False)
     return medoid_
 
 
@@ -9657,41 +9846,6 @@ def to_percent(text):
 
 
 # ======================================================================
-def scale_to_int(
-        val,
-        scale,
-        rounding=True):
-    """
-    Scale a value by the specified size.
-
-    Args:
-        val (Any): The value to scale.
-        scale (Any): The scale size.
-        rounding (bool): Perform rounding.
-            If True, call `round()` before int conversion.
-
-    Returns:
-        result (Any): The scaled value.
-
-    Examples:
-        >>> scale_to_int(0.1, 10)
-        1
-        >>> scale_to_int(0.1, 10.0)
-        1
-        >>> scale_to_int(1.0, 10.0)
-        10
-        >>> scale_to_int(0.5, 11.0)
-        6
-        >>> scale_to_int(0.5, 11.0, False)
-        5
-        >>> scale_to_int(1, 10.0)
-        1
-    """
-    return int(round(val * scale) if rounding else (val * scale)) \
-        if not isinstance(val, int) else val
-
-
-# ======================================================================
 def multi_scale_to_int(
         vals,
         scales,
@@ -9799,17 +9953,21 @@ def _format_summary(
         - flyingcircus.base.time_profile()
         - flyingcircus.base.multi_benchmark()
     """
-    val_order = order_of_magnitude(summary['mean'], 10, SI_ORDER_STEP)
-    err_order = order_of_magnitude(summary['stdev'], 10, SI_ORDER_STEP)
-    num_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
+    val_order = order_of_magnitude(summary['val'], 10, SI_ORDER_STEP)
+    err_order = order_of_magnitude(summary['err'], 10, SI_ORDER_STEP)
+    loop_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
+    batch_order = order_of_magnitude(summary['batch_size'], 10, SI_ORDER_STEP)
     val, err = format_value_error(
-        scale_to_order(summary['mean'], 10, SI_ORDER_STEP, val_order),
-        scale_to_order(summary['stdev'], 10, SI_ORDER_STEP, val_order),
+        scale_to_order(summary['val'], 10, SI_ORDER_STEP, val_order),
+        scale_to_order(summary['err'], 10, SI_ORDER_STEP, val_order),
         SI_ORDER_STEP, 6)
     t_units = order_to_prefix(val_order, SI_PREFIX['base1000'])
-    num = int(round(
-        scale_to_order(summary['num'], 10, SI_ORDER_STEP, num_order)))
-    n_units = order_to_prefix(num_order, SI_PREFIX['base1000'])
+    loop_num = int(round(
+        scale_to_order(summary['num'], 10, SI_ORDER_STEP, loop_order)))
+    batch_num = int(round(
+        scale_to_order(summary['num'], 10, SI_ORDER_STEP, batch_order)))
+    l_units = order_to_prefix(loop_order, SI_PREFIX['base1000'])
+    b_units = order_to_prefix(batch_order, SI_PREFIX['base1000'])
     if more:
         kws_list = [
             elide(k + '=' + str(v), kws_limit)
@@ -9822,20 +9980,21 @@ def _format_summary(
     else:
         args = '(..)'
     name = summary['func_name']
-    batch_name = summary['batch_name']
     batch_num = summary['batch_size']
     name_s = fmtm('{name}{args}')
     time_s = fmtm('({val} ± {err}) {t_units}s')
     time_ss = fmtm('t = {time_s}')
     time_ls = fmtm('time = {time_s}')
-    num_s = fmtm('{num}{n_units}')
-    num_ss = fmtm('l = {num_s}')
-    num_ls = fmtm('loops = {num_s}')
-    batch_s = fmtm('{batch_name}({batch_num})')
+    loop_s = fmtm('{loop_num}{l_units}')
+    loop_ss = fmtm('l = {num_s}')
+    loop_ls = fmtm('loops = {num_s}')
+    batch_s = fmtm('{batch_num}{b_units}')
+    batch_ss = fmtm('b = {batch_s}')
+    batch_ls = fmtm('batch = {batch_s}')
     if template:
         result = fmtm(template)
     else:
-        result = ': ' + '; '.join([name_s, time_ls, num_ls, batch_s])
+        result = ': ' + '; '.join([name_s, time_ls, loop_ls, batch_ls])
     if line_limit > 0:
         result = '\n'.join(
             [elide(line, line_limit) for line in result.splitlines()])
@@ -9856,12 +10015,15 @@ def time_profile(
         timeout=5.0,
         max_iter=1000000000,
         min_iter=7,
-        batch_size=4,
-        batch_combine=min,
+        batch_size=7,
+        batch_val_func=min,
+        batch_err_func=stdev,
+        combine_val_func=min,
+        combine_err_func=min,
         timer=time.perf_counter,
-        use_gc=True,
+        use_gc=False,
         quick=True,
-        text=': {name_s};  {time_ls};  {num_ls}; {batch_s}',
+        text=': {name_s};  {time_ss};  {num_ss};  {batch_ss}',
         verbose=D_VERB_LVL):
     """
     Estimate the execution time of a function with multiple repetitions.
@@ -9880,9 +10042,10 @@ def time_profile(
             at least `min_iter` iterations are performed.
         batch_size (int): The size of the batch.
             Must be greater than or equal to 1.
-        batch_combine (callable): Determine how to combine batch timings.
-            For deterministic inputs and ignoring caching effects, this
-            should be set to `min()`.
+        batch_val_func (callable): Compute batch timings value.
+        batch_err_func (callable): Compute batch timings error.
+        combine_val_func (callable): Combine batch timing values.
+        combine_err_func (callable): Combine batch timing errors.
         timer (callable): The function used to measure the timings.
         use_gc (bool): Use the garbage collection during the timing.
         quick (bool): Force exiting the repetition loops.
@@ -9899,17 +10062,17 @@ def time_profile(
         ... def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
+        : my_func(..);  t = (... ± ...) ...s;  l = ...;  b = ...
         >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
+        : my_func(..);  t = (... ± ...) ...s;  l = ...;  b = ...
 
         >>> def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> my_func = time_profile(timeout=0.1)(my_func)
         >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
+        : my_func(..);  t = (... ± ...) ...s;  l = ...;  b = ...
         >>> x, summary = my_func(1000, 1000)  # doctest:+ELLIPSIS
-        : my_func(..);  time = (... ± ...) ...s;  loops = ...; min(...)
+        : my_func(..);  t = (... ± ...) ...s;  l = ...;  b = ...
 
         >>> print(list(summary.keys()))
         ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var',\
@@ -9934,6 +10097,8 @@ def time_profile(
         result = None
         i = j = 0
         run_times = [0.0] * batch_size
+        val_run_times = []
+        err_run_times = []
         while i < max_iter:
             for j in range(batch_size):
                 begin_time = timer()
@@ -9944,25 +10109,29 @@ def time_profile(
                 if total_time > timeout and (i >= min_iter or quick):
                     break
             if j > 0:
-                run_time = batch_combine(run_times[:j + 1])
-                if run_time < min_time or i == 0:
-                    min_time = run_time
-                if run_time > max_time or i == 0:
-                    max_time = run_time
+                val_run_time = batch_val_func(run_times[:j + 1])
+                err_run_time = batch_err_func(run_times[:j + 1])
+                if val_run_time < min_time or i == 0:
+                    min_time = val_run_time
+                if val_run_time > max_time or i == 0:
+                    max_time = val_run_time
                 mean_time, sosd_time = next_mean_sosd(
-                    run_time, mean_time, sosd_time, i)
+                    val_run_time, mean_time, sosd_time, i)
+                val_run_times.append(val_run_time)
+                err_run_times.append(err_run_time)
             if total_time > timeout and (i >= min_iter or quick):
                 break
             else:
                 i += 1
-        if sosd_time == 0.0:
-            sosd_time = abs(timer() - timer())
+        val_time = combine_val_func(val_run_times)
+        err_time = combine_err_func(err_run_times)
         summary = dict(
             result=result, func_name=func.__name__, args=_args, kws=_kws,
-            num=i, mean=mean_time, sosd=sosd_time,
+            num=i, val=val_time, err=err_time,
+            mean=mean_time, sosd=sosd_time,
             var=sosd2var(sosd_time, i + 1), stdev=sosd2stdev(sosd_time, i + 1),
             min=min_time, max=max_time,
-            batch_name=batch_combine.__name__,
+            batch_name=batch_val_func.__name__,
             batch_size=(j + 1) if i == 0 else batch_size)
         if gc_was_enabled:
             gc.enable()
@@ -9986,7 +10155,7 @@ def multi_benchmark(
         time_prof_kws=None,
         store_all=False,
         text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
-                   '  {time_s:<24s}  {num_s:>5} / {batch_s}',
+                   '  {time_s:<24s}  {loop_s:>5} / {batch_s}',
         text_inputs=' ',
         verbose=D_VERB_LVL):
     """
@@ -10013,7 +10182,6 @@ def multi_benchmark(
         # geom-space
       - tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(15))
         # frac-pow-spaced
-
 
     Args:
         funcs (Iterable[callable]): The functions to test.
@@ -10055,21 +10223,20 @@ def multi_benchmark(
         ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
-        :f1(..)  N=10      OK  (... ± ...) ...s       ... / min(...)
-        :f2(..)  N=10      OK  (... ± ...) ...s       ... / min(...)
+        :f1(..)  N=10      OK  (... ± ...) ...s       ... / ...
+        :f2(..)  N=10      OK  (... ± ...) ...s       ... / ...
         <BLANKLINE>
-        :f1(..)  N=100     OK  (... ± ...) ...s       ... / min(...)
-        :f2(..)  N=100     OK  (... ± ...) ...s       ... / min(...)
+        :f1(..)  N=100     OK  (... ± ...) ...s       ... / ...
+        :f2(..)  N=100     OK  (... ± ...) ...s       ... / ...
         <BLANKLINE>
-        :f1(..)  N=1000    OK  (... ± ...) ...s       ... / min(...)
-        :f2(..)  N=1000    OK  (... ± ...) ...s       ... / min(...)
+        :f1(..)  N=1000    OK  (... ± ...) ...s       ... / ...
+        :f2(..)  N=1000    OK  (... ± ...) ...s       ... / ...
         >>> print(labels, results)
         ['f1', 'f2'] []
         >>> summary_headers = list(summaries[0][0].keys())
-        >>> print(summary_headers[:8])
-        ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var']
-        >>> print(summary_headers[8:])
-        ['stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
+        >>> print(summary_headers)
+        ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
+ 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
 
     See Also:
         - flyingcircus.base.time_profile()
