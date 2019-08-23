@@ -5595,41 +5595,6 @@ def cont_frac(b, a=1, limit=None):
 
 
 # ======================================================================
-def scale_to_int(
-        val,
-        scale,
-        rounding=True):
-    """
-    Scale a value by the specified size.
-
-    Args:
-        val (Number): The value to scale.
-        scale (Number): The scale size.
-        rounding (bool): Perform rounding.
-            If True, call `round()` before int conversion.
-
-    Returns:
-        result (Any): The scaled value.
-
-    Examples:
-        >>> scale_to_int(0.1, 10)
-        1
-        >>> scale_to_int(0.1, 10.0)
-        1
-        >>> scale_to_int(1.0, 10.0)
-        10
-        >>> scale_to_int(0.5, 11.0)
-        6
-        >>> scale_to_int(0.5, 11.0, False)
-        5
-        >>> scale_to_int(1, 10.0)
-        1
-    """
-    return int(round(val * scale) if rounding else (val * scale)) \
-        if not isinstance(val, int) else val
-
-
-# ======================================================================
 def mean(items):
     """
     Compute the mean of a numeric sequence.
@@ -5795,8 +5760,10 @@ def median(
 def quantile(
         items,
         factor,
-        force_sort=True,
-        int_base=100):
+        int_base=100,
+        interp='linear',
+        tol=1e-7,
+        force_sort=True):
     """
     Compute the quantile of a numeric sequence.
 
@@ -5805,12 +5772,16 @@ def quantile(
             The values within the sequence should be numeric.
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
-            If int, it is divided by `int_base`.
-            If k == 0.5, this is equivalent to the median.
+            If int, it is divided by `int_base` and its value must be in the
+            [0, int_base] range.
+        int_base (int|float): The denominator used to scale integer factors.
+        interp (str): Interpolation for inexact quantiles.
+            This determines
+        tol (float): Tolerance for detecting exact indices.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
-        int_base (int|float): The denominator used to scale integer factors.
+
 
     Returns:
         result (Number|tuple[Number]): The quantiles of the item(s).
@@ -5820,14 +5791,103 @@ def quantile(
     Examples:
         >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         >>> quantile(items, 0.25)
-        (2.5,)
+        2.5
         >>> quantile(items, range(0, 101, 10))
         (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         >>> ((min(items), median(items), max(items))
         ...     == quantile(items, (0.0, 0.5, 1.0)))
         True
+
+        >>> interps = 'linear', 'lower', 'upper', 'midpoint', 'nearest'
+        >>> [quantile([0, 1], 1, 2, interp) for interp in interps]
+        [0.5, 0, 1, 0.5, 0]
+
+        >>> [quantile([0, 1], 0.6, interp=interp) for interp in interps]
+        [0.6, 0, 1, 0.5, 1]
+
+        >>> [quantile([0, 1, 2], 1, 2, interp=interp) for interp in interps]
+        [1, 1, 1, 1, 1]
+
+        >>> [quantile([0, 1, 2], 0.5, interp=interp) for interp in interps]
+        [1, 1, 1, 1, 1]
+
+        >>> quantile([10, 11, 12], [0, 1, 2], 2)
+        (10, 11, 12)
+
+        >>> quantile([10, 11, 12], -1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid factor `-1` (negative)
+        >>> quantile([10, 11, 12], -0.1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid factor `-0.1` (negative)
+        >>> quantile([10, 11, 12], 101)
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid integer factor `101` (larger than `int_base=100`)
+        >>> quantile([10, 11, 12], 1.1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Invalid factor `1.1` (larger than 1.0)
     """
-    raise NotImplementedError
+    # interps = 'linear', 'lower', 'upper', 'midpoint', 'nearest'
+    use_tuple = is_deep(factor)
+    kk = auto_repeat(factor, 1, False, False)
+    n = len(items)
+    interp = interp.lower()
+    sorted_items = sorted(items) if force_sort else items
+    is_exact = (n - 1) % int_base == 0
+    exact_factor = (n - 1) // int_base
+    result = []
+    for k in kk:
+        if k < 0:
+            raise ValueError(
+                fmtm('Invalid factor `{k}` (negative)'))
+        elif isinstance(k, int) and k > int_base:
+            raise ValueError(
+                fmtm('Invalid integer factor `{k}`'
+                     ' (larger than `int_base={int_base}`)'))
+        if isinstance(k, int) and is_exact:
+            i = k * exact_factor
+            # i = i if 0 <= i < n else (n - 1) if i > n else 0
+            x = sorted_items[i]
+        else:
+            if isinstance(k, int):
+                k = k / int_base
+            if k > 1.0:
+                raise ValueError(
+                    fmtm('Invalid factor `{k}` (larger than 1.0)'))
+            i = k * (n - 1)
+            int_i = int(i)
+            frac_i = i % 1
+            if abs(frac_i) < tol:
+                x = sorted_items[int_i]
+            else:  # if 0 <= int_i < (n - 1):
+                if interp == 'nearest':
+                    x = sorted_items[int(round(i))]
+                elif interp == 'lower':
+                    x = sorted_items[int_i]
+                elif interp == 'upper':
+                    x = sorted_items[int_i + 1]
+                elif interp in ('midpoint', 'linear'):
+                    a = sorted_items[int_i]
+                    b = sorted_items[int_i + 1]
+                    if a == b:
+                        x = sorted_items[int_i]
+                    else:
+                        if interp == 'linear':
+                            x = a + (b - a) * frac_i
+                        else:  # if interp == 'midpoint':
+                            x = (b + a) / 2
+                else:
+                    raise ValueError(fmtm('Invalid interpolation `{interp}`.'))
+            # elif int_i >= (n - 1):
+            #     x = sorted_items[-1]
+            # else:
+            #     x = sorted_items[0]
+        result.append(x)
+    return tuple(result) if use_tuple else result[0]
 
 
 # ======================================================================
@@ -5885,8 +5945,9 @@ def medoid(
 def quantiloid(
         items,
         factor,
-        force_sort=True,
-        int_base=100):
+        int_base=100,
+        rounding=round,
+        force_sort=True):
     """
     Compute the quantiloid of an arbitrary sequence.
 
@@ -5896,10 +5957,14 @@ def quantiloid(
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
+        int_base (int|float): The denominator used to scale integer factors.
+        rounding (callable): The rounding to use for determining the index.
+            Use `round` to pick the closest index.
+            Use `math.floor` to pick the lower index.
+            Use `math.ceil` to pick the upper index.
         force_sort (bool): Force sorting of the input items.
             If the items are in the intended order, it should be set to False.
             Otherwise, it should be set to True.
-        int_base (int|float): The denominator used to scale integer factors.
 
     Returns:
         result (Any|tuple[Any]): The quantiloid of the item(s).
@@ -5930,8 +5995,8 @@ def quantiloid(
     n = len(items)
     sorted_items = sorted(items) if force_sort else items
     result = tuple(
-        sorted_items[scale_to_int(
-            k if isinstance(k, float) else k / int_base, n - 1, True)]
+        sorted_items[int(rounding(
+            (k if isinstance(k, float) else k / int_base) * (n - 1)))]
         for k in kk)
     return result if use_tuple else result[0]
 
@@ -5939,20 +6004,25 @@ def quantiloid(
 # ======================================================================
 def interquantilic_range(
         items,
-        k_a=0.75,
-        k_b=0.25,
+        upper_factor=0.75,
+        lower_factor=0.25,
+        int_base=100,
         force_sort=True,
-        quantilic_func=quantile):
+        quantilic_func=quantile,
+        quantilic_kws=None):
     """
     Compute the interquantilic range of a numeric sequence.
 
     Args:
         items (Sequence): The input items.
             The values within the sequence should be numeric.
-        k_a (float|Iterable[float]): The first quantilic index.
-            Must be a number in the [0, 1] range.
-        k_b (float|Iterable[float]): The second quantilic index.
-            Must be a number in the [0, 1] range.
+        upper_factor (int|float|Iterable[int|float]): The upper index.
+            If float, must be a number in the [0, 1] range.
+            If int, it is divided by `int_base` to get to the [0, 1] range.
+        lower_factor (int|float|Iterable[int|float]): The lower index.
+            If float, must be a number in the [0, 1] range.
+            If int, it is divided by `int_base` to get to the [0, 1] range.
+        int_base (int|float): The denominator used to scale integer factors.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
@@ -5960,11 +6030,15 @@ def interquantilic_range(
             Must be either `flyingcircus.base.quantile()` or
             `flyingcircus.base.quantiloid()` (or any other callable
             implementing the same signature).
+        quantilic_kws (Mapping|None): Keyword parameters for `quantilic_func`.
 
     Returns:
         result (Number): The inter-quantilic range.
     """
-    q_a, q_b = quantilic_func(items, (k_a, k_b), force_sort)
+    quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
+    q_a, q_b = quantilic_func(
+        items, (upper_factor, lower_factor), int_base, force_sort=force_sort,
+        **quantilic_kws)
     return q_a - q_b
 
 
@@ -9197,6 +9271,7 @@ def parse_units_prefix(
     Returns:
         result (tuple):
     """
+    raise NotImplementedError
 
 
 # ======================================================================
@@ -9846,6 +9921,43 @@ def to_percent(text):
 
 
 # ======================================================================
+def scale_to_int(
+        val,
+        scale,
+        interp=round):
+    """
+    Scale a float value by the specified size.
+
+    Args:
+        val (int|float): The value to scale.
+            If int, the number is left untouched.
+        scale (int|float): The scale size.
+        interp (callable): Interpolation function.
+            Sensible choices are: `math.floor()`, `math.ceil()`, `round()`.
+
+    Returns:
+        result (Any): The scaled value.
+
+    Examples:
+        >>> scale_to_int(0.1, 10)
+        1
+        >>> scale_to_int(0.1, 10.0)
+        1
+        >>> scale_to_int(1.0, 10.0)
+        10
+        >>> scale_to_int(0.5, 11.0)
+        6
+        >>> scale_to_int(0.5, 11.0, math.floor)
+        5
+        >>> scale_to_int(1, 10.0)
+        1
+        >>> scale_to_int(1, 10)
+        1
+    """
+    return int(interp(val * scale)) if not isinstance(val, int) else val
+
+
+# ======================================================================
 def multi_scale_to_int(
         vals,
         scales,
@@ -10017,13 +10129,14 @@ def time_profile(
         min_iter=7,
         batch_size=7,
         batch_val_func=min,
-        batch_err_func=stdev,
+        batch_err_func=lambda x: interquantilic_range(x, 0.1, 0.0),
         combine_val_func=min,
         combine_err_func=min,
         timer=time.perf_counter,
         use_gc=False,
         quick=True,
-        text=': {name_s};  {time_ss};  {num_ss};  {batch_ss}',
+        text=': {name_s};  {time_ss};  {loop_ss};  {batch_ss}',
+        fmtt=False,
         verbose=D_VERB_LVL):
     """
     Estimate the execution time of a function with multiple repetitions.
@@ -10052,6 +10165,8 @@ def time_profile(
             If this is True, the `max_time` is forced within the execution
             time of a single instance.
         text (str): Text to use for printing output.
+        fmtt (str|bool|None): Format of the printed output.
+            This is passed to `flyingcircus.msg()`.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -10075,8 +10190,8 @@ def time_profile(
         : my_func(..);  t = (... ± ...) ...s;  l = ...;  b = ...
 
         >>> print(list(summary.keys()))
-        ['result', 'func_name', 'args', 'kws', 'num', 'mean', 'sosd', 'var',\
- 'stdev', 'min', 'max', 'batch_name', 'batch_size']
+        ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
+ 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size']
  
     See Also:
         - flyingcircus.base.multi_benchmark()
@@ -10138,7 +10253,7 @@ def time_profile(
         else:
             gc.disable()
         if text:
-            msg(_format_summary(summary, text), verbose, D_VERB_LVL, False)
+            msg(_format_summary(summary, text), verbose, D_VERB_LVL, fmtt)
         return result, summary
 
     return wrapper
@@ -10157,6 +10272,7 @@ def multi_benchmark(
         text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
                    '  {time_s:<24s}  {loop_s:>5} / {batch_s}',
         text_inputs=' ',
+        fmtt=False,
         verbose=D_VERB_LVL):
     """
     Benchmark multiple functions for varying input sizes.
@@ -10202,6 +10318,8 @@ def multi_benchmark(
             If True, all results are stores.
         text_funcs (str): Text to use for printing output for functions.
         text_inputs (str): Text to use for printing output for inputs.
+        fmtt (str|bool|None): Format of the printed output.
+            This is passed to `flyingcircus.msg()`.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -10223,14 +10341,14 @@ def multi_benchmark(
         ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
-        :f1(..)  N=10      OK  (... ± ...) ...s       ... / ...
-        :f2(..)  N=10      OK  (... ± ...) ...s       ... / ...
+        :f1(..)  N=10      OK  (... ± ...) ...s  ... / ...
+        :f2(..)  N=10      OK  (... ± ...) ...s  ... / ...
         <BLANKLINE>
-        :f1(..)  N=100     OK  (... ± ...) ...s       ... / ...
-        :f2(..)  N=100     OK  (... ± ...) ...s       ... / ...
+        :f1(..)  N=100     OK  (... ± ...) ...s  ... / ...
+        :f2(..)  N=100     OK  (... ± ...) ...s  ... / ...
         <BLANKLINE>
-        :f1(..)  N=1000    OK  (... ± ...) ...s       ... / ...
-        :f2(..)  N=1000    OK  (... ± ...) ...s       ... / ...
+        :f1(..)  N=1000    OK  (... ± ...) ...s  ... / ...
+        :f2(..)  N=1000    OK  (... ± ...) ...s  ... / ...
         >>> print(labels, results)
         ['f1', 'f2'] []
         >>> summary_headers = list(summaries[0][0].keys())
@@ -10251,7 +10369,7 @@ def multi_benchmark(
     if 'verbose' not in time_prof_kws:
         time_prof_kws['verbose'] = VERB_LVL['none']
     len_n = max(map(lambda x: int(math.ceil(math.log10(x))), input_sizes)) + 1
-    msg(fmtm('N = {input_sizes}'), verbose, D_VERB_LVL)
+    msg(fmtm('N = {input_sizes}'), verbose, D_VERB_LVL, fmtt)
     summaries = []
     results = []
     for i, input_size in enumerate(input_sizes):
@@ -10259,7 +10377,7 @@ def multi_benchmark(
         input_data = gen_input(input_size)
         truth = None
         if text_inputs:
-            msg(fmtm(text_inputs), verbose, D_VERB_LVL)
+            msg(fmtm(text_inputs), verbose, D_VERB_LVL, fmtt)
         for j, (func, args, kws) in \
                 enumerate(itertools.zip_longest(funcs, argss, kwss)):
             args = tuple(args) if args is not None else ()
@@ -10272,7 +10390,7 @@ def multi_benchmark(
             is_equal_s = 'OK' if is_equal else 'FAIL'
             if text_funcs:
                 msg(_format_summary(summary, fmtm(text_funcs)),
-                    verbose, D_VERB_LVL)
+                    verbose, D_VERB_LVL, fmtt)
             summary['is_equal'] = is_equal
             inner_summaries.append(summary)
             if store_all:
