@@ -10124,16 +10124,16 @@ def _format_summary(
 @parametric
 def time_profile(
         func,
-        timeout=5.0,
-        max_iter=1000000000,
-        min_iter=7,
+        timeout=2.0,
+        max_iter=100000,
+        min_iter=2,
         batch_size=7,
-        batch_val_func=min,
-        batch_err_func=lambda x: interquantilic_range(x, 0.1, 0.0),
-        combine_val_func=min,
-        combine_err_func=min,
+        batch_val_func=mean,
+        batch_err_func=stdev,
+        combine_val_func=None,
+        combine_err_func=None,
         timer=time.perf_counter,
-        use_gc=False,
+        use_gc=True,
         quick=True,
         text=': {name_s};  {time_ss};  {loop_ss};  {batch_ss}',
         fmtt=False,
@@ -10202,18 +10202,17 @@ def time_profile(
     @functools.wraps(func)
     def wrapper(*_args, **_kws):
         gc_was_enabled = gc.isenabled()
-        if use_gc:
-            gc.enable()
-        else:
-            gc.disable()
+        gc.enable() if use_gc else gc.disable()
         mean_time = sosd_time = min_time = max_time = 0.0
         init_time = timer()
         total_time = 0.0
         result = None
         i = j = 0
         run_times = [0.0] * batch_size
-        val_run_times = []
-        err_run_times = []
+        if callable(combine_val_func):
+            val_run_times = []
+        if callable(combine_err_func):
+            err_run_times = []
         while i < max_iter:
             for j in range(batch_size):
                 begin_time = timer()
@@ -10232,14 +10231,22 @@ def time_profile(
                     max_time = val_run_time
                 mean_time, sosd_time = next_mean_sosd(
                     val_run_time, mean_time, sosd_time, i)
-                val_run_times.append(val_run_time)
-                err_run_times.append(err_run_time)
+                if callable(combine_val_func):
+                    val_run_times.append(val_run_time)
+                if callable(combine_err_func):
+                    err_run_times.append(err_run_time)
             if total_time > timeout and (i >= min_iter or quick):
                 break
             else:
                 i += 1
-        val_time = combine_val_func(val_run_times)
-        err_time = combine_err_func(err_run_times)
+        if callable(combine_val_func):
+            val_time = combine_val_func(val_run_times)
+        else:
+            val_time = min_time
+        if callable(combine_err_func):
+            err_time = combine_err_func(err_run_times)
+        else:
+            err_time = sosd2stdev(sosd_time, i + 1)
         summary = dict(
             result=result, func_name=func.__name__, args=_args, kws=_kws,
             num=i, val=val_time, err=err_time,
@@ -10248,10 +10255,7 @@ def time_profile(
             min=min_time, max=max_time,
             batch_name=batch_val_func.__name__,
             batch_size=(j + 1) if i == 0 else batch_size)
-        if gc_was_enabled:
-            gc.enable()
-        else:
-            gc.disable()
+        gc.enable() if gc_was_enabled else gc.disable()
         if text:
             msg(_format_summary(summary, text), verbose, D_VERB_LVL, fmtt)
         return result, summary
@@ -10267,7 +10271,11 @@ def multi_benchmark(
         input_sizes=tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(10)),
         gen_input=lambda n: [random.random() for _ in range(n)],
         equal_output=lambda a, b: a == b,
-        time_prof_kws=None,
+        time_prof_kws=freeze(dict(
+            timeout=4.0, max_iter=128072, min_iter=128, batch_size=7,
+            batch_val_func=min, batch_err_func=lambda x: min(diff(x)),
+            combine_val_func=None, combine_err_func=None,
+            use_gc=False, quick=False, verbose=VERB_LVL['none'])),
         store_all=False,
         text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
                    '  {time_s:<24s}  {loop_s:>5} / {batch_s}',
