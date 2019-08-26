@@ -10125,9 +10125,9 @@ def _format_summary(
 def time_profile(
         func,
         timeout=2.0,
-        max_iter=2 ** 20,
-        min_iter=2,
-        batch_size=7,
+        max_iter=2 ** 24,
+        min_iter=4,
+        batch_size=8,
         batch_val_func=mean,
         batch_err_func=stdev,
         combine_val_func=None,
@@ -10272,7 +10272,7 @@ def multi_benchmark(
         gen_input=lambda n: [random.random() for _ in range(n)],
         equal_output=lambda a, b: a == b,
         time_prof_kws=freeze(dict(
-            timeout=16.0, max_iter=2 ** 16, min_iter=128, batch_size=7,
+            timeout=16.0, max_iter=2 ** 24, min_iter=8, batch_size=8,
             batch_val_func=min, batch_err_func=lambda x: min(diff(x)),
             combine_val_func=None, combine_err_func=None,
             use_gc=False, quick=True, verbose=VERB_LVL['none'])),
