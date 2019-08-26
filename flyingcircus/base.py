@@ -7029,7 +7029,7 @@ def set_func_kws(
 
     Args:
         func (callable): The function to be inspected.
-        func_kws (dict): The (key, value) pairs to set.
+        func_kws (Mappable|None): The (key, value) pairs to set.
             If a value is None, it will be replaced by the default value.
             To use the names defined locally, use: `locals()`.
 
@@ -7064,13 +7064,13 @@ def split_func_kws(
 
     Args:
         func (callable): The function to be inspected.
-        func_kws (dict): The (key, value) pairs to split.
+        func_kws (Mappable|None): The (key, value) pairs to split.
 
     Results:
         result (tuple): The tuple
             contains:
              - kws (dict): The keywords NOT accepted by `func`.
-             - func_kws (dict): The keywords accepted by `func`.
+             - func_kws (Mappable|None): The keywords accepted by `func`.
 
     See Also:
         inspect, locals, globals.
@@ -7728,7 +7728,7 @@ def parallel_execute(
         callback (callable|None): A callback function.
             This is called after each poll interval.
         callback_args (Iterable|None): Positional arguments for `callback()`.
-        callback_kws (dict|tuple|None): Keyword arguments for `callback()`.
+        callback_kws (Mappable|None): Keyword arguments for `callback()`.
         verbose (int): Set level of verbosity.
 
     Returns:
@@ -7862,8 +7862,8 @@ def iflistdir(
             depending on the value of `unix_style`.
         unix_style (bool): Interpret the patterns as Unix-style.
             This is achieved by using `fnmatch`.
-        re_kws (dict|None): Keyword arguments for `re.compile()`.
-        walk_kws (dict|None): Keyword arguments for `os.walk()`.
+        re_kws (Mappable|None): Keyword arguments for `re.compile()`.
+        walk_kws (Mappable|None): Keyword arguments for `os.walk()`.
 
     Yields:
         filepath (str): The next matched filepath.
@@ -7902,8 +7902,8 @@ def flistdir(
             depending on the value of `unix_style`.
         unix_style (bool): Interpret the patterns as Unix-style.
             This is achieved by using `fnmatch`.
-        re_kws (dict|None): Keyword arguments for `re.compile()`.
-        walk_kws (dict|None): Keyword arguments for `os.walk()`.
+        re_kws (Mappable|None): Keyword arguments for `re.compile()`.
+        walk_kws (Mappable|None): Keyword arguments for `os.walk()`.
 
     Returns:
         filepaths (list[str]): The matched filepaths.
@@ -10125,7 +10125,7 @@ def _format_summary(
 def time_profile(
         func,
         timeout=2.0,
-        max_iter=100000,
+        max_iter=2 ** 20,
         min_iter=2,
         batch_size=7,
         batch_val_func=mean,
@@ -10136,7 +10136,7 @@ def time_profile(
         use_gc=True,
         quick=True,
         text=': {name_s};  {time_ss};  {loop_ss};  {batch_ss}',
-        fmtt=False,
+        fmtt=True,
         verbose=D_VERB_LVL):
     """
     Estimate the execution time of a function with multiple repetitions.
@@ -10173,7 +10173,7 @@ def time_profile(
         decorator_profile_time (callable): The decorator.
 
     Examples:
-        >>> @time_profile(timeout=0.1)
+        >>> @time_profile(timeout=0.1, fmtt=False)
         ... def my_func(a, b):
         ...     return [0 for _ in range(a) for _ in range(b)]
         >>> x, summary = my_func(100, 100)  # doctest:+ELLIPSIS
@@ -10272,15 +10272,15 @@ def multi_benchmark(
         gen_input=lambda n: [random.random() for _ in range(n)],
         equal_output=lambda a, b: a == b,
         time_prof_kws=freeze(dict(
-            timeout=4.0, max_iter=128072, min_iter=128, batch_size=7,
+            timeout=16.0, max_iter=2 ** 16, min_iter=128, batch_size=7,
             batch_val_func=min, batch_err_func=lambda x: min(diff(x)),
             combine_val_func=None, combine_err_func=None,
-            use_gc=False, quick=False, verbose=VERB_LVL['none'])),
+            use_gc=False, quick=True, verbose=VERB_LVL['none'])),
         store_all=False,
-        text_funcs=':{name_s}  N={input_size!s:<{len_n}s}  {is_equal_s:>4s}'
-                   '  {time_s:<24s}  {loop_s:>5} / {batch_s}',
+        text_funcs=':{lbl_s:<{len_lbls}s}  N={input_size!s:<{len_n}s}  '
+                   '{is_equal_s:>4s}  {time_s:<24s}  {loop_s:>5} / {batch_s}',
         text_inputs=' ',
-        fmtt=False,
+        fmtt=True,
         verbose=D_VERB_LVL):
     """
     Benchmark multiple functions for varying input sizes.
@@ -10320,7 +10320,7 @@ def multi_benchmark(
             Must have the signature: gen_input(int) -> Any.
         equal_output (callable): The function used to compare the output.
             Must have the signature: gen_input(Any, Any) -> bool.
-        time_prof_kws (dict|None): Keyword parameters for `time_profile`.
+        time_prof_kws (Mappable|None): Keyword parameters for `time_profile`.
             These are passed to `flyingcircus.base.time_profile()`.
         store_all (bool): Store all results.
             If True, all results are stores.
@@ -10346,17 +10346,18 @@ def multi_benchmark(
         >>> funcs = f1, f2
         >>> summaries, labels, results = multi_benchmark(
         ...     funcs, input_sizes=tuple(10 ** (i + 1) for i in range(3)),
-        ...     time_prof_kws=dict(timeout=0.1))  # doctest:+ELLIPSIS
+        ...     time_prof_kws=dict(timeout=0.1),
+        ...     fmtt=False)  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
-        :f1(..)  N=10      OK  (... ± ...) ...s  ... / ...
-        :f2(..)  N=10      OK  (... ± ...) ...s  ... / ...
+        :f1()  N=10      OK  (... ± ...) ...s  ... / ...
+        :f2()  N=10      OK  (... ± ...) ...s  ... / ...
         <BLANKLINE>
-        :f1(..)  N=100     OK  (... ± ...) ...s  ... / ...
-        :f2(..)  N=100     OK  (... ± ...) ...s  ... / ...
+        :f1()  N=100     OK  (... ± ...) ...s  ... / ...
+        :f2()  N=100     OK  (... ± ...) ...s  ... / ...
         <BLANKLINE>
-        :f1(..)  N=1000    OK  (... ± ...) ...s  ... / ...
-        :f2(..)  N=1000    OK  (... ± ...) ...s  ... / ...
+        :f1()  N=1000    OK  (... ± ...) ...s  ... / ...
+        :f2()  N=1000    OK  (... ± ...) ...s  ... / ...
         >>> print(labels, results)
         ['f1', 'f2'] []
         >>> summary_headers = list(summaries[0][0].keys())
@@ -10377,6 +10378,7 @@ def multi_benchmark(
     if 'verbose' not in time_prof_kws:
         time_prof_kws['verbose'] = VERB_LVL['none']
     len_n = max(map(lambda x: int(math.ceil(math.log10(x))), input_sizes)) + 1
+    len_lbls = max(map(len, labels)) + len('()')
     msg(fmtm('N = {input_sizes}'), verbose, D_VERB_LVL, fmtt)
     summaries = []
     results = []
@@ -10396,6 +10398,8 @@ def multi_benchmark(
                 truth = result
             is_equal = equal_output(truth, result)
             is_equal_s = 'OK' if is_equal else 'FAIL'
+            lbl_s = func.__name__ if hasattr(func, '__name__') else '<UNNAMED>'
+            lbl_s += '()'
             if text_funcs:
                 msg(_format_summary(summary, fmtm(text_funcs)),
                     verbose, D_VERB_LVL, fmtt)
