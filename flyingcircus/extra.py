@@ -992,7 +992,7 @@ def compute_edge_weights(
         weighting (callable): The function for computing the weighting.
             Must have the following signature:
             weighting(np.ndarray, np.ndarray, ...) -> np.ndarray
-        weighting_kws (dict|Iterable|None): Keyword arguments.
+        weighting_kws (Mappable|None): Keyword arguments.
             These are passed to the function specified in `weighting`.
             If Iterable, must be convertible to a dictionary.
             If None, no keyword arguments will be passed.
@@ -7180,7 +7180,7 @@ def rolling_window_nd(
         pad_mode (Number|str): The padding mode.
             If `out_mode` is `valid` or `view` this parameter is ignored.
             This is passed as `mode` to `fc.extra.padding()`.
-        pad_kws (Mappable): Keyword parameters for padding.
+        pad_kws (Mappable|None): Keyword parameters for padding.
             If `out_mode` is `valid` or `view` this parameter is ignored.
             This is passed as `mode` to `fc.extra.padding()`.
         writeable (bool): Determine if the result entries can be overwritten.
