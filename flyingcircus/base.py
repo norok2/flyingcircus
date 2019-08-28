@@ -235,6 +235,9 @@ def parametric(decorator):
 
     This is for creating decorators with parameters.
 
+    Note: contrarily to function parameters, decorator parameter's names
+    should never be reassigned.
+
     Args:
         decorator (callable): The input decorator.
 
