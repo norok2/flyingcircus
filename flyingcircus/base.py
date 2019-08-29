@@ -1163,7 +1163,7 @@ def is_bin_file(file_obj):
     Check if a file object is in binary mode.
 
     Args:
-        file_obj (File):
+        file_obj (File): The input file.
 
     Returns:
         result (bool): The binary mode status.
@@ -1178,11 +1178,53 @@ def is_bin_file(file_obj):
         >>> is_bin_file(io.StringIO('ciao'))
         False
     """
-    # : alternative implementation (not working for `io` objects)
-    # return 'b' in file_obj.mode
-    # : alternative implementation (relying on `file_obj` attributes)
-    # return not hasattr(file_obj, 'encoding')
+    return isinstance(file_obj, io.IOBase) \
+           and not isinstance(file_obj, io.TextIOBase)
+
+
+# ======================================================================
+def is_reading_bytes(file_obj):
+    """
+    Check if reading from a file object will return bytes.
+
+    Args:
+        file_obj (File): The input file.
+
+    Returns:
+        result (bool): The result of the check.
+
+    Examples:
+        >>> is_reading_bytes(io.BytesIO(b'ciao'))
+        True
+        >>> is_reading_bytes(io.StringIO('ciao'))
+        False
+    """
     return isinstance(file_obj.read(0), bytes)
+
+
+# ======================================================================
+def is_writing_bytes(file_obj):
+    """
+    Check if writing from a file object will require bytes.
+
+    Args:
+        file_obj (File): The input file.
+
+    Returns:
+        result (bool): The result of the check.
+
+    Examples:
+        >>> is_writing_bytes(io.BytesIO(b'ciao'))
+        True
+        >>> is_writing_bytes(io.StringIO('ciao'))
+        False
+    """
+    try:
+        file_obj.write(b'')
+    except TypeError:
+        return False
+    else:
+        return True
 
 
 # ======================================================================
@@ -7423,7 +7465,7 @@ def readline(
         ...     lines == lines_r
         True
     """
-    is_bytes = is_bin_file(file_obj)
+    is_bytes = is_reading_bytes(file_obj)
     newline = b'\n' if is_bytes else '\n'
     empty = b'' if is_bytes else ''
     remainder = empty
@@ -10217,11 +10259,17 @@ def time_profile(
         if callable(combine_err_func):
             err_run_times = []
         while i < max_iter:
-            for j in range(batch_size):
+            j = 0
+            while j < batch_size:
                 begin_time = timer()
                 result = func(*_args, **_kws)
                 end_time = timer()
-                run_times[j] = end_time - begin_time
+                other_time = timer()
+                timer_offset = other_time - end_time
+                run_time = end_time - begin_time - timer_offset
+                if run_time > 0:
+                    run_times[j] = run_time
+                    j += 1
                 total_time = end_time - init_time
                 if total_time > timeout and (i >= min_iter or quick):
                     break
