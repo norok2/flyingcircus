@@ -7699,6 +7699,55 @@ def rolling_apply_nd(
 
 
 # ======================================================================
+def last_dim_as_sequence(
+        arr,
+        mode=tuple):
+    """
+    Convert the last dimension of an array to a sequence.
+
+    Args:
+        arr (np.ndarray): The input array.
+        mode (type): The sequence type.
+            Only supports `list` and `tuple`.
+            If not `list`, defaults to `tuple`.
+
+    Returns:
+        arr (np.ndarray[object]): The output array.
+
+    Examples:
+        >>> arr = arange_nd((2, 3, 4))
+        >>> print(arr)
+        [[[ 0  1  2  3]
+          [ 4  5  6  7]
+          [ 8  9 10 11]]
+        <BLANKLINE>
+         [[12 13 14 15]
+          [16 17 18 19]
+          [20 21 22 23]]]
+        >>> print(last_dim_as_sequence(arr))
+        [[(0, 1, 2, 3) (4, 5, 6, 7) (8, 9, 10, 11)]
+         [(12, 13, 14, 15) (16, 17, 18, 19) (20, 21, 22, 23)]]
+    """
+    if mode == list:
+        n_dim = arr.ndim
+        if n_dim > 1:
+            arr = arr.tolist()
+            temp = arr
+            for _ in range(n_dim - 1):
+                temp = temp[0]
+            temp.append(None)
+            result = np.array(arr)
+            temp.pop()
+        else:
+            result = np.empty(1, dtype=object)
+            result[0] = arr.tolist()
+        return result
+    else:
+        dtype = [(str(i), arr.dtype) for i in range(arr.shape[-1])]
+        return arr.view(dtype)[..., 0].astype(object)
+
+
+# ======================================================================
 def rel_err(
         arr1,
         arr2,
