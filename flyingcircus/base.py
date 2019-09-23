@@ -5895,7 +5895,6 @@ def quantile(
                      ' (larger than `int_base={int_base}`)'))
         if isinstance(k, int) and is_exact:
             i = k * exact_factor
-            # i = i if 0 <= i < n else (n - 1) if i > n else 0
             x = sorted_items[i]
         else:
             if isinstance(k, int):
@@ -5927,10 +5926,6 @@ def quantile(
                             x = (b + a) / 2
                 else:
                     raise ValueError(fmtm('Invalid interpolation `{interp}`.'))
-            # elif int_i >= (n - 1):
-            #     x = sorted_items[-1]
-            # else:
-            #     x = sorted_items[0]
         result.append(x)
     return tuple(result) if use_tuple else result[0]
 
@@ -6079,6 +6074,11 @@ def interquantilic_range(
 
     Returns:
         result (Number): The inter-quantilic range.
+
+    Examples:
+        >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> interquantilic_range(items)
+        5.0
     """
     quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
     q_a, q_b = quantilic_func(
@@ -6239,6 +6239,19 @@ def next_median(
 
     Returns:
         result (Any): The median value.
+
+    Examples:
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     median_val = next_median(val, buffer)
+        >>> print(median_val)
+        9.0
+
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     median_val = next_median(val, buffer, max_buffer=4)
+        >>> print(median_val)
+        14
     """
     if not buffer:
         median_ = value
@@ -6268,17 +6281,31 @@ def next_medoid(
     Relies on the robustness of the medoid.
 
     This is useful for low memory footprint approximate computation.
-    If the number of items is not odd, returns the medoid from the upper half.
+    If the number of items is not odd, returns the medoid from the lower or
+    upper half depending on the value of `lower` being True or False.
 
     Args:
         value (Any): The next value to consider.
         buffer (list): The buffer from previous iterations.
-        lower (bool): Pick the lower medoid for even-sized items.
+        lower (bool): Pick the lower medoid for even-sized buffer.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
 
     Returns:
         result (Any): The median value.
+
+    Examples:
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     medoid_val = next_medoid(val, buffer)
+        >>> print(medoid_val)
+        8
+
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     medoid_val = next_medoid(val, buffer, max_buffer=4)
+        >>> print(medoid_val)
+        14
     """
     if not buffer:
         medoid_ = value
@@ -6287,12 +6314,75 @@ def next_medoid(
         # equivalent to: `buffer.append(value); buffer.sort()` but faster
         bisect.insort(buffer, value)
         medoid_ = medoid(buffer, False, lower)
-        if len(buffer) > max_buffer and len(buffer) % 2:
+        if len(buffer) > max_buffer:
             if value > medoid_:
                 del buffer[0]
             else:
                 del buffer[-1]
     return medoid_
+
+
+# ======================================================================
+def next_medoid_median(
+        value,
+        buffer,
+        lower=True,
+        max_buffer=2 ** 10 + 1):
+    """
+    Compute the (approximate) medoid and median for (num + 1) items.
+
+    This computes an approximate value.
+    Relies on the robustness of the medoid and the median.
+
+    This is used when both the medoid and the median are needed. In this case,
+    a single buffer could be used. Note that calling both `next_medoid()` and
+    `next_median()` consecutively over the same buffer MUST be avoided,
+    because this introduces a bias, since the elements are inserted twice in
+    buffer.
+
+    This is useful for low memory footprint approximate computation.
+    If the number of items is not odd, returns the medoid from the lower or
+    upper half depending on the value of `lower` being True or False.
+
+    Args:
+        value (Any): The next value to consider.
+        buffer (list): The buffer from previous iterations.
+        lower (bool): Pick the lower medoid for even-sized buffer.
+        max_buffer (int): The maximum size of the buffer.
+            If `max_buffer >= len(items)` the result is exact.
+
+    Returns:
+        result (Any): The median value.
+
+    Examples:
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     medoid_val, median_val = next_medoid_median(val, buffer)
+        >>> print((medoid_val, median_val))
+        (8, 9.0)
+
+        >>> buffer = []
+        >>> for i, val in enumerate(range(0, 20, 2)):
+        ...     medoid_val, median_val = next_medoid_median(
+        ...         val, buffer, max_buffer=4)
+        >>> print((medoid_val, median_val))
+        (14, 14)
+    """
+    if not buffer:
+        medoid_ = value
+        median_ = value
+        buffer.append(value)
+    else:
+        # equivalent to: `buffer.append(value); buffer.sort()` but faster
+        bisect.insort(buffer, value)
+        medoid_ = medoid(buffer, False, lower)
+        median_ = median(buffer, False)
+        if len(buffer) > max_buffer:
+            if value > medoid_:
+                del buffer[0]
+            else:
+                del buffer[-1]
+    return medoid_, median_
 
 
 # ======================================================================
@@ -6625,7 +6715,7 @@ def i_medoid(
         >>> i_medoid(items)
         73
         >>> [i_medoid(items, max_buffer=i) for i in range(3, len(items))]
-        [50, 50, 50, 50, 50, 50, 53, 53, 73, 73]
+        [50, 50, 50, 50, 50, 50, 50, 53, 73, 73]
 
         >>> all([i_medoid(range(i)) == medoid(range(i)) for i in range(1, 40)])
         True
@@ -6642,6 +6732,64 @@ def i_medoid(
     else:
         medoid_ = medoid(tuple(items), True, False)
     return medoid_
+
+
+# ======================================================================
+def i_medoid_median(
+        items,
+        lower=True,
+        max_buffer=2 ** 10 + 1):
+    """
+    Compute the (approximate) medoid and median for an arbitrary iterable.
+
+    This computes an approximate value.
+    Relies on the robustness of the medoid.
+
+    This is useful for low memory footprint approximate computation.
+
+    Args:
+        items (Iterable): The input items.
+        lower (bool): Pick the lower medoid for even-sized items.
+        max_buffer (int): The maximum size of the buffer.
+            If `max_buffer >= len(items)` the result is exact.
+            If `max_buffer` is 0, use all items.
+
+    Returns:
+        result (Any): The medoid value.
+
+    Examples:
+        >>> items = [1, 2, 2, 2, 100]
+        >>> i_medoid_median(items)
+        (2, 2)
+
+        >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 51, 53, 35, 87]
+        >>> sorted(items)
+        [8, 35, 40, 46, 50, 51, 53, 73, 75, 81, 86, 87, 94, 99]
+        >>> i_medoid_median(items)
+        (53, 63.0)
+        >>> [i_medoid_median(items, max_buffer=i) for i in range(3, 9)]
+        [(51, 50.5), (51, 51), (51, 52.0), (51, 51), (51, 50.5), (51, 51)]
+
+        >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 53, 35, 87]
+        >>> sorted(items)
+        [8, 35, 40, 46, 50, 53, 73, 75, 81, 86, 87, 94, 99]
+        >>> i_medoid_median(items)
+        (73, 73)
+        >>> [i_medoid_median(items, max_buffer=i) for i in range(3, 9)]
+        [(50, 48.0), (50, 50), (50, 51.5), (50, 50), (50, 48.0), (50, 50)]
+    """
+    if max_buffer:
+        iter_items = iter(items)
+        medoid_ = next(iter_items)
+        buffer = [medoid_]
+        for item in iter_items:
+            medoid_, median_ = next_medoid_median(
+                item, buffer, lower, max_buffer)
+    else:
+        items = tuple(items)
+        medoid_ = medoid(items, True, False)
+        median_ = median(items, True)
+    return medoid_, median_
 
 
 # ======================================================================
@@ -10113,7 +10261,7 @@ def _format_summary(
     val_order = order_of_magnitude(summary['val'], 10, SI_ORDER_STEP)
     err_order = order_of_magnitude(summary['err'], 10, SI_ORDER_STEP)
     loop_order = order_of_magnitude(summary['num'], 10, SI_ORDER_STEP)
-    batch_order = order_of_magnitude(summary['batch_size'], 10, SI_ORDER_STEP)
+    batch_order = order_of_magnitude(summary['batch'], 10, SI_ORDER_STEP)
     val, err = format_value_error(
         scale_to_order(summary['val'], 10, SI_ORDER_STEP, val_order),
         scale_to_order(summary['err'], 10, SI_ORDER_STEP, val_order),
@@ -10122,7 +10270,7 @@ def _format_summary(
     loop_num = int(round(
         scale_to_order(summary['num'], 10, SI_ORDER_STEP, loop_order)))
     batch_num = int(round(
-        scale_to_order(summary['num'], 10, SI_ORDER_STEP, batch_order)))
+        scale_to_order(summary['batch'], 10, SI_ORDER_STEP, batch_order)))
     l_units = order_to_prefix(loop_order, SI_PREFIX['base1000'])
     b_units = order_to_prefix(batch_order, SI_PREFIX['base1000'])
     if more:
@@ -10137,14 +10285,13 @@ def _format_summary(
     else:
         args = '(..)'
     name = summary['func_name']
-    batch_num = summary['batch_size']
     name_s = fmtm('{name}{args}')
     time_s = fmtm('({val} ± {err}) {t_units}s')
     time_ss = fmtm('t = {time_s}')
     time_ls = fmtm('time = {time_s}')
     loop_s = fmtm('{loop_num}{l_units}')
-    loop_ss = fmtm('l = {num_s}')
-    loop_ls = fmtm('loops = {num_s}')
+    loop_ss = fmtm('l = {loop_s}')
+    loop_ls = fmtm('loops = {loop_s}')
     batch_s = fmtm('{batch_num}{b_units}')
     batch_ss = fmtm('b = {batch_s}')
     batch_ls = fmtm('batch = {batch_s}')
@@ -10169,15 +10316,16 @@ def _format_summary(
 @parametric
 def time_profile(
         func,
-        timeout=2.0,
-        batch_timeout=None,
+        timeout=16.0,
+        batch_timeout=1.0,
         max_iter=2 ** 24,  # 16 M
-        min_iter=2,
-        max_batch=2 ** 8,
+        min_iter=8,
+        max_batch=2 ** 20,  # 1 M
         min_batch=1,
-        val_func=min,
-        err_func=stdev,
+        val_func=median,
+        err_func=lambda x: interquantilic_range(x, (177 / 256), (79 / 256)),
         timer=time.perf_counter,
+        timer_error=None,
         use_gc=True,
         quick=True,
         text=': {name_s};  {time_ss};  {loop_ss};  {batch_ss}',
@@ -10193,31 +10341,42 @@ def time_profile(
     This is similar to the functionality provided by the `timeit` module,
     but also works as a decorator.
 
+    Note that the default values are choosen under the assumption that the
+    timer error is much larger than the execution time of the function.
+
     Args:
         func (callable): The input function.
-        timeout (int|float): Max time for testing in s.
-            If quick is False, there will be at least `min_iter` iterations.
-        batch_timeout (int|float|None): Max time for each batch in s.
+        timeout (int|float): Maximum time for testing in s.
+            There will be at least `min_iter` iterations.
+        batch_timeout (int|float): Maximum time for each batch in s.
             If quick is False, there will be at least `min_batch` repetitions.
-            If None, this is computed as: `abs(timer() - timer()) * 2 ** 16`
         max_iter (int): Maximum number of iterations.
             Must be at least 2.
         min_iter (int): Minimum number of iterations.
-            If the min number of iterations requires longer than `max_time`
-            and `quick` is False, the `max_time` limit is ignored until
-            at least `min_iter` iterations are performed.
-        max_batch (int): The maximum size of the batch.
+            If the min number of iterations requires longer than `max_time`,
+            the `max_time` limit is ignored until at least `min_iter`
+            iterations are performed.
+        max_batch (int): Maximum size of the batch.
             Must be at least 1.
-        min_batch (int)
+        min_batch (int): Minimum size of the batch.
+            Must be at least 1.
         val_func (callable|None): Compute timing value from batch times.
-            If None, the minimum runtime is used.
+            If callable, must have the signature:
+            func(Sequence[int|float]) -> int|float
+            If None, uses the mean of the runtimes.
         err_func (callable|None): Compute timing error from batch times.
-            If None, uses the standard deviation.
+            If callable, must have the signature:
+            func(Sequence[int|float]) -> int|float
+            If None, uses the standard deviation of the runtimes.
         timer (callable): The function used to measure the timings.
+        timer_error (int|float|None): The error due to calling `timer()` in s.
+            If None, this is estimated by computing the mean of
+             `abs(timer() - timer())` for `max_batch` repetitions.
         use_gc (bool): Use the garbage collection during the timing.
         quick (bool): Force exiting the repetition loops.
             If this is True, the `max_time` is forced within the execution
             time of a single instance.
+            The minimum number of iterations is always performed.
         text (str): Text to use for printing output.
         fmtt (str|bool|None): Format of the printed output.
             This is passed to `flyingcircus.msg()`.
@@ -10245,12 +10404,42 @@ def time_profile(
 
         >>> print(list(summary.keys()))
         ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
- 'sosd', 'var', 'stdev', 'min', 'max', 'batch_size']
+ 'sosd', 'var', 'stdev', 'min', 'max', 'median', 'medoid', 'batch']
  
     See Also:
         - flyingcircus.base.multi_benchmark()
         - flyingcircus.base._format_summary()
     """
+
+    # ----------------------------------------------------------
+    def estimate_timer_error():
+        timer_err = 0.0
+        for i in range(max_batch):
+            begin_time = timer()
+            end_time = timer()
+            time_delta = abs(end_time - begin_time)
+            timer_err = next_mean(time_delta, timer_err, i)
+        return timer_err
+
+    # ----------------------------------------------------------
+    def estimate_batch_time_error(batch_timeout):
+        i = 0
+        b_timeout = batch_timeout
+        init_time = timer()
+        j = 0
+        batch_time = 0.0
+        begin_time = timer()
+        while j < max_batch:
+            end_time = timer()
+            total_time = end_time - init_time
+            batch_time = end_time - begin_time
+            j += 1
+            if total_time > timeout and (i >= min_iter or quick):
+                pass
+            if batch_time > b_timeout and (j >= min_batch or quick):
+                pass
+        return batch_time / max_batch
+
     # ----------------------------------------------------------
     @functools.wraps(func)
     def wrapper(*_args, **_kws):
@@ -10261,20 +10450,18 @@ def time_profile(
         total_time = 0.0
         result = None
         collect_runtimes = callable(val_func) or callable(err_func)
-        if not batch_timeout:
-            timeout_ = 0.0
-            for i in range(max_batch * min_iter):
-                begin_time = timer()
-                end_time = timer()
-                timeout_ = next_mean(
-                    timeout_, abs(end_time - begin_time), i)
-        else:
-            timeout_ = batch_timeout
+        timer_err = timer_error if timer_error else estimate_timer_error()
+        b_timeout = batch_timeout if batch_timeout else timer_err * max_batch
+        batch_err = estimate_batch_time_error(b_timeout)
+
         if collect_runtimes:
             run_times = []
-        min_time = 0.0
-        max_time = timeout
-        i = j = 0
+        else:
+            sorted_run_times = []
+        mean_batch = 0.0
+        min_time = timeout
+        max_time = 0.0
+        i = 0
         while i < max_iter:
             j = 0
             batch_time = 0.0
@@ -10285,29 +10472,44 @@ def time_profile(
                 total_time = end_time - init_time
                 batch_time = end_time - begin_time
                 j += 1
-                if total_time > timeout and (i >= min_iter or quick): break
-                if batch_time > timeout_ and (j >= min_batch or quick): break
-            run_time = batch_time / j
+                if total_time > timeout and (i >= min_iter or quick):
+                    break
+                if batch_time > b_timeout and (j >= min_batch or quick):
+                    break
+            mean_batch = next_mean(j, mean_batch, i)
+            run_time = (batch_time - batch_err) / j
             if collect_runtimes:
                 run_times.append(run_time)
             mean_time, sosd_time = next_mean_sosd(
                 run_time, mean_time, sosd_time, i)
+            if not collect_runtimes:
+                medoid_time, median_time = next_medoid_median(
+                    run_time, sorted_run_times)
             i += 1
-            if run_time < min_time: min_time = run_time
-            if max_time > max_time: max_time = run_time
-            if total_time > timeout and (i >= min_iter or quick): break
-        val_time = min_time
-        err_time = sosd2stdev(sosd_time, i, 1)
+            if run_time < min_time:
+                min_time = run_time
+            if run_time > max_time:
+                max_time = run_time
+            if total_time > timeout and i >= min_iter:
+                break
+        var_time, stdev_time = sosd2var(sosd_time, i), sosd2stdev(sosd_time, i)
         if collect_runtimes:
-            if callable(val_func): val_time = val_func(run_times)
-            if callable(err_func): err_time = err_func(run_times)
+            median_time = median(run_times)
+            medoid_time = medoid(run_times)
+        val_time = mean_time
+        err_time = stdev_time
+        if collect_runtimes:
+            if callable(val_func):
+                val_time = val_func(run_times)
+            if callable(err_func):
+                err_time = err_func(run_times)
         summary = dict(
             result=result, func_name=func.__name__, args=_args, kws=_kws,
             num=i, val=val_time, err=err_time,
             mean=mean_time, sosd=sosd_time,
-            var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, j),
-            min=min_time, max=max_time,
-            batch_size=j if i == 0 else max_batch)
+            var=var_time, stdev=stdev_time, min=min_time, max=max_time,
+            median=median_time, medoid=medoid_time,
+            batch=int(mean_batch))
         gc.enable() if gc_was_enabled else gc.disable()
         if text:
             msg(_format_summary(summary, text), verbose, D_VERB_LVL, fmtt)
@@ -10397,7 +10599,7 @@ def multi_benchmark(
         >>> funcs = f1, f2, func_with_longer_name
         >>> summaries, labels, results = multi_benchmark(
         ...     funcs, input_sizes=tuple(10 ** (i + 1) for i in range(3)),
-        ...     time_prof_kws=dict(timeout=0.1),
+        ...     time_prof_kws=dict(timeout=0.1, batch_timeout=0.01),
         ...     fmtt=False)  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
@@ -10417,7 +10619,8 @@ def multi_benchmark(
         >>> summary_headers = list(summaries[0][0].keys())
         >>> print(summary_headers)
         ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
- 'sosd', 'var', 'stdev', 'min', 'max', 'batch_size', 'is_equal']
+ 'sosd', 'var', 'stdev', 'min', 'max', 'median', 'medoid', 'batch',\
+ 'is_equal']
 
     See Also:
         - flyingcircus.base.time_profile()
