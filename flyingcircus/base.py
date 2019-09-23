@@ -10597,8 +10597,8 @@ def multi_benchmark(
         equal_output=lambda a, b: a == b,
         time_prof_kws=None,
         store_all=False,
-        text_funcs=':{lbl_s:<{len_lbls}s}  N={input_size!s:<{len_n}s}  '
-                   '{is_equal_s:>4s}  {time_s:<24s}  {loop_s:>5} * {batch_s}',
+        text_funcs=':{lbl_s:<{len_lbls}s}  N={input_size!s:<{len_n}s} '
+                   '{is_equal_s:>3s}  {time_s:<26s}  {loop_s:>5} * {batch_s}',
         text_inputs=' ',
         fmtt=True,
         verbose=D_VERB_LVL):
@@ -10725,7 +10725,7 @@ def multi_benchmark(
             if j == 0:
                 truth = result
             is_equal = equal_output(truth, result)
-            is_equal_s = 'OK' if is_equal else 'FAIL'
+            is_equal_s = 'OK' if is_equal else 'ERR'
             lbl_s = func.__name__ if hasattr(func, '__name__') else '<UNNAMED>'
             lbl_s += '()'
             if text_funcs:
