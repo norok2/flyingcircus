@@ -10170,13 +10170,13 @@ def _format_summary(
 def time_profile(
         func,
         timeout=2.0,
-        max_iter=2 ** 24,
-        min_iter=4,
-        batch_size=8,
-        batch_val_func=mean,
-        batch_err_func=stdev,
-        combine_val_func=None,
-        combine_err_func=None,
+        batch_timeout=None,
+        max_iter=2 ** 24,  # 16 M
+        min_iter=2,
+        max_batch=2 ** 8,
+        min_batch=1,
+        val_func=min,
+        err_func=stdev,
         timer=time.perf_counter,
         use_gc=True,
         quick=True,
@@ -10184,7 +10184,11 @@ def time_profile(
         fmtt=True,
         verbose=D_VERB_LVL):
     """
-    Estimate the execution time of a function with multiple repetitions.
+    Estimate the execution time of a function using multiple repetitions.
+
+    The function is repeated in batches.
+    Each batch repeats the function to ensure a reliable time measurement.
+    The run time is computed as the the batch time divided by the batch size.
 
     This is similar to the functionality provided by the `timeit` module,
     but also works as a decorator.
@@ -10192,18 +10196,23 @@ def time_profile(
     Args:
         func (callable): The input function.
         timeout (int|float): Max time for testing in s.
-            Note that this may be overridden by the `min_iter` parameter.
-        max_iter (int): Max number of iterations.
-        min_iter (int): Min number of iterations.
+            If quick is False, there will be at least `min_iter` iterations.
+        batch_timeout (int|float|None): Max time for each batch in s.
+            If quick is False, there will be at least `min_batch` repetitions.
+            If None, this is computed as: `abs(timer() - timer()) * 2 ** 16`
+        max_iter (int): Maximum number of iterations.
+            Must be at least 2.
+        min_iter (int): Minimum number of iterations.
             If the min number of iterations requires longer than `max_time`
             and `quick` is False, the `max_time` limit is ignored until
             at least `min_iter` iterations are performed.
-        batch_size (int): The size of the batch.
-            Must be greater than or equal to 1.
-        batch_val_func (callable): Compute batch timings value.
-        batch_err_func (callable): Compute batch timings error.
-        combine_val_func (callable): Combine batch timing values.
-        combine_err_func (callable): Combine batch timing errors.
+        max_batch (int): The maximum size of the batch.
+            Must be at least 1.
+        min_batch (int)
+        val_func (callable|None): Compute timing value from batch times.
+            If None, the minimum runtime is used.
+        err_func (callable|None): Compute timing error from batch times.
+            If None, uses the standard deviation.
         timer (callable): The function used to measure the timings.
         use_gc (bool): Use the garbage collection during the timing.
         quick (bool): Force exiting the repetition loops.
@@ -10236,13 +10245,12 @@ def time_profile(
 
         >>> print(list(summary.keys()))
         ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
- 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size']
+ 'sosd', 'var', 'stdev', 'min', 'max', 'batch_size']
  
     See Also:
         - flyingcircus.base.multi_benchmark()
         - flyingcircus.base._format_summary()
     """
-
     # ----------------------------------------------------------
     @functools.wraps(func)
     def wrapper(*_args, **_kws):
@@ -10252,60 +10260,54 @@ def time_profile(
         init_time = timer()
         total_time = 0.0
         result = None
+        collect_runtimes = callable(val_func) or callable(err_func)
+        if not batch_timeout:
+            timeout_ = 0.0
+            for i in range(max_batch * min_iter):
+                begin_time = timer()
+                end_time = timer()
+                timeout_ = next_mean(
+                    timeout_, abs(end_time - begin_time), i)
+        else:
+            timeout_ = batch_timeout
+        if collect_runtimes:
+            run_times = []
+        min_time = 0.0
+        max_time = timeout
         i = j = 0
-        run_times = [0.0] * batch_size
-        if callable(combine_val_func):
-            val_run_times = []
-        if callable(combine_err_func):
-            err_run_times = []
         while i < max_iter:
             j = 0
-            while j < batch_size:
-                begin_time = timer()
+            batch_time = 0.0
+            begin_time = timer()
+            while j < max_batch:
                 result = func(*_args, **_kws)
                 end_time = timer()
-                other_time = timer()
-                timer_offset = other_time - end_time
-                run_time = end_time - begin_time - timer_offset
-                if run_time > 0:
-                    run_times[j] = run_time
-                    j += 1
                 total_time = end_time - init_time
-                if total_time > timeout and (i >= min_iter or quick):
-                    break
-            if j > 0:
-                val_run_time = batch_val_func(run_times[:j + 1])
-                err_run_time = batch_err_func(run_times[:j + 1])
-                if val_run_time < min_time or i == 0:
-                    min_time = val_run_time
-                if val_run_time > max_time or i == 0:
-                    max_time = val_run_time
-                mean_time, sosd_time = next_mean_sosd(
-                    val_run_time, mean_time, sosd_time, i)
-                if callable(combine_val_func):
-                    val_run_times.append(val_run_time)
-                if callable(combine_err_func):
-                    err_run_times.append(err_run_time)
-            if total_time > timeout and (i >= min_iter or quick):
-                break
-            else:
-                i += 1
-        if callable(combine_val_func):
-            val_time = combine_val_func(val_run_times)
-        else:
-            val_time = min_time
-        if callable(combine_err_func):
-            err_time = combine_err_func(err_run_times)
-        else:
-            err_time = sosd2stdev(sosd_time, i + 1)
+                batch_time = end_time - begin_time
+                j += 1
+                if total_time > timeout and (i >= min_iter or quick): break
+                if batch_time > timeout_ and (j >= min_batch or quick): break
+            run_time = batch_time / j
+            if collect_runtimes:
+                run_times.append(run_time)
+            mean_time, sosd_time = next_mean_sosd(
+                run_time, mean_time, sosd_time, i)
+            i += 1
+            if run_time < min_time: min_time = run_time
+            if max_time > max_time: max_time = run_time
+            if total_time > timeout and (i >= min_iter or quick): break
+        val_time = min_time
+        err_time = sosd2stdev(sosd_time, i, 1)
+        if collect_runtimes:
+            if callable(val_func): val_time = val_func(run_times)
+            if callable(err_func): err_time = err_func(run_times)
         summary = dict(
             result=result, func_name=func.__name__, args=_args, kws=_kws,
             num=i, val=val_time, err=err_time,
             mean=mean_time, sosd=sosd_time,
-            var=sosd2var(sosd_time, i + 1), stdev=sosd2stdev(sosd_time, i + 1),
+            var=sosd2var(sosd_time, i), stdev=sosd2stdev(sosd_time, j),
             min=min_time, max=max_time,
-            batch_name=batch_val_func.__name__,
-            batch_size=(j + 1) if i == 0 else batch_size)
+            batch_size=j if i == 0 else max_batch)
         gc.enable() if gc_was_enabled else gc.disable()
         if text:
             msg(_format_summary(summary, text), verbose, D_VERB_LVL, fmtt)
@@ -10322,14 +10324,10 @@ def multi_benchmark(
         input_sizes=tuple(int(2 ** (2 + (3 * i) / 4)) for i in range(10)),
         gen_input=lambda n: [random.random() for _ in range(n)],
         equal_output=lambda a, b: a == b,
-        time_prof_kws=freeze(dict(
-            timeout=16.0, max_iter=2 ** 24, min_iter=8, batch_size=8,
-            batch_val_func=min, batch_err_func=lambda x: min(diff(x)),
-            combine_val_func=None, combine_err_func=None,
-            use_gc=False, quick=True, verbose=VERB_LVL['none'])),
+        time_prof_kws=None,
         store_all=False,
         text_funcs=':{lbl_s:<{len_lbls}s}  N={input_size!s:<{len_n}s}  '
-                   '{is_equal_s:>4s}  {time_s:<24s}  {loop_s:>5} / {batch_s}',
+                   '{is_equal_s:>4s}  {time_s:<24s}  {loop_s:>5} * {batch_s}',
         text_inputs=' ',
         fmtt=True,
         verbose=D_VERB_LVL):
@@ -10403,23 +10401,23 @@ def multi_benchmark(
         ...     fmtt=False)  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
-        :f1()                     N=10      OK  (... ± ...) ...s  ... / ...
-        :f2()                     N=10      OK  (... ± ...) ...s  ... / ...
-        :func_with_longer_name()  N=10      OK  (... ± ...) ...s  ... / ...
+        :f1()                     N=10      OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=10      OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=10      OK  (... ± ...) ...s  ... * ...
         <BLANKLINE>
-        :f1()                     N=100     OK  (... ± ...) ...s  ... / ...
-        :f2()                     N=100     OK  (... ± ...) ...s  ... / ...
-        :func_with_longer_name()  N=100     OK  (... ± ...) ...s  ... / ...
+        :f1()                     N=100     OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=100     OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=100     OK  (... ± ...) ...s  ... * ...
         <BLANKLINE>
-        :f1()                     N=1000    OK  (... ± ...) ...s  ... / ...
-        :f2()                     N=1000    OK  (... ± ...) ...s  ... / ...
-        :func_with_longer_name()  N=1000    OK  (... ± ...) ...s  ... / ...
+        :f1()                     N=1000    OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=1000    OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=1000    OK  (... ± ...) ...s  ... * ...
         >>> print(labels, results)
         ['f1', 'f2', 'func_with_longer_name'] []
         >>> summary_headers = list(summaries[0][0].keys())
         >>> print(summary_headers)
         ['result', 'func_name', 'args', 'kws', 'num', 'val', 'err', 'mean',\
- 'sosd', 'var', 'stdev', 'min', 'max', 'batch_name', 'batch_size', 'is_equal']
+ 'sosd', 'var', 'stdev', 'min', 'max', 'batch_size', 'is_equal']
 
     See Also:
         - flyingcircus.base.time_profile()
@@ -10433,6 +10431,8 @@ def multi_benchmark(
     time_prof_kws = dict(time_prof_kws) if time_prof_kws is not None else {}
     if 'verbose' not in time_prof_kws:
         time_prof_kws['verbose'] = VERB_LVL['none']
+    if 'quick' not in time_prof_kws:
+        time_prof_kws['quick'] = True
     len_n = max(map(lambda x: int(math.ceil(math.log10(x))), input_sizes)) + 1
     len_lbls = max(map(len, labels)) + len('()')
     msg(fmtm('N = {input_sizes}'), verbose, D_VERB_LVL, fmtt)
