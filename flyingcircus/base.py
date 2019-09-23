@@ -6044,8 +6044,8 @@ def quantiloid(
 # ======================================================================
 def interquantilic_range(
         items,
-        upper_factor=0.75,
         lower_factor=0.25,
+        upper_factor=0.75,
         int_base=100,
         force_sort=True,
         quantilic_func=quantile,
@@ -6056,10 +6056,10 @@ def interquantilic_range(
     Args:
         items (Sequence): The input items.
             The values within the sequence should be numeric.
-        upper_factor (int|float|Iterable[int|float]): The upper index.
+        lower_factor (int|float): The lower quantilic index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
-        lower_factor (int|float|Iterable[int|float]): The lower index.
+        upper_factor (int|float): The upper quantilic index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
         int_base (int|float): The denominator used to scale integer factors.
@@ -6082,9 +6082,48 @@ def interquantilic_range(
     """
     quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
     q_a, q_b = quantilic_func(
-        items, (upper_factor, lower_factor), int_base, force_sort=force_sort,
+        items, (lower_factor, upper_factor), int_base, force_sort=force_sort,
         **quantilic_kws)
-    return q_a - q_b
+    return q_b - q_a
+
+
+# ======================================================================
+def sym_interquantilic_range(
+        items,
+        sym_factor=0.25,
+        force_sort=True,
+        quantilic_func=quantile,
+        quantilic_kws=None):
+    """
+    Compute the symmetric interquantilic range of a numeric sequence.
+
+    The quantilic range is defined as: [0.5 - sym_factor, 0.5 + sym_factor].
+
+    Args:
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
+        sym_factor (float): The symmetric quantilic factor.
+            Must be a number in the [0, 0.5] range.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+        quantilic_func (callable): The quantilic function.
+            Must be either `flyingcircus.base.quantile()` or
+            `flyingcircus.base.quantiloid()` (or any other callable
+            implementing the same signature).
+        quantilic_kws (Mapping|None): Keyword parameters for `quantilic_func`.
+
+    Returns:
+        result (Number): The inter-quantilic range.
+
+    Examples:
+        >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> sym_interquantilic_range(items)
+        5.0
+    """
+    return interquantilic_range(
+        items, 0.5 - sym_factor, 0.5 + sym_factor, force_sort=force_sort,
+        quantilic_func=quantilic_func, quantilic_kws=quantilic_kws)
 
 
 # ======================================================================
@@ -6790,6 +6829,41 @@ def i_medoid_median(
         medoid_ = medoid(items, True, False)
         median_ = median(items, True)
     return medoid_, median_
+
+
+# ======================================================================
+def median_dev(
+        items,
+        sym_factor=49 / 256,
+        force_sort=True):
+    """
+    Compute the median deviation of a numeric sequence.
+
+    This is the symmetrical interquantilic range.
+    The default value of the symmetric factor is the one that best
+    approximates the standard deviation for a normal (Gaussian) distribution
+    within (1 / 256) resolution.
+
+    Args:
+        items (Sequence): The input items.
+            The values within the sequence should be numeric.
+        sym_factor (float): The symmetric interquantilic parameter.
+            See `flyingcircus.base.sym_interquantilic_range()`.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+
+    Returns:
+        result (Number): The median deviation of the items.
+
+    Examples:
+        >>> items = range(0, 20, 2)
+        >>> median(items)
+        9.0
+        >>> statistics.median(items) == median(items)
+        True
+    """
+    return sym_interquantilic_range(items, sym_factor, force_sort=force_sort)
 
 
 # ======================================================================
@@ -10313,19 +10387,47 @@ def _format_summary(
 
 
 # ======================================================================
+def estimate_timer_error(
+        timer,
+        num=2 ** 16):
+    """
+    Estimate the error associated to a specific timer.
+
+    Args:
+        timer (callable):
+        num (int): The number of repetitions.
+
+    Returns:
+        result (float): The estimated timer error.
+
+    Examples:
+        >>> timers = time.perf_counter, time.clock, time.time
+        >>> timer_errors = [estimate_timer_error(timer) for timer in timers]
+        >>> print([int(math.log10(t)) for t in timer_errors])
+        [-7, -5, -7]
+    """
+    result = 0.0
+    for i in range(num):
+        begin_time = timer()
+        end_time = timer()
+        time_delta = abs(end_time - begin_time)
+        result = next_mean(time_delta, result, i)
+    return result
+
+
+# ======================================================================
 @parametric
 def time_profile(
         func,
         timeout=16.0,
-        batch_timeout=1.0,
+        batch_timeout=0.5,
         max_iter=2 ** 24,  # 16 M
         min_iter=8,
         max_batch=2 ** 20,  # 1 M
         min_batch=1,
         val_func=median,
-        err_func=lambda x: interquantilic_range(x, (177 / 256), (79 / 256)),
+        err_func=lambda x: median_dev(x) / len(x) ** 0.5,
         timer=time.perf_counter,
-        timer_error=None,
         use_gc=True,
         quick=True,
         text=': {name_s};  {time_ss};  {loop_ss};  {batch_ss}',
@@ -10367,11 +10469,8 @@ def time_profile(
         err_func (callable|None): Compute timing error from batch times.
             If callable, must have the signature:
             func(Sequence[int|float]) -> int|float
-            If None, uses the standard deviation of the runtimes.
+            If None, uses the standard deviation of the mean of the runtimes.
         timer (callable): The function used to measure the timings.
-        timer_error (int|float|None): The error due to calling `timer()` in s.
-            If None, this is estimated by computing the mean of
-             `abs(timer() - timer())` for `max_batch` repetitions.
         use_gc (bool): Use the garbage collection during the timing.
         quick (bool): Force exiting the repetition loops.
             If this is True, the `max_time` is forced within the execution
@@ -10412,35 +10511,6 @@ def time_profile(
     """
 
     # ----------------------------------------------------------
-    def estimate_timer_error():
-        timer_err = 0.0
-        for i in range(max_batch):
-            begin_time = timer()
-            end_time = timer()
-            time_delta = abs(end_time - begin_time)
-            timer_err = next_mean(time_delta, timer_err, i)
-        return timer_err
-
-    # ----------------------------------------------------------
-    def estimate_batch_time_error(batch_timeout):
-        i = 0
-        b_timeout = batch_timeout
-        init_time = timer()
-        j = 0
-        batch_time = 0.0
-        begin_time = timer()
-        while j < max_batch:
-            end_time = timer()
-            total_time = end_time - init_time
-            batch_time = end_time - begin_time
-            j += 1
-            if total_time > timeout and (i >= min_iter or quick):
-                pass
-            if batch_time > b_timeout and (j >= min_batch or quick):
-                pass
-        return batch_time / max_batch
-
-    # ----------------------------------------------------------
     @functools.wraps(func)
     def wrapper(*_args, **_kws):
         gc_was_enabled = gc.isenabled()
@@ -10450,10 +10520,9 @@ def time_profile(
         total_time = 0.0
         result = None
         collect_runtimes = callable(val_func) or callable(err_func)
-        timer_err = timer_error if timer_error else estimate_timer_error()
+        timer_err = estimate_timer_error(timer)
         b_timeout = batch_timeout if batch_timeout else timer_err * max_batch
-        batch_err = estimate_batch_time_error(b_timeout)
-
+        batch_err = timer_err
         if collect_runtimes:
             run_times = []
         else:
@@ -10497,7 +10566,7 @@ def time_profile(
             median_time = median(run_times)
             medoid_time = medoid(run_times)
         val_time = mean_time
-        err_time = stdev_time
+        err_time = stdev_time / i ** 0.5
         if collect_runtimes:
             if callable(val_func):
                 val_time = val_func(run_times)
