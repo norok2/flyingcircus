@@ -4332,15 +4332,20 @@ def prod(
     This is similar to `sum`, but uses product instead of addition.
 
     Args:
-        items (Iterable): The input items.
-        start (Any|None): The initial value.
+        items (Iterable[Number]): The input items.
+        start (Number): The initial value.
 
     Returns:
-        result: The cumulative product of `items`.
+        result (Number): The cumulative product of `items`.
 
     Examples:
         >>> prod([2] * 10)
         1024
+        >>> prod(range(1, 11))
+        3628800
+
+        >>> all(prod(range(1, n + 1)) == math.factorial(n) for n in range(10))
+        True
     """
     for item in items:
         start *= item
@@ -4358,11 +4363,11 @@ def diff(
     of division.
 
     Args:
-        items (Iterable): The input items.
+        items (Iterable[Number]): The input items.
         reverse (bool): Reverse the order of the operands.
 
     Yields:
-        value: The next pairwise difference.
+        value (Number): The next pairwise difference.
 
 
     Examples:
@@ -4387,11 +4392,11 @@ def div(
     of subtraction.
 
     Args:
-        items (Iterable): The input items.
+        items (Iterable[Number]): The input items.
         reverse (bool): Reverse the order of the operands.
 
     Yields:
-        value: The next pairwise division.
+        value (Number): The next pairwise division.
 
     Examples:
         >>> items = [2 ** x for x in range(10)]
@@ -5332,7 +5337,7 @@ def gcd(values):
     Find the greatest common divisor (GCD) of a list of numbers.
 
     Args:
-        values (Iterable[float]): The input numbers.
+        values (Iterable[int]): The input numbers.
 
     Returns:
         result (int): The value of the greatest common divisor (GCD).
@@ -5642,93 +5647,510 @@ def cont_frac(b, a=1, limit=None):
 # ======================================================================
 def mean(items):
     """
-    Compute the mean of a numeric sequence.
+    Compute the arithmetic mean of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean()`
-     - `flyingcircus.base.imean()`
+     - `flyingcircus.base.next_amean()`
+     - `flyingcircus.base.i_amean()`
+     - `flyingcircus.base.i_mean()`
 
     This is substantially faster than `statistics.mean()`.
 
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
 
     Returns:
-        result (Number): The mean of the items.
+        result (Number): The arithmetic mean.
 
     Examples:
-        >>> items = range(0, 20, 2)
+        >>> items = range(0, 52, 2)
         >>> mean(items)
-        9.0
+        25.0
         >>> statistics.mean(items) == mean(items)
         True
+
+        >>> [mean(range(n + 1)) for n in range(10)]
+        [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5]
+
+    See Also:
+        - flyingcircus.base.gmean()
+        - flyingcircus.base.hmean()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.mean_and_var()
+        - flyingcircus.base.mean_and_stdev()
+        - flyingcircus.base.mean_and_mean_abs_dev()
+        - flyingcircus.base.median()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_mean()
     """
     return sum(items) / len(items)
 
 
 # ======================================================================
-def variance(items):
+def gmean(
+        items,
+        valid=True):
+    """
+    Compute the geometric mean of a numeric sequence.
+
+    Args:
+        items (Sequence[Number]): The input items.
+        valid (bool): Include only valid (non-zero) items.
+
+    Returns:
+        result (Number): The geometric mean.
+
+    Examples:
+        >>> items = range(0, 10, 2)
+        >>> gmean(items)
+        96.0
+        >>> gmean(items, False)
+        0.0
+
+        >>> [gmean(range(n + 1)) for n in range(10)]
+        [1.0, 1.0, 1.0, 2.0, 6.0, 24.0, 120.0, 720.0, 5040.0, 40320.0]
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.hmean()
+        - flyingcircus.base.median()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.i_gmean()
+    """
+    if valid and items:
+        items = tuple(i for i in items if i)
+        if not items:
+            return 1.0
+    return prod(items) / len(items)
+
+
+# ======================================================================
+def hmean(
+        items,
+        valid=True):
+    """
+    Compute the harmonic mean of a numeric sequence.
+
+    Args:
+        items (Sequence[Number]): The input items.
+            The values within the sequence should be numeric.
+        valid (bool): Include only valid (non-zero) items.
+
+    Returns:
+        result (Number): The harmonic mean.
+
+    Examples:
+        >>> items = [2 ** i for i in range(5)]
+        >>> hmean(items)
+        0.3875
+        >>> hmean([0] + items, False)
+        Traceback (most recent call last):
+            ...
+        ZeroDivisionError: division by zero
+
+        >>> [round(hmean(range(n + 1)), 3) for n in range(10)]
+        [0.0, 1.0, 0.75, 0.611, 0.521, 0.457, 0.408, 0.37, 0.34, 0.314]
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.gmean()
+        - flyingcircus.base.median()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.i_hmean()
+    """
+    if valid:
+        items = tuple((1 / i) for i in items if i)
+        if not items:
+            return 0.0
+    else:
+        items = tuple((1 / i) for i in items)
+    return mean(items)
+
+
+# ======================================================================
+def absolute_deviations(
+        value,
+        items):
+    """
+    Yield the absolute deviations of the items from a value.
+
+    Args:
+        value (Number): The input value.
+        items (Sequence[Number]): The input items.
+
+    Yields:
+        result (Number): The next absolute deviation.
+
+    Examples:
+        >>> list(absolute_deviations(10, range(16)))
+        [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5]
+
+    See Also:
+        - flyingcircus.base.squared_deviations()
+        - flyingcircus.base.soad()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.mean_abs_dev()
+    """
+    for item in items:
+        yield abs(value - item)
+
+
+# ======================================================================
+def squared_deviations(
+        value,
+        items):
+    """
+    Yield the squared deviations of the items from a value.
+
+    Args:
+        value (Number): The input value.
+        items (Sequence[Number]): The input items.
+
+    Yields:
+        result (Number): The next squared deviation.
+
+    Examples:
+        >>> list(squared_deviations(10, range(16)))
+        [100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]
+
+    See Also:
+        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.var()
+    """
+    for item in items:
+        yield (value - item) * (value - item)
+
+
+# ======================================================================
+def mean_and_soad(items):
+    """
+    Compute the mean and the sum-of-absolute-deviations of a numeric sequence.
+
+    The sum-of-absolute-deviations (SoAD) is useful for computing the
+    mean absolute deviation (MeanAD).
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_val` (Number): The mean of the items.
+             - `soad_val` (Number): The SoAD of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_and_soad(items)
+        (25.0, 338.0)
+        >>> mean_and_soad(items) == (mean(items), soad(items))
+        True
+
+    See Also:
+        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.base.mean()
+        - flyingcircus.base.soad()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.mean_and_mean_abs_dev()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_mean_and_sosd()
+    """
+    mean_val = mean(items)
+    soad_val = sum(absolute_deviations(mean_val, items))
+    return mean_val, soad_val
+
+
+# ======================================================================
+def soad(items):
+    """
+    Compute the sum-of-absolute-deviations of a numeric sequence.
+
+    The sum-of-absolute-deviations (SoAD) is useful for computing the
+    mean absolute deviation (MeanAD).
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (Number): The sum-of-absolute-deviations (SoAD) of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> soad(items)
+        338.0
+
+    See Also:
+        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.mean_and_sosd()
+    """
+    return sum(absolute_deviations(mean(items), items))
+
+
+# ======================================================================
+def mean_and_sosd(items):
+    """
+    Compute the mean and the sum-of-squared-deviations of a numeric sequence.
+
+    For iterative computation see:
+     - `flyingcircus.base.next_mean_and_sosd()`
+     - `flyingcircus.base.i_mean_and_sosd()`
+
+    The sum-of-squared-deviations (SoSD) is useful for numerically stable
+    computation of the variance and the standard deviation.
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_val` (Number): The mean of the items.
+             - `sosd_val` (Number): The SoSD of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_and_sosd(items)
+        (25.0, 5850.0)
+        >>> mean_and_sosd(items) == (mean(items), sosd(items))
+        True
+
+    See Also:
+        - flyingcircus.base.squared_deviations()
+        - flyingcircus.base.mean()
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.mean_and_var()
+        - flyingcircus.base.mean_and_stdev()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_mean_and_sosd()
+    """
+    mean_val = mean(items)
+    sosd_val = sum(squared_deviations(mean_val, items))
+    return mean_val, sosd_val
+
+
+# ======================================================================
+def sosd(items):
+    """
+    Compute the mean and the sum-of-squared-deviations of a numeric sequence.
+
+    For iterative computation see:
+     - `flyingcircus.base.next_mean_and_sosd()`
+     - `flyingcircus.base.i_mean_and_sosd()`
+
+    The sum-of-squared-deviations (SoSD) is useful for numerically stable
+    computation of the variance and the standard deviation.
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (Number): The sum-of-squared-deviations (SoSD) of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> sosd(items)
+        5850.0
+
+    See Also:
+        - flyingcircus.base.squared_deviations()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.soad()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_mean_and_sosd()
+    """
+    return sum(squared_deviations(mean(items), items))
+
+
+# ======================================================================
+def sosd2var(
+        sosd_,
+        num,
+        ddof=0):
+    """
+    Compute the variance from the sum-of-squared-deviations.
+
+    Args:
+        sosd_ (Number): The sum-of-squared-deviations value.
+        num (int): The number of items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result (Number): The variance value.
+
+    Examples:
+        >>> sosd2var(8, 3, 1)
+        4.0
+
+        >>> all([var2sosd(sosd2var(x, n, m), n, m) == x
+        ...     for x in range(9) for n in range(3, 9) for m in range(3)])
+        True
+
+    See Also:
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.var()
+        - flyingcircus.base.var2sosd()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
+    """
+    return sosd_ / (num - ddof)
+
+
+# ======================================================================
+def var2sosd(
+        var_,
+        num,
+        ddof=0):
+    """
+    Compute the sum-of-squared-deviations from the variance.
+
+    Args:
+        var_ (Number): The variance value.
+        num (int): The number of items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result (Number): The sum-of-squared-deviations value.
+
+    Examples:
+        >>> var2sosd(4, 3, 1)
+        8
+
+        >>> all([sosd2var(var2sosd(x, n, m), n, m) == x
+        ...     for x in range(9) for n in range(3, 9) for m in range(3)])
+        True
+
+    See Also:
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.var()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
+    """
+    return var_ * (num - ddof)
+
+
+# ======================================================================
+def sosd2stdev(
+        sosd_,
+        num,
+        ddof=0):
+    """
+    Compute the standard deviation from the sum-of-squared-deviations.
+
+    Args:
+        sosd_ (Number): The sum-of-squared-deviations value.
+        num (int): The number of items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result (Number): The standard deviation value.
+
+    Examples:
+        >>> sosd2stdev(8, 3, 1)
+        2.0
+
+        >>> all([sosd2stdev(stdev2sosd(x, n, m), n, m) == x
+        ...     for x in range(9) for n in range(3, 9) for m in range(3)])
+        True
+
+    See Also:
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.stdev()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
+        - flyingcircus.base.stdev2sosd()
+    """
+    return (sosd_ / (num - ddof)) ** 0.5
+
+
+# ======================================================================
+def stdev2sosd(
+        stdev_,
+        num,
+        ddof=0):
+    """
+    Compute the sum-of-squared-deviations from the standard deviation.
+
+    Args:
+        stdev_ (Number): The variance value.
+        num (int): The number of items.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        sosd (Number): The sum-of-squared-deviations value.
+
+    Examples:
+        >>> stdev2sosd(2, 3, 1)
+        8
+
+        >>> all([abs(stdev2sosd(sosd2stdev(x, n, m), n, m) - x) < 1e-9
+        ...     for x in range(9) for n in range(3, 9) for m in range(3)])
+        True
+
+    See Also:
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.stdev()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
+        - flyingcircus.base.sosd2stdev()
+    """
+    return (stdev_ * stdev_) * (num - ddof)
+
+
+# ======================================================================
+def var(
+        items,
+        ddof=0):
     """
     Compute the variance of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_var()`
-     - `flyingcircus.base.next_mean_sosd()` and `.sosd2var()`.
-     - `flyingcircus.base.ivar()`
+     - `flyingcircus.base.next_mean_and_var()`
+     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2var()`.
+     - `flyingcircus.base.i_var()`
+     - `flyingcircus.base.i_mean_and_var()`
 
     This is substantially faster than `statistics.variance()`.
 
+    Note that the variance is the mean of squared deviations.
+
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
+        ddof (int): The number of degrees of freedom.
 
     Returns:
         result (Number): The variance of the items.
 
     Examples:
-        >>> items = range(0, 20, 2)
-        >>> variance(items)
-        33.0
-        >>> n = len(items)
-        >>> statistics.variance(items) == variance(items) * n / (n - 1)
+        >>> items = range(0, 52, 2)
+        >>> var(items)
+        225.0
+        >>> statistics.variance(items) == var(items, 1)
         True
+
+    See Also:
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.mean_and_var()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.stdev()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
     """
-    mean_ = mean(items)
-    return sum((i - mean_) ** 2 for i in items) / len(items)
-
-
-# ======================================================================
-def mean_var(
-        items,
-        ddof=0):
-    """
-    Compute the mean and variance of a numeric sequence.
-
-    For iterative computation see:
-     - `flyingcircus.base.next_mean_var()`
-     - `flyingcircus.base.next_mean_sosd()` and `.sosd2var()`.
-     - `flyingcircus.base.ivar()`
-
-    This is substantially faster than `statistics.variance()`.
-
-    Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
-        ddof (int): The number of degrees of freedom.
-
-    Returns:
-        result (tuple): The tuple
-            contains:
-             - `mean_` (Number): The mean of the items.
-             - `var_` (Number): The variance of the items.
-
-    Examples:
-        >>> mean_var(range(0, 20, 2))
-        (9.0, 33.0)
-    """
-    mean_ = mean(items)
-    return mean_, sum((i - mean_) ** 2 for i in items) / (len(items) - ddof)
+    mean_val, sosd_val = mean_and_sosd(items)
+    return sosd2var(sosd_val, len(items), ddof)
 
 
 # ======================================================================
@@ -5739,14 +6161,18 @@ def stdev(
     Compute the standard deviation of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_var()`
-     - `flyingcircus.base.next_mean_sosd()` and `.sosd2stdev()`.
-     - `flyingcircus.base.istdev()`
+     - `flyingcircus.base.next_mean_and_stdev()`
+     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.base.i_stdev()`
+     - `flyingcircus.base.i_mean_and_stdev()`
 
     This is substantially faster than `statistics.stdev()`.
 
+    Note that the standard deviation is the square root of the variance,
+    and hence it is also the square root of the mean of squared deviations.
+
     Args:
-        items (Sequence): The input items.
+        items (Sequence[Number]): The input items.
             The values within the sequence should be numeric.
         ddof (int): The number of degrees of freedom.
 
@@ -5754,11 +6180,186 @@ def stdev(
         result (Number): The standard deviation of the items.
 
     Examples:
-        >>> round(stdev(range(0, 20, 2)), 3)
-        5.745
+        >>> items = range(0, 52, 2)
+        >>> stdev(items)
+        15.0
+        >>> statistics.stdev(items) == stdev(items, 1)
+        True
+
+    See Also:
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.base.next_mean_and_stdev()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.mean_and_stdev()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.var()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
     """
-    mean_ = mean(items)
-    return (sum((i - mean_) ** 2 for i in items) / (len(items) - ddof)) ** 0.5
+    mean_val, sosd_val = mean_and_sosd(items)
+    return sosd2stdev(sosd_val, len(items), ddof)
+
+
+# ======================================================================
+def mean_and_var(
+        items,
+        ddof=0):
+    """
+    Compute the mean and variance of a numeric sequence.
+
+    For iterative computation see:
+     - `flyingcircus.base.next_amean()`
+     - `flyingcircus.base.next_mean_and_var()`
+     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2var()`.
+     - `flyingcircus.base.i_mean()`
+     - `flyingcircus.base.i_var()`
+     - `flyingcircus.base.i_mean_and_var()`
+     - `flyingcircus.base.i_mean_and_sosd()` and `.sosd2var()`
+
+    This is faster than computing the two values separately.
+
+    Args:
+        items (Sequence[Number]): The input items.
+            The values within the sequence should be numeric.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_` (Number): The mean of the items.
+             - `var_` (Number): The variance of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_and_var(items)
+        (25.0, 225.0)
+        >>> mean_and_var(items) == (mean(items), var(items))
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.var()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
+    """
+    mean_, sosd_ = mean_and_sosd(items)
+    return mean_, sosd2var(sosd_, len(items), ddof)
+
+
+# ======================================================================
+def mean_and_stdev(
+        items,
+        ddof=0):
+    """
+    Compute the mean and the standard deviation of a numeric sequence.
+
+    For iterative computation see:
+     - `flyingcircus.base.next_amean()`
+     - `flyingcircus.base.next_mean_and_stdev()`
+     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.base.i_mean()`
+     - `flyingcircus.base.i_stdev()`
+     - `flyingcircus.base.i_mean_and_stdev()`
+     - `flyingcircus.base.i_mean_and_sosd()` and `.sosd2stdev()`
+
+    This is faster than computing the two values separately.
+
+    Args:
+        items (Sequence[Number]): The input items.
+            The values within the sequence should be numeric.
+        ddof (int): The number of degrees of freedom.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_` (Number): The mean of the items.
+             - `stdev_` (Number): The standard deviation of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_and_stdev(items)
+        (25.0, 15.0)
+        >>> mean_and_stdev(items) == (mean(items), stdev(items))
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.stdev()
+        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.base.next_mean_and_stdev()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
+    """
+    mean_, sosd_ = mean_and_sosd(items)
+    return mean_, sosd2stdev(sosd_, len(items), ddof)
+
+
+# ======================================================================
+def mean_and_mean_abs_dev(items):
+    """
+    Compute the mean and the mean absolute deviation of a numeric sequence.
+
+    This is faster than computing the two values separately.
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_` (Number): The mean of the items.
+             - `mean_abs_dev_` (Number): The mean abs. dev. of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_and_mean_abs_dev(items)
+        (25.0, 13.0)
+        >>> mean_and_mean_abs_dev(items) == (mean(items), mean_abs_dev(items))
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.mean_abs_dev()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.soad()
+        - flyingcircus.base.absolute_deviations()
+    """
+    mean_, soad_ = mean_and_soad(items)
+    mean_abs_dev_ = soad_ / len(items)
+    return mean_, mean_abs_dev_
+
+
+# ======================================================================
+def mean_abs_dev(items):
+    """
+    Compute the mean absolute deviation of a numeric sequence.
+
+    Args:
+        items (Sequence[Number]): The input items.
+
+    Returns:
+        result (Number): The mean absolute deviation of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_abs_dev(items)
+        13.0
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.mean_abs_dev()
+        - flyingcircus.base.mean_and_soad()
+        - flyingcircus.base.soad()
+        - flyingcircus.base.absolute_deviations()
+    """
+    return soad(items) / len(items)
 
 
 # ======================================================================
@@ -5770,26 +6371,45 @@ def median(
 
     For iterative computation see:
      - `flyingcircus.base.next_median()`
-     - `flyingcircus.base.imedian()`
+     - `flyingcircus.base.next_medoid_and_median()`
+     - `flyingcircus.base.i_median()`
+     - `flyingcircus.base.i_medoid_and_median()`
+     - `flyingcircus.base.i_median_and_median_abs_dev()`
 
-    This is substantially comparable to `statistics.median()`.
+    This is roughly comparable to `statistics.median()`.
+
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
-            Otherwise, it must be set to True.
+            Otherwise, it should be set to True.
 
     Returns:
         result (Number): The median of the items.
 
     Examples:
-        >>> items = range(0, 20, 2)
+        >>> items = range(0, 52, 2)
         >>> median(items)
-        9.0
+        25.0
         >>> statistics.median(items) == median(items)
         True
+
+    See Also:
+        - flyingcircus.base.median_and_median_abs_dev()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.base.i_median_and_median_abs_dev()
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.quantile()
+        - flyingcircus.base.interquantilic_range()
+        - flyingcircus.base.sym_interquantilic_range()
+        - flyingcircus.base.median_abs_dev()
     """
     sorted_items = sorted(items) if force_sort else items
     n = len(items)
@@ -5799,6 +6419,79 @@ def median(
     else:
         median_ = sorted_items[i]
     return median_
+
+
+# ======================================================================
+def median_and_median_abs_dev(
+        items,
+        force_sort=True):
+    """
+    Compute the median and the median absolute deviation of a numeric sequence.
+
+    Args:
+        items (Sequence[Number]): The input items.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+
+    Returns:
+        result (Number): The median deviation of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> median_and_median_abs_dev(items)
+        (25.0, 13.0)
+        >>> (median_and_median_abs_dev(items) ==
+        ...     (median(items), median_abs_dev(items)))
+        True
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.median_abs_dev()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_median_abs_dev()
+        - flyingcircus.base.i_median_and_median_abs_dev()
+        - flyingcircus.base.absolute_deviations()
+
+    """
+    median_val = median(items, force_sort=force_sort)
+    delta_items = tuple(absolute_deviations(median_val, items))
+    return median_val, median(delta_items, force_sort=force_sort)
+
+
+# ======================================================================
+def median_abs_dev(
+        items,
+        force_sort=True):
+    """
+    Compute the median absolute deviation of a numeric sequence.
+
+    Args:
+        items (Sequence[Number]): The input items.
+        force_sort (bool): Force sorting of the input items.
+            If the items are already sorted, this can be safely set to False.
+            Otherwise, it must be set to True.
+
+    Returns:
+        result (Number): The median absolute deviation of the items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> median_abs_dev(items)
+        13.0
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.median_and_median_abs_dev()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_median_abs_dev()
+        - flyingcircus.base.i_median_and_median_abs_dev()
+        - flyingcircus.base.absolute_deviations()
+    """
+    return median(
+        tuple(
+            absolute_deviations(median(items, force_sort=force_sort), items)),
+        force_sort=force_sort)
 
 
 # ======================================================================
@@ -5812,9 +6505,14 @@ def quantile(
     """
     Compute the quantile of a numeric sequence.
 
+    There is no efficient iterative version for any arbitrary factor.
+
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
+
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` and its value must be in the
@@ -5826,7 +6524,6 @@ def quantile(
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
-
 
     Returns:
         result (Number|tuple[Number]): The quantiles of the item(s).
@@ -5875,6 +6572,12 @@ def quantile(
         Traceback (most recent call last):
             ...
         ValueError: Invalid factor `1.1` (larger than 1.0)
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.quantiloid()
+        - flyingcircus.base.interquantilic_range()
+        - flyingcircus.base.sym_interquantilic_range()
     """
     # interps = 'linear', 'lower', 'upper', 'midpoint', 'nearest'
     use_tuple = is_deep(factor)
@@ -5938,16 +6641,20 @@ def medoid(
     """
     Compute the medoid of an arbitrary sequence.
 
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
+
     For iterative computation see:
      - `flyingcircus.base.next_medoid()`
-     - `flyingcircus.base.imedoid()`
+     - `flyingcircus.base.i_medoid()`
 
     If the number of items is not odd, returns the medoid from the lower or
     upper half depending on the value of `lower` being True or False.
 
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number|Any]): The input items.
+            The values within the sequence do not need to be numeric.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it should be set to True.
@@ -5974,6 +6681,16 @@ def medoid(
         'm'
         >>> medoid(items, lower=False)
         'n'
+
+    See Also:
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.base.median()
+        - flyingcircus.base.quantiloid()
+        - flyingcircus.base.interquantilic_range()
+        - flyingcircus.base.sym_interquantilic_range()
     """
     sorted_items = sorted(items) if force_sort else items
     i = int(round((len(items) - 1) / 2)) if lower else len(items) // 2
@@ -5991,9 +6708,15 @@ def quantiloid(
     """
     Compute the quantiloid of an arbitrary sequence.
 
+    There is no efficient iterative version for any arbitrary factor.
+
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
+
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number|Any]): The input items.
+            The values within the sequence do not need to be numeric.
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
@@ -6029,6 +6752,12 @@ def quantiloid(
         >>> ((min(items), medoid(items), max(items))
         ...     == quantiloid(items, (0.0, 0.5, 1.0)))
         True
+
+    See Also:
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.quantile()
+        - flyingcircus.base.interquantilic_range()
+        - flyingcircus.base.sym_interquantilic_range()
     """
     use_tuple = is_deep(factor)
     kk = auto_repeat(factor, 1, False, False)
@@ -6053,9 +6782,14 @@ def interquantilic_range(
     """
     Compute the interquantilic range of a numeric sequence.
 
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
+
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
+            The values within the sequence may not need to be numeric,
+            depending on the `quantilic_func` used.
         lower_factor (int|float): The lower quantilic index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
@@ -6079,6 +6813,12 @@ def interquantilic_range(
         >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         >>> interquantilic_range(items)
         5.0
+
+    See Also:
+        - flyingcircus.base.quantile()
+        - flyingcircus.base.quantiloid()
+        - flyingcircus.base.sym_interquantilic_range()
+        - flyingcircus.base.median_abs_dev()
     """
     quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
     q_a, q_b = quantilic_func(
@@ -6099,9 +6839,12 @@ def sym_interquantilic_range(
 
     The quantilic range is defined as: [0.5 - sym_factor, 0.5 + sym_factor].
 
+    If more than one among median, medoid, quantile, quantiloid is needed,
+    it is more efficient to sort the items prior to calling and then
+    perform the multiple required calle with `force_sort` set to False.
+
     Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
+        items (Sequence[Number]): The input items.
         sym_factor (float): The symmetric quantilic factor.
             Must be a number in the [0, 0.5] range.
         force_sort (bool): Force sorting of the input items.
@@ -6120,6 +6863,12 @@ def sym_interquantilic_range(
         >>> items = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         >>> sym_interquantilic_range(items)
         5.0
+
+    See Also:
+        - flyingcircus.base.quantile()
+        - flyingcircus.base.quantiloid()
+        - flyingcircus.base.interquantilic_range()
+        - flyingcircus.base.median_abs_dev()
     """
     return interquantilic_range(
         items, 0.5 - sym_factor, 0.5 + sym_factor, force_sort=force_sort,
@@ -6127,12 +6876,12 @@ def sym_interquantilic_range(
 
 
 # ======================================================================
-def next_mean(
+def next_amean(
         value,
         mean_,
         num):
     """
-    Compute the mean for (num + 1) items.
+    Compute the arithmetic mean for (num + 1) items.
 
     This is useful for low memory footprint computation.
 
@@ -6142,36 +6891,214 @@ def next_mean(
         num (int): The number of items in the aggregate.
 
     Returns:
-        mean (Number): The updated mean.
+        result (tuple): The tuple
+            contains:
+             - mean_ (Number): The updated arithmetic mean.
+             - num_ (int): The number of items included.
 
     Examples:
-        >>> mean_val = 0.0
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     mean_val = next_mean(val, mean_val, i)
-        >>> print(mean_val)
-        9.0
-        >>> mean_val == mean(range(0, 20, 2))
+        >>> items = range(0, 52, 2)
+        >>> mean_ = 0.0
+        >>> for i, val in enumerate(items):
+        ...     mean_, num_ = next_amean(val, mean_, i)
+        >>> print((mean_, num_))
+        (25.0, 26)
+        >>> mean_ == mean(items)
         True
+        
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+    """
+    return (num * mean_ + value) / (num + 1), num + 1
+
+
+# ======================================================================
+def next_gmean(
+        value,
+        gmean_,
+        num,
+        valid=True):
+    """
+    Compute the geometric mean for (num + 1) items.
+
+    This is useful for low memory footprint computation.
+
+    Args:
+        value (Number): The next value to consider.
+        gmean_ (Number): The aggregate geometric mean of the previous n items.
+        num (int): The number of items in the aggregate.
+        valid (bool): Include only valid items.
+            Valid items must be non-zero.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - gmean_ (Number): The updated geometric mean.
+             - num_ (int): The number of items included.
+
+    Examples:
+        >>> items = range(0, 10, 2)
+        >>> gmean_, num_ = 1.0, 0
+        >>> for i, val in enumerate(items):
+        ...     gmean_, num_ = next_gmean(val, gmean_, num_)
+        >>> print((gmean_, num_))
+        (96.0, 4)
+        >>> gmean_ == gmean(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.gmean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+    """
+    if value or not valid:
+        # : alternate (slower) implementation
+        # return gmean_ * value * max(1, num) / (num + 1), num + 1
+        if not num:
+            return value, num + 1
+        else:
+            return gmean_ * value * num / (num + 1), num + 1
+    else:
+        return gmean_, num
+
+
+# ======================================================================
+def next_hmean(
+        value,
+        hmean_,
+        num,
+        valid=True):
+    """
+    Compute the harmonic mean for (num + 1) items.
+
+    This is useful for low memory footprint computation.
+
+    Args:
+        value (Number): The next value to consider.
+        hmean_ (Number): The aggregate harmonic mean of the previous n items.
+        num (int): The number of items in the aggregate.
+        valid (bool): Include only valid (non-zero) items.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - hmean_ (Number): The updated geometric mean.
+             - num_ (int): The number of items included.
+
+    Examples:
+        >>> items = [0] + [2 ** i for i in range(5)]
+        >>> hmean_, num_ = 0.0, 0
+        >>> for i, val in enumerate(items):
+        ...     hmean_, num_ = next_hmean(val, hmean_, num_)
+        >>> print((hmean_, num_))
+        (0.3875, 5)
+        >>> hmean_ == hmean(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.hmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+    """
+    if value or not valid:
+        return next_amean(1 / value, hmean_, num)
+    else:
+        return hmean_, num
+
+
+# ======================================================================
+def next_mean(
+        value,
+        mean_,
+        num):
+    """
+    Compute the arithmetic mean for (num + 1) items.
+
+    This is useful for low memory footprint computation.
+
+    The difference between `flyingcircus.base.next_amean()` and
+    `flyingcircus.base.next_mean()` is that the latter does return the number
+    of items processed.
+
+    Args:
+        value (Number): The next value to consider.
+        mean_ (Number): The aggregate mean of the previous n items.
+        num (int): The number of items in the aggregate.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - mean_ (Number): The updated arithmetic mean.
+             - num_ (int): The number of items included.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> mean_ = 0.0
+        >>> for i, val in enumerate(items):
+        ...     mean_, num_ = next_amean(val, mean_, i)
+        >>> print((mean_, num_))
+        (25.0, 26)
+        >>> mean_ == mean(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
     """
     return (num * mean_ + value) / (num + 1)
 
 
 # ======================================================================
-def next_mean_var(
+def next_mean_and_var(
         value,
         mean_,
         var_,
         num):
     """
-    Compute the mean and variance for (num + 1) items.
+    Compute the mean and variance for (num + 1) numeric items.
 
     This is useful for low memory footprint computation.
 
     Note that both mean and variance MUST be updated at each iteration,
     therefore a stand-alone `next_var()` is sub-optimal.
 
-    Note that this algorithm is not numerically stable.
-    For better numerical stability use `next_mean_sosd()`.
+    Warning! This algorithm is not numerically stable.
+    For better numerical stability use `next_mean_and_sosd()`.
 
     Args:
         value (Number): The next value to consider.
@@ -6184,77 +7111,110 @@ def next_mean_var(
             contains:
              - mean (Number): The updated mean.
              - var (Number): The updated variance.
+             - num_ (int): The number of items included.
 
     Examples:
-        >>> mean_val, var_val = 0.0, 0.0
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     mean_val, var_val = next_mean_var(val, mean_val, var_val, i)
-        >>> print(mean_val, var_val)
-        9.0 33.0
-        >>> mean_val == mean(range(0, 20, 2))
+        >>> items = range(0, 52, 2)
+        >>> mean_, var_, num_ = 0.0, 0.0, 0
+        >>> for i in items:
+        ...     mean_, var_, num_ = next_mean_and_var(i, mean_, var_, num_)
+        >>> print((mean_, var_))
+        (25.0, 225.0)
+        >>> (mean_, var_) == mean_and_var(items)
         True
-        >>> var_val == variance(range(0, 20, 2))
-        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.var()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
     """
     last = mean_
-    mean_ = next_mean(value, mean_, num)
-    var_ = ((var_ * num) + (value - last) * (value - mean_)) / (num + 1)
-    return mean_, var_
+    mean_, num_ = next_amean(value, mean_, num)
+    var_ = ((var_ * num) + (value - last) * (value - mean_)) / num_
+    return mean_, var_, num_
 
 
 # ======================================================================
-def next_mean_sosd(
+def next_mean_and_sosd(
         value,
         mean_,
-        sosd,
+        sosd_,
         num=0):
     """
-    Compute the mean and sum-of-squared-deviations for (num + 1) items.
+    Compute the mean and sum-of-squared-deviations for (num + 1) numeric items.
 
     This is useful for low memory footprint computation.
     This algorithm is numerically stable.
 
-    The sum is the variance multiplied by the number of items:
+    The sum-of-squared-deviations (SoSD) can be computed as below and
+    it is equivalent to the variance multiplied by the number of items:
 
     sosd = sum((x_i - mu) ** 2)
     sosd = var * n
 
     Note that both mean and variance MUST be updated at each iteration,
-    therefore a stand-alone `next_var()` is sub-optimal.
+    therefore a stand-alone `next_sosd()` is sub-optimal.
 
     Args:
-        value (Any): The next value to consider.
-        mean_ (Any): The aggregate mean of the previous n items.
-        sosd (Any): The aggregate modified variance of the previous n items.
+        value (Number): The next value to consider.
+        mean_ (Number): The aggregate mean of the previous n items.
+        sosd_ (Number): The aggregate SoSD of the previous n items.
         num (int): The number of items in the aggregate value.
 
     Returns:
         result (tuple): The tuple
             contains:
-             - mean (Number): The updated mean.
-             - sosd (Number): The updated sum-of-squared-deviations.
+             - mean_ (Number): The updated mean.
+             - sosd_ (Number): The updated sum-of-squared-deviations.
+             - num_ (int): The number of items included.
 
     Examples:
-        >>> mean_, sosd = 0.0, 0.0
-        >>> items = range(0, 20, 2)
-        >>> for i, val in enumerate(items):
-        ...     mean_, sosd = next_mean_sosd(val, mean_, sosd, i)
-        >>> var_ = sosd2var(sosd, i + 1)
-        >>> stdev_ = sosd2stdev(sosd, i + 1)
-        >>> print(mean_, var_, round(stdev_, 3))
-        9.0 33.0 5.745
-        >>> print(mean(items), variance(items), round(stdev(items), 3))
-        9.0 33.0 5.745
+        >>> items = range(0, 52, 2)
+        >>> mean_, sosd_, num_ = 0.0, 0.0, 0
+        >>> for i in items:
+        ...     mean_, sosd_, num_ = next_mean_and_sosd(i, mean_, sosd_, num_)
+        >>> print((mean_, sosd_, num_))
+        (25.0, 5850.0, 26)
+        >>> (mean_, sosd_) == mean_and_sosd(items)
+        True
 
     References:
          - Welford, B.P. (1962). "Note on a method for calculating corrected
            sums of squares and products". Technometrics 4(3):419–420.
            doi:10.2307/1266577
+
+    See Also:
+        - flyingcircus.base.squared_deviations()
+        - flyingcircus.base.mean()
+        - flyingcircus.base.sosd()
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.mean_and_var()
+        - flyingcircus.base.mean_and_stdev()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
     """
     last = mean_
-    mean_ = next_mean(value, mean_, num)
-    sosd = (sosd + (value - last) * (value - mean_))
-    return mean_, sosd
+    mean_, num = next_amean(value, mean_, num)
+    sosd_ += (value - last) * (value - mean_)
+    return mean_, sosd_, num
 
 
 # ======================================================================
@@ -6267,30 +7227,54 @@ def next_median(
 
     This computes an approximate value.
     Relies on the robustness of the median.
+    Requires the values to be shuffled (within at least half the buffer size),
+    or that the buffer size is larger than the number of values.
 
     This is useful for low memory footprint approximate computation.
 
     Args:
-        value (Any): The next value to consider.
+        value (Number): The next value to consider.
         buffer (list): The buffer from previous iterations.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
 
     Returns:
-        result (Any): The median value.
+        median_ (Number): The updated median.
 
     Examples:
+        >>> items = range(0, 52, 2)
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     median_val = next_median(val, buffer)
-        >>> print(median_val)
-        9.0
+        >>> for i in items:
+        ...     median_ = next_median(i, buffer)
+        >>> print(median_)
+        25.0
 
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     median_val = next_median(val, buffer, max_buffer=4)
-        >>> print(median_val)
-        14
+        >>> for i in items:
+        ...     median_ = next_median(i, buffer, max_buffer=4)
+        >>> print(median_)
+        46
+
+        >>> items = list(items)
+        >>> random.seed(0)
+        >>> random.shuffle(items)
+        >>> buffer = []
+        >>> for i in items:
+        ...     median_ = next_median(i, buffer, max_buffer=4)
+        >>> print(median_)
+        26
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
     """
     if not buffer:
         median_ = value
@@ -6318,6 +7302,8 @@ def next_medoid(
 
     This computes an approximate value.
     Relies on the robustness of the medoid.
+    Requires the values to be shuffled (within at least half the buffer size),
+    or that the buffer size is larger than the number of values.
 
     This is useful for low memory footprint approximate computation.
     If the number of items is not odd, returns the medoid from the lower or
@@ -6331,20 +7317,44 @@ def next_medoid(
             If `max_buffer >= len(items)` the result is exact.
 
     Returns:
-        result (Any): The median value.
+        result (Any): The updated approximate medoid value.
 
     Examples:
+        >>> items = range(0, 52, 2)
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     medoid_val = next_medoid(val, buffer)
-        >>> print(medoid_val)
-        8
+        >>> for i in items:
+        ...     medoid_ = next_medoid(i, buffer)
+        >>> print(medoid_)
+        24
 
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     medoid_val = next_medoid(val, buffer, max_buffer=4)
-        >>> print(medoid_val)
-        14
+        >>> for i in items:
+        ...     medoid_ = next_medoid(i, buffer, max_buffer=4)
+        >>> print(medoid_)
+        46
+
+        >>> items = list(items)
+        >>> random.seed(0)
+        >>> random.shuffle(items)
+        >>> buffer = []
+        >>> for i in items:
+        ...     medoid_ = next_medoid(i, buffer, max_buffer=4)
+        >>> print(medoid_)
+        26
+
+    See Also:
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
     """
     if not buffer:
         medoid_ = value
@@ -6362,7 +7372,7 @@ def next_medoid(
 
 
 # ======================================================================
-def next_medoid_median(
+def next_medoid_and_median(
         value,
         buffer,
         lower=True,
@@ -6372,6 +7382,8 @@ def next_medoid_median(
 
     This computes an approximate value.
     Relies on the robustness of the medoid and the median.
+    Requires the values to be shuffled (within at least half the buffer size),
+    or that the buffer size is larger than the number of values.
 
     This is used when both the medoid and the median are needed. In this case,
     a single buffer could be used. Note that calling both `next_medoid()` and
@@ -6391,21 +7403,50 @@ def next_medoid_median(
             If `max_buffer >= len(items)` the result is exact.
 
     Returns:
-        result (Any): The median value.
+        result (tuple): The tuple
+            contains:
+             - `medoid_` (Any): The updated approximate median value.
+             - `median_` (Number): The updated medoid value.
 
     Examples:
+        >>> items = range(0, 52, 2)
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     medoid_val, median_val = next_medoid_median(val, buffer)
-        >>> print((medoid_val, median_val))
-        (8, 9.0)
+        >>> for i in items:
+        ...     medoid_, median_ = next_medoid_and_median(i, buffer)
+        >>> print((medoid_, median_))
+        (24, 25.0)
 
         >>> buffer = []
-        >>> for i, val in enumerate(range(0, 20, 2)):
-        ...     medoid_val, median_val = next_medoid_median(
-        ...         val, buffer, max_buffer=4)
-        >>> print((medoid_val, median_val))
-        (14, 14)
+        >>> for i in items:
+        ...     medoid_, median_ = next_medoid_and_median(
+        ...         i, buffer, max_buffer=4)
+        >>> print((medoid_, median_))
+        (46, 46)
+
+        >>> items = list(items)
+        >>> random.seed(0)
+        >>> random.shuffle(items)
+        >>> buffer = []
+        >>> for i in items:
+        ...     medoid_, median_ = next_medoid_and_median(
+        ...         i, buffer, max_buffer=4)
+        >>> print((medoid_, median_))
+        (26, 26)
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.next_gmean()
+        - flyingcircus.base.next_hmean()
+        - flyingcircus.base.next_mean()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
     """
     if not buffer:
         medoid_ = value
@@ -6425,41 +7466,128 @@ def next_medoid_median(
 
 
 # ======================================================================
-def sosd2var(
-        sosd,
-        num,
-        ddof=0):
+def i_amean(
+        items,
+        mean_=0.0,
+        num=0):
     """
-    Compute the variance from the sum-of-squared-deviations.
+    Compute the arithmetic mean a numeric iterable.
+
+    Internally uses `flyingcircus.base.next_amean()`.
+
+    This is substantially faster than `statistics.mean()`.
+
+    The difference between `flyingcircus.base.i_amean()` and
+    `flyingcircus.base.i_mean()` is that the latter does return the number
+    of items processed.
 
     Args:
-        sosd (Number): The sum-of-squared-deviations value.
-        num (int): The number of items.
-        ddof (int): The number of degrees of freedom.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        num (int): The number of items included in the start value.
 
     Returns:
-        result (Number): The variance value.
+        result (tuple): The tuple
+            contains:
+             - `mean_` (: The mean of the items.
+             - `num`: The number of items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> i_amean(items)
+        (25.0, 26)
+        >>> (mean(items), len(items)) == i_amean(items)
+        True
+        
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.i_mean_and_stdev()
     """
-    return sosd / (num - ddof)
+    for item in items:
+        mean_, num = next_amean(item, mean_, num)
+    return mean_, num
 
 
 # ======================================================================
-def sosd2stdev(
-        sosd,
-        num,
-        ddof=0):
+def i_gmean(
+        items,
+        gmean_=1.0,
+        num=0,
+        valid=True):
     """
-    Compute the standard deviation from the sum-of-squared-deviations.
+    Compute the mean a numeric iterable.
+
+    Internally uses `flyingcircus.base.next_gmean()`.
+
+    This is substantially faster than `statistics.mean()`.
 
     Args:
-        sosd (Number): The sum-of-squared-deviations value.
-        num (int): The number of items.
-        ddof (int): The number of degrees of freedom.
+        items (Iterable[Number]): The input items.
+        gmean_ (Number): The start mean value.
+        num (int): The number of items included in the start value.
+        valid (bool): Include only valid (non-zero) items.
 
     Returns:
-        result: The standard deviation value.
+        result (tuple): The tuple
+            contains:
+             - `gmean_` (Number): The mean of the items.
+             - `num` (int): The number of items.
+
+    Examples:
+        >>> items = range(0, 10, 2)
+        >>> i_gmean(items)
+        (96.0, 4)
+        >>> (gmean(items), len(items) - 1) == i_gmean(items)
+        True
     """
-    return (sosd / (num - ddof)) ** 0.5
+    for item in items:
+        gmean_, num = next_gmean(item, gmean_, num, valid)
+    return gmean_, num
+
+
+# ======================================================================
+def i_hmean(
+        items,
+        hmean_=0.0,
+        num=0,
+        valid=True):
+    """
+    Compute the mean a numeric iterable.
+
+    Internally uses `flyingcircus.base.next_hmean()`.
+
+    This is substantially faster than `statistics.mean()`.
+
+    Args:
+        items (Iterable[Number]): The input items.
+        hmean_ (Number): The start harmonic mean value.
+        num (int): The number of items included in the start value.
+        valid (bool): Include only valid (non-zero) items.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_` (Number): The mean of the items.
+             - `num` (int): The number of items.
+
+    Examples:
+        >>> items = [0] + [2 ** i for i in range(5)]
+        >>> i_hmean(items)
+        (0.3875, 5)
+        >>> (hmean(items), len(items) - 1) == i_hmean(items)
+        True
+    """
+    for i, item in enumerate(items):
+        hmean_, num = next_hmean(item, hmean_, num, valid)
+    return hmean_, num
 
 
 # ======================================================================
@@ -6468,27 +7596,100 @@ def i_mean(
         mean_=0.0,
         num=0):
     """
-    Compute the mean a numeric iterable.
+    Compute the arithmetic mean a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean()`.
+    Internally uses `flyingcircus.base.i_amean()`.
 
     This is substantially faster than `statistics.mean()`.
 
+    The difference between `flyingcircus.base.i_amean()` and
+    `flyingcircus.base.i_mean()` is that the latter does return the number
+    of items processed.
+
     Args:
-        items (Iterable): The input items.
-        mean_ (Any): The start mean value.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        num (int): The number of items included in the start value.
+
+    Returns:
+        result (tuple): The tuple
+            contains:
+             - `mean_` (: The mean of the items.
+             - `num`: The number of items.
+
+    Examples:
+        >>> items = range(0, 52, 2)
+        >>> i_mean(items)
+        25.0
+        >>> mean(items) == i_mean(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.next_amean()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.i_mean_and_stdev()
+    """
+    mean_, num = i_amean(items, mean_, num)
+    return mean_
+
+
+# ======================================================================
+def i_mean_and_sosd(
+        items,
+        mean_=0.0,
+        sosd_=0.0,
+        num=0):
+    """
+    Compute the mean and the variance of a numeric iterable.
+
+    Internally uses `flyingcircus.base.next_mean_and_sosd()`.
+
+    This is useful for low memory footprint computation.
+
+    This is substantially faster than computing the two values separately.
+
+    Args:
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        sosd_ (Number): The start sum-of-squared-deviation value.
         num (int): The number of items included in the start mean value.
 
     Returns:
-        result: The mean of the items.
+        result (tuple): The tuple
+            contains:
+             - `mean_` (Number): The mean of the items.
+             - `var_` (Number): The variance of the items.
+             - `num` (int): The number of items.
 
     Examples:
-        >>> i_mean(range(0, 20, 2))
-        9.0
+        >>> items = range(0, 52, 2)
+        >>> i_mean_and_sosd(items)
+        (25.0, 5850.0, 26)
+        >>> mean_and_sosd(items) + (len(items),) == i_mean_and_sosd(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.i_mean_and_stdev()
     """
     for i, item in enumerate(items):
-        mean_ = next_mean(item, mean_, i + num)
-    return mean_
+        mean_, sosd_, num = next_mean_and_sosd(item, mean_, sosd_, num)
+    return mean_, sosd_, num
 
 
 # ======================================================================
@@ -6499,9 +7700,9 @@ def i_var(
         num=0,
         ddof=0):
     """
-    Compute the variance a numeric iterable.
+    Compute the variance of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_sosd()` and
+    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
     `flyingcircus.base.sosd2var()`.
 
     This is useful for low memory footprint computation.
@@ -6511,150 +7712,218 @@ def i_var(
     `flyingcircus.base.i_mean_var()`.
 
     Args:
-        items (Iterable): The input items.
-        mean_ (Any): The start mean value.
-        var_ (Any): The start variance value.
-        num (int): The number of items included in the start mean value.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        var_ (Number): The start variance value.
+        num (int): The number of items included in the start values.
         ddof (int): The number of degrees of freedom.
 
     Returns:
-        result: The variance of the items.
+        result (Number): The variance of the items.
 
     Examples:
-        >>> i_var(range(0, 20, 2))
-        33.0
+        >>> items = range(0, 52, 2)
+        >>> i_var(items)
+        225.0
+        >>> var(items) == i_var(items)
+        True
+
+    See Also:
+        - flyingcircus.base.var()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
     """
-    i = 0
-    sosd = var_ * num
-    for i, item in enumerate(items):
-        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
-    return sosd2var(sosd, i + num + 1, ddof)
+    sosd_ = var2sosd(var_, num, ddof)
+    mean_, sosd_, num_ = i_mean_and_sosd(items, mean_, sosd_, num)
+    return sosd2var(sosd_, num_, ddof)
 
 
 # ======================================================================
 def i_stdev(
         items,
         mean_=0.0,
-        var_=0.0,
+        stdev_=0.0,
         num=0,
         ddof=0):
     """
-    Compute the standard deviation a numeric iterable.
+    Compute the standard deviation of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_sosd()` and
+    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
     `flyingcircus.base.sosd2stdev()`.
 
     This is useful for low memory footprint computation.
 
     Note that both mean and std. deviation MUST be updated at each iteration,
-    therefore if both the mean and the std. deviation are required use
+    therefore if both the mean and the standard deviation are required use
     `flyingcircus.base.i_mean_stdev()`.
 
     Args:
-        items (Iterable): The input items.
-        mean_ (Any): The start mean value.
-        var_ (Any): The start variance value.
-        num (int): The number of items included in the start mean value.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        stdev_ (Number): The start standard deviation value.
+        num (int): The number of items included in the start values.
         ddof (int): The number of degrees of freedom.
 
     Returns:
-        result: The standard deviation of the items.
+        result (Number): The standard deviation of the items.
 
     Examples:
-        >>> round(i_stdev(range(0, 20, 2)), 3)
-        5.745
+        >>> items = range(0, 52, 2)
+        >>> i_stdev(items)
+        15.0
+        >>> stdev(items) == i_stdev(items)
+        True
+
+    See Also:
+        - flyingcircus.base.stdev()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
     """
-    i = 0
-    sosd = var_ * num
-    for i, item in enumerate(items):
-        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
-    return sosd2stdev(sosd, i + num + 1, ddof)
+    sosd_ = stdev2sosd(stdev_, num, ddof)
+    mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
+    return sosd2stdev(sosd_, num, ddof)
 
 
 # ======================================================================
-def i_mean_var(
+def i_mean_and_var(
         items,
         mean_=0.0,
         var_=0.0,
         num=0,
         ddof=0):
     """
-    Compute the mean and the variance a numeric iterable.
+    Compute the mean and the variance of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_sosd()` and
+    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
     `flyingcircus.base.sosd2var()`.
 
     This is useful for low memory footprint computation.
 
-    This is substantially faster than `statistics.mean()` and
-    `statistics.variance()`.
+    This is substantially faster than:
+     - computing the two values separately.
+     - both `statistics.mean()` and `statistics.variance()`.
 
     Args:
-        items (Iterable): The input items.
-        mean_ (Any): The start mean value.
-        var_ (Any): The start variance value.
-        num (int): The number of items included in the start mean value.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        var_ (Number): The start variance value.
+        num (int): The number of items included in the start values.
         ddof (int): The number of degrees of freedom.
 
     Returns:
         result (tuple): The tuple
             contains:
-             - `mean_`: The mean of the items.
-             - `var_`: The variance of the items.
-             - `num`: The number of items.
+             - `mean_` (Number): The mean of the items.
+             - `var_` (Number): The variance of the items.
+             - `num` (int): The number of items.
 
     Examples:
-        >>> i_mean_var(range(0, 20, 2))
-        (9.0, 33.0, 10)
+        >>> items = range(0, 52, 2)
+        >>> i_mean_and_var(items)
+        (25.0, 225.0, 26)
+        >>> mean_and_var(items) + (len(items),) == i_mean_and_var(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.var()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.base.sosd2var()
+        - flyingcircus.base.var2sosd()
     """
-    i = 0
-    sosd = var_ * num
-    for i, item in enumerate(items):
-        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
-    return mean_, sosd2var(sosd, i + num + 1, ddof), i + num + 1
+    sosd_ = var2sosd(var_, num, ddof)
+    mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
+    return mean_, sosd2var(sosd_, num, ddof), num
 
 
 # ======================================================================
-def i_mean_stdev(
+def i_mean_and_stdev(
         items,
         mean_=0.0,
-        var_=0.0,
+        stdev_=0.0,
         num=0,
         ddof=0):
     """
-    Compute the mean and standard deviation a numeric iterable.
+    Compute the mean and standard deviation of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_sosd()` and
+    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
     `flyingcircus.base.sosd2stdev()`.
 
     This is useful for low memory footprint computation.
 
-    This is substantially faster than `statistics.mean()` and
-    `statistics.stdev()`.
+    This is substantially faster than:
+     - computing the two values separately.
+     - both `statistics.mean()` and `statistics.stdev()`.
 
     Args:
-        items (Iterable): The input items.
-        mean_ (Any): The start mean value.
-        var_ (Any): The start variance value.
-        num (int): The number of items included in the start mean value.
+        items (Iterable[Number]): The input items.
+        mean_ (Number): The start mean value.
+        stdev_ (Number): The start standard deviation value.
+        num (int): The number of items included in the start values.
         ddof (int): The number of degrees of freedom.
 
     Returns:
         result (tuple): The tuple
             contains:
-             - `mean_`: The mean of the items.
-             - `stdev_`: The std. deviation of the items.
-             - `num`: The number of items.
+             - `mean_` (Number): The mean of the items.
+             - `stdev_` (Number): The std. deviation of the items.
+             - `num` (int): The number of items.
 
     Examples:
-        >>> i_mean_var(range(0, 20, 2))
-        (9.0, 33.0, 10)
+        >>> items = range(0, 52, 2)
+        >>> i_mean_and_stdev(items)
+        (25.0, 15.0, 26)
+        >>> mean_and_stdev(items) + (len(items),) == i_mean_and_stdev(items)
+        True
+
+    See Also:
+        - flyingcircus.base.mean()
+        - flyingcircus.base.var()
+        - flyingcircus.base.next_mean_and_var()
+        - flyingcircus.base.next_mean_and_sosd()
+        - flyingcircus.base.i_amean()
+        - flyingcircus.base.i_gmean()
+        - flyingcircus.base.i_hmean()
+        - flyingcircus.base.i_mean()
+        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.base.i_var()
+        - flyingcircus.base.i_stdev()
+        - flyingcircus.base.i_mean_and_var()
+        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.base.stdev2sosd()
     """
-    i = 0
-    sosd = var_ * num
-    for i, item in enumerate(items):
-        mean_, sosd = next_mean_sosd(item, mean_, sosd, i + num)
-    return mean_, sosd2stdev(sosd, i + num + 1, ddof), i + num + 1
+    sosd_ = stdev2sosd(stdev_, num, ddof)
+    mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
+    return mean_, sosd2stdev(sosd_, num, ddof), num
 
 
 # ======================================================================
@@ -6662,7 +7931,7 @@ def i_median(
         items,
         max_buffer=2 ** 10):
     """
-    Compute the (approximate) median for a numeric iterable.
+    Compute the (approximate) median of a numeric iterable.
 
     This computes an approximate value.
     Relies on the robustness of the median.
@@ -6670,14 +7939,20 @@ def i_median(
     This is useful for low memory footprint approximate computation.
 
     Args:
-        items (Iterable): The input items.
+        items (Iterable[Number]): The input items.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
 
     Returns:
-        result (Any): The median value.
+        result (Number): The median value.
 
     Examples:
+        >>> items = range(0, 52, 2)
+        >>> i_median(items)
+        25.0
+        >>> i_median(items) == median(items)
+        True
+
         >>> items = [1, 2, 3, 4, 100]
         >>> i_median(items)
         3
@@ -6703,6 +7978,16 @@ def i_median(
         >>> all([i_median(range(0, i)) == i_medoid(range(0, i))
         ...     for i in range(1, 40, 2)])
         True
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.median_and_median_abs_dev()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.base.i_median_and_median_abs_dev()
     """
     iter_items = iter(items)
     median_ = next(iter_items)
@@ -6718,7 +8003,7 @@ def i_medoid(
         lower=True,
         max_buffer=2 ** 10 + 1):
     """
-    Compute the (approximate) medoid for an arbitrary iterable.
+    Compute the (approximate) medoid of an arbitrary iterable.
 
     This computes an approximate value.
     Relies on the robustness of the medoid.
@@ -6726,7 +8011,7 @@ def i_medoid(
     This is useful for low memory footprint approximate computation.
 
     Args:
-        items (Iterable): The input items.
+        items (Iterable[Any]): The input items.
         lower (bool): Pick the lower medoid for even-sized items.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
@@ -6736,6 +8021,12 @@ def i_medoid(
         result (Any): The medoid value.
 
     Examples:
+        >>> items = range(0, 52, 2)
+        >>> i_medoid(items)
+        24
+        >>> i_medoid(items) == medoid(items)
+        True
+
         >>> items = [1, 2, 2, 2, 100]
         >>> i_medoid(items)
         2
@@ -6761,6 +8052,14 @@ def i_medoid(
         >>> all([i_medoid(range(0, i)) == i_median(range(0, i))
         ...     for i in range(1, 40, 2)])
         True
+
+    See Also:
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
     """
     if max_buffer:
         iter_items = iter(items)
@@ -6774,96 +8073,90 @@ def i_medoid(
 
 
 # ======================================================================
-def i_medoid_median(
+def i_medoid_and_median(
         items,
         lower=True,
         max_buffer=2 ** 10 + 1):
     """
-    Compute the (approximate) medoid and median for an arbitrary iterable.
+    Compute the (approximate) medoid and median for a numeric iterable.
 
     This computes an approximate value.
     Relies on the robustness of the medoid.
 
     This is useful for low memory footprint approximate computation.
 
+    This is faster and more memory efficient than computing both
+    `flyingcircus.base.i_medoid()` and `flyingcircus.base.i_median()`
+    separately.
+
     Args:
-        items (Iterable): The input items.
+        items (Iterable[Number]): The input items.
         lower (bool): Pick the lower medoid for even-sized items.
         max_buffer (int): The maximum size of the buffer.
             If `max_buffer >= len(items)` the result is exact.
             If `max_buffer` is 0, use all items.
 
     Returns:
-        result (Any): The medoid value.
+        result (tuple): The tuple
+            contains:
+             - `medoid_`: The medoid of the items.
+             - `median_`: The median of the items.
+             - `num`: The number of items.
 
     Examples:
+        >>> items = range(0, 52, 2)
+        >>> i_medoid_and_median(items)
+        (24, 25.0, 26)
+        >>> (i_medoid_and_median(items)
+        ...     == (medoid(items), median(items), len(items)))
+        True
+
         >>> items = [1, 2, 2, 2, 100]
-        >>> i_medoid_median(items)
-        (2, 2)
+        >>> i_medoid_and_median(items)
+        (2, 2, 5)
 
         >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 51, 53, 35, 87]
         >>> sorted(items)
         [8, 35, 40, 46, 50, 51, 53, 73, 75, 81, 86, 87, 94, 99]
-        >>> i_medoid_median(items)
-        (53, 63.0)
-        >>> [i_medoid_median(items, max_buffer=i) for i in range(3, 9)]
-        [(51, 50.5), (51, 51), (51, 52.0), (51, 51), (51, 50.5), (51, 51)]
+        >>> i_medoid_and_median(items)
+        (53, 63.0, 14)
+        >>> [i_medoid_and_median(items, max_buffer=i) for i in range(10, 14)]
+        [(51, 51, 14), (53, 52.0, 14), (53, 53, 14), (53, 63.0, 14)]
 
         >>> items = [81, 73, 99, 86, 94, 40, 75, 46, 8, 50, 53, 35, 87]
         >>> sorted(items)
         [8, 35, 40, 46, 50, 53, 73, 75, 81, 86, 87, 94, 99]
-        >>> i_medoid_median(items)
-        (73, 73)
-        >>> [i_medoid_median(items, max_buffer=i) for i in range(3, 9)]
-        [(50, 48.0), (50, 50), (50, 51.5), (50, 50), (50, 48.0), (50, 50)]
+        >>> i_medoid_and_median(items)
+        (73, 73, 13)
+        >>> [i_medoid_and_median(items, max_buffer=i) for i in range(10, 14)]
+        [(53, 53, 13), (73, 63.0, 13), (73, 73, 13), (73, 73, 13)]
+
+    See Also:
+        - flyingcircus.base.median()
+        - flyingcircus.base.medoid()
+        - flyingcircus.base.next_median()
+        - flyingcircus.base.next_medoid()
+        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.base.i_median()
+        - flyingcircus.base.i_medoid()
+        - flyingcircus.base.i_medoid_and_median()
     """
     if max_buffer:
+        i = 0
         iter_items = iter(items)
         medoid_ = next(iter_items)
+        median_ = medoid_
         buffer = [medoid_]
-        for item in iter_items:
-            medoid_, median_ = next_medoid_median(
+        for i, item in enumerate(iter_items):
+            medoid_, median_ = next_medoid_and_median(
                 item, buffer, lower, max_buffer)
+        num = i + 2  # 1 from from `for`, 1 from `next(iter_items)`
     else:
-        items = tuple(items)
-        medoid_ = medoid(items, True, False)
-        median_ = median(items, True)
-    return medoid_, median_
-
-
-# ======================================================================
-def median_dev(
-        items,
-        sym_factor=49 / 256,
-        force_sort=True):
-    """
-    Compute the median deviation of a numeric sequence.
-
-    This is the symmetrical interquantilic range.
-    The default value of the symmetric factor is the one that best
-    approximates the standard deviation for a normal (Gaussian) distribution
-    within (1 / 256) resolution.
-
-    Args:
-        items (Sequence): The input items.
-            The values within the sequence should be numeric.
-        sym_factor (float): The symmetric interquantilic parameter.
-            See `flyingcircus.base.sym_interquantilic_range()`.
-        force_sort (bool): Force sorting of the input items.
-            If the items are already sorted, this can be safely set to False.
-            Otherwise, it must be set to True.
-
-    Returns:
-        result (Number): The median deviation of the items.
-
-    Examples:
-        >>> items = range(0, 20, 2)
-        >>> median(items)
-        9.0
-        >>> statistics.median(items) == median(items)
-        True
-    """
-    return sym_interquantilic_range(items, sym_factor, force_sort=force_sort)
+        items = sorted(items)
+        medoid_ = medoid(items, force_sort=False, lower=lower)
+        median_ = median(items, force_sort=False)
+        num = len(items)
+    return medoid_, median_, num
 
 
 # ======================================================================
@@ -10426,7 +11719,7 @@ def time_profile(
         max_batch=2 ** 20,  # 1 M
         min_batch=1,
         val_func=median,
-        err_func=lambda x: median_dev(x) / len(x) ** 0.5,
+        err_func=median_abs_dev,
         timer=time.perf_counter,
         use_gc=True,
         quick=True,
@@ -10530,31 +11823,28 @@ def time_profile(
         mean_batch = 0.0
         min_time = timeout
         max_time = 0.0
-        i = 0
-        while i < max_iter:
+        for i in range(max_iter):
             j = 0
             batch_time = 0.0
             begin_time = timer()
-            while j < max_batch:
+            for j in range(max_batch):
                 result = func(*_args, **_kws)
                 end_time = timer()
                 total_time = end_time - init_time
                 batch_time = end_time - begin_time
-                j += 1
                 if total_time > timeout and (i >= min_iter or quick):
                     break
                 if batch_time > b_timeout and (j >= min_batch or quick):
                     break
             mean_batch = next_mean(j, mean_batch, i)
-            run_time = (batch_time - batch_err) / j
+            run_time = (batch_time - batch_err) / (j + 1)
             if collect_runtimes:
                 run_times.append(run_time)
-            mean_time, sosd_time = next_mean_sosd(
+            mean_time, sosd_time, _ = next_mean_and_sosd(
                 run_time, mean_time, sosd_time, i)
             if not collect_runtimes:
-                medoid_time, median_time = next_medoid_median(
+                medoid_time, median_time, _ = next_medoid_and_median(
                     run_time, sorted_run_times)
-            i += 1
             if run_time < min_time:
                 min_time = run_time
             if run_time > max_time:
@@ -10672,17 +11962,17 @@ def multi_benchmark(
         ...     fmtt=False)  # doctest:+ELLIPSIS
         N = (10, 100, 1000)
         <BLANKLINE>
-        :f1()                     N=10      OK  (... ± ...) ...s  ... * ...
-        :f2()                     N=10      OK  (... ± ...) ...s  ... * ...
-        :func_with_longer_name()  N=10      OK  (... ± ...) ...s  ... * ...
+        :f1()                     N=10    OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=10    OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=10    OK  (... ± ...) ...s  ... * ...
         <BLANKLINE>
-        :f1()                     N=100     OK  (... ± ...) ...s  ... * ...
-        :f2()                     N=100     OK  (... ± ...) ...s  ... * ...
-        :func_with_longer_name()  N=100     OK  (... ± ...) ...s  ... * ...
+        :f1()                     N=100   OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=100   OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=100   OK  (... ± ...) ...s  ... * ...
         <BLANKLINE>
-        :f1()                     N=1000    OK  (... ± ...) ...s  ... * ...
-        :f2()                     N=1000    OK  (... ± ...) ...s  ... * ...
-        :func_with_longer_name()  N=1000    OK  (... ± ...) ...s  ... * ...
+        :f1()                     N=1000  OK  (... ± ...) ...s  ... * ...
+        :f2()                     N=1000  OK  (... ± ...) ...s  ... * ...
+        :func_with_longer_name()  N=1000  OK  (... ± ...) ...s  ... * ...
         >>> print(labels, results)
         ['f1', 'f2', 'func_with_longer_name'] []
         >>> summary_headers = list(summaries[0][0].keys())
