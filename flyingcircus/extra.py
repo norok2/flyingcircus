@@ -3462,7 +3462,8 @@ def exp_gradient_kernels(
 def width_from_shapes(
         shape,
         new_shape,
-        position):
+        position,
+        rounding=round):
     """
     Generate width values for padding a shape onto a new shape.
 
@@ -3483,6 +3484,12 @@ def width_from_shapes(
             If float or Iterable of float, the values are relative to the
             difference between `new_shape` and `shape` and must bein the
             [0, 1] range.
+        rounding (callable): The rounding method for the position.
+            This determines the rounding to use when computing the
+            *before* and *after* width values from a non-integer position
+            value.
+            The expected signature is:
+            rounding(int|float) -> int|float
 
     Returns:
         width (tuple[tuple[int]]): Size of the padding to use.
@@ -3502,7 +3509,7 @@ def width_from_shapes(
     if any(dim > new_dim for dim, new_dim in zip(shape, new_shape)):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
-        (int(round((new_dim - dim) * offset))
+        (int(rounding((new_dim - dim) * offset))
          if isinstance(offset, float) else offset)
         for dim, new_dim, offset in zip(shape, new_shape, position))
     if any(dim + offset > new_dim
@@ -4535,7 +4542,7 @@ def mutual_information(
     Returns:
         mi (float): The (normalized) mutual information.
             If base is None, the normalized version is returned.
-            Otherwise returns the mutual information in the specified fc.base.
+            Otherwise returns the mutual information in the specified base.
 
     Examples:
         >>> np.random.seed(0)
@@ -5758,8 +5765,9 @@ def frame(
     """
     Add a background frame to an array specifying the borders.
 
-    This is essentially a more convenient interface to `fc.extra.padding()`.
-    Also, the output `mask` from `fc.extra.padding()` is discarded.
+    This is essentially a more convenient interface to
+    `flyingcircus.extra.padding()`.
+    Also, the output `mask` from `flyingcircus.extra.padding()` is discarded.
 
     Args:
         arr (np.ndarray): The input array.
@@ -5799,19 +5807,23 @@ def reframe(
         shape,
         position=0.5,
         mode=0,
+        rounding=round,
         **_kws):
     """
     Add a frame to an array by centering the input array into a new shape.
 
     Args:
         arr (np.ndarray): The input array.
-            Its shape is passed as `shape` to `fc.extra.shape_to_pad_width()`.
+            Its shape is passed as `shape` to
+            `flyingcircus.extra.shape_to_pad_width()`.
         shape (int|Iterable[int]): The shape of the output array.
-            Passed as `new_shape` to `fc.extra.shape_to_pad_width()`.
+            Passed as `new_shape` to `flyingcircus.extra.shape_to_pad_width()`.
         position (int|float|Iterable[int|float]): Position within new shape.
-            Passed as `position` to `fc.extra.shape_to_pad_width()`.
+            Passed as `position` to `flyingcircus.extra.shape_to_pad_width()`.
         mode (str|Number): The padding mode.
-            This is passed to `fc.extra.padding()`.
+            This is passed to `flyingcircus.extra.padding()`.
+        rounding (callable): The rounding method for the position.
+            Passed as `rounding` to `flyingcircus.extra.shape_to_pad_width()`.
         **_kws: Keyword parameters for `flyingcircus.base.padding()`.
 
     Returns:
@@ -5872,7 +5884,7 @@ def reframe(
          [6 4 5 6 4]
          [3 1 2 3 1]]
     """
-    width = width_from_shapes(arr.shape, shape, position)
+    width = width_from_shapes(arr.shape, shape, position, rounding)
     result, mask = padding(arr, width, None, mode, **_kws)
     return result
 
@@ -5883,7 +5895,8 @@ def multi_reframe(
         new_shape=None,
         position=0.5,
         background=0.0,
-        dtype=None):
+        dtype=None,
+        rounding=round):
     """
     Reframe arrays (by adding border) to match the same shape.
 
@@ -5903,6 +5916,8 @@ def multi_reframe(
         dtype (data-type): Desired output data-type.
             If None, its guessed from dtype of arrs.
             See `np.ndarray()` for more.
+        rounding (callable): The rounding method for the position.
+            Passed as `rounding` to `flyingcircus.extra.shape_to_pad_width()`.
 
     Returns:
         result (np.ndarray): The output array.
@@ -5933,7 +5948,8 @@ def multi_reframe(
     result = np.array(new_shape + (len(arrs),), dtype=dtype)
     for i, arr in enumerate(arrs):
         # ratio should not be kept: keep_ratio_method=None
-        result[..., i] = reframe(arr, new_shape, position, background)
+        result[..., i] = reframe(
+            arr, new_shape, position, background, rounding)
     return result
 
 
@@ -6697,7 +6713,7 @@ def rotation_axes(
         - flyingcircus.extra.weighted_covariance()
         - flyingcircus.extra.tensor_of_inertia()
         - flyingcircus.extra.auto_rotation()
-        - fc.extra.realigning()
+        - flyingcircus.extra.realigning()
     """
     # calculate the tensor of inertia with respect to the weighted center
     inertia = tensor_of_inertia(arr, labels, index, None).astype(np.double)
@@ -7181,14 +7197,14 @@ def rolling_window_nd(
             - 'full': the full output is provided.
         pad_mode (Number|str): The padding mode.
             If `out_mode` is `valid` or `view` this parameter is ignored.
-            This is passed as `mode` to `fc.extra.padding()`.
+            This is passed as `mode` to `flyingcircus.extra.padding()`.
         pad_kws (Mappable|None): Keyword parameters for padding.
             If `out_mode` is `valid` or `view` this parameter is ignored.
-            This is passed as `mode` to `fc.extra.padding()`.
+            This is passed as `mode` to `flyingcircus.extra.padding()`.
         writeable (bool): Determine if the result entries can be overwritten.
-            This is passed to `fc.extra.nd_windowing()`.
+            This is passed to `flyingcircus.extra.nd_windowing()`.
         shape_mode (str): Determine the shape of the result.
-            This is passed to `fc.extra.nd_windowing()`.
+            This is passed to `flyingcircus.extra.nd_windowing()`.
 
     Returns:
         result (np.ndarray): The windowing array.
@@ -7598,18 +7614,18 @@ def rolling_apply_nd(
     Args:
         arr (np.ndarray): The input array.
         window (int|Iterable[int]): The window sizes.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
         steps (int|Iterable[int]): The step sizes.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
         window_steps (int|Iterable[int]): The window step sizes.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
         out_mode (str): The output mode.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
             Note that `view` is treated identical to `valid`.
         pad_mode (Number|str): The padding mode.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
         pad_kws (dict|Iterable[Iterable]): Keyword parameters for padding.
-            This is passed to `fc.extra.rolling_window_nd()`.
+            This is passed to `flyingcircus.extra.rolling_window_nd()`.
         func (callable): The function to apply.
             Must have the following signature:
              func(np.ndarray, axis=int|Sequence[int], *_args, **_kws)
