@@ -5703,14 +5703,14 @@ def gmean(
         result (Number): The geometric mean.
 
     Examples:
-        >>> items = range(0, 10, 2)
-        >>> gmean(items)
-        96.0
+        >>> items = range(0, 52, 2)
+        >>> round(gmean(items), 3)
+        20.354
         >>> gmean(items, False)
         0.0
 
-        >>> [gmean(range(n + 1)) for n in range(10)]
-        [1.0, 1.0, 1.0, 2.0, 6.0, 24.0, 120.0, 720.0, 5040.0, 40320.0]
+        >>> [round(gmean(range(n + 1)), 3) for n in range(10)]
+        [1.0, 1.0, 1.414, 1.817, 2.213, 2.605, 2.994, 3.38, 3.764, 4.147]
 
     See Also:
         - flyingcircus.base.mean()
@@ -5723,7 +5723,7 @@ def gmean(
         items = tuple(i for i in items if i)
         if not items:
             return 1.0
-    return prod(items) / len(items)
+    return prod(items) ** (1 / len(items))
 
 
 # ======================================================================
@@ -5742,16 +5742,16 @@ def hmean(
         result (Number): The harmonic mean.
 
     Examples:
-        >>> items = [2 ** i for i in range(5)]
-        >>> hmean(items)
-        0.3875
-        >>> hmean([0] + items, False)
+        >>> items = range(0, 52, 2)
+        >>> round(hmean(items), 3)
+        13.103
+        >>> hmean([0] + list(items), False)
         Traceback (most recent call last):
             ...
         ZeroDivisionError: division by zero
 
         >>> [round(hmean(range(n + 1)), 3) for n in range(10)]
-        [0.0, 1.0, 0.75, 0.611, 0.521, 0.457, 0.408, 0.37, 0.34, 0.314]
+        [0.0, 1.0, 1.333, 1.636, 1.92, 2.19, 2.449, 2.7, 2.943, 3.181]
 
     See Also:
         - flyingcircus.base.mean()
@@ -5766,7 +5766,7 @@ def hmean(
             return 0.0
     else:
         items = tuple((1 / i) for i in items)
-    return mean(items)
+    return 1 / mean(items)
 
 
 # ======================================================================
@@ -6947,12 +6947,12 @@ def next_gmean(
              - num_ (int): The number of items included.
 
     Examples:
-        >>> items = range(0, 10, 2)
+        >>> items = range(0, 52, 2)
         >>> gmean_, num_ = 1.0, 0
-        >>> for i, val in enumerate(items):
-        ...     gmean_, num_ = next_gmean(val, gmean_, num_)
-        >>> print((gmean_, num_))
-        (96.0, 4)
+        >>> for i in items:
+        ...     gmean_, num_ = next_gmean(i, gmean_, num_)
+        >>> print((round(gmean_, 3), num_))
+        (20.354, 25)
         >>> gmean_ == gmean(items)
         True
 
@@ -6974,7 +6974,8 @@ def next_gmean(
         if not num:
             return value, num + 1
         else:
-            return gmean_ * value * num / (num + 1), num + 1
+            gmean_ = gmean_ ** (num / (num + 1)) * value ** (1 / (num + 1))
+            return gmean_, num + 1
     else:
         return gmean_, num
 
@@ -7003,13 +7004,13 @@ def next_hmean(
              - num_ (int): The number of items included.
 
     Examples:
-        >>> items = [0] + [2 ** i for i in range(5)]
+        >>> items = range(0, 52, 2)
         >>> hmean_, num_ = 0.0, 0
-        >>> for i, val in enumerate(items):
-        ...     hmean_, num_ = next_hmean(val, hmean_, num_)
-        >>> print((hmean_, num_))
-        (0.3875, 5)
-        >>> hmean_ == hmean(items)
+        >>> for i in items:
+        ...     hmean_, num_ = next_hmean(i, hmean_, num_)
+        >>> print((round(hmean_, 3), num_))
+        (13.103, 25)
+        >>> abs(hmean_ - hmean(items)) < 1e-14
         True
 
     See Also:
@@ -7026,7 +7027,11 @@ def next_hmean(
         - flyingcircus.base.next_medoid_and_median()
     """
     if value or not valid:
-        return next_amean(1 / value, hmean_, num)
+        if not num:
+            return value, num + 1
+        else:
+            hmean_ = (num + 1) / (num / hmean_ + 1 / value)
+            return hmean_, num + 1
     else:
         return hmean_, num
 
@@ -7542,9 +7547,10 @@ def i_gmean(
              - `num` (int): The number of items.
 
     Examples:
-        >>> items = range(0, 10, 2)
-        >>> i_gmean(items)
-        (96.0, 4)
+        >>> items = range(0, 52, 2)
+        >>> gmean_, num = i_gmean(items)
+        >>> print((round(gmean_, 3), num))
+        (20.354, 25)
         >>> (gmean(items), len(items) - 1) == i_gmean(items)
         True
     """
@@ -7579,10 +7585,11 @@ def i_hmean(
              - `num` (int): The number of items.
 
     Examples:
-        >>> items = [0] + [2 ** i for i in range(5)]
-        >>> i_hmean(items)
-        (0.3875, 5)
-        >>> (hmean(items), len(items) - 1) == i_hmean(items)
+        >>> items = range(0, 52, 2)
+        >>> hmean_, num = i_hmean(items)
+        >>> print((round(hmean_, 3), num))
+        (13.103, 25)
+        >>> abs(hmean_ - hmean(items)) < 1e-14
         True
     """
     for i, item in enumerate(items):
@@ -11694,10 +11701,10 @@ def estimate_timer_error(
         result (float): The estimated timer error.
 
     Examples:
-        >>> timers = time.perf_counter, time.clock, time.time
+        >>> timers = time.perf_counter, time.process_time, time.time
         >>> timer_errors = [estimate_timer_error(timer) for timer in timers]
         >>> print([int(math.log10(t)) for t in timer_errors])
-        [-7, -5, -7]
+        [-7, -6, -7]
     """
     result = 0.0
     for i in range(num):
