@@ -5765,7 +5765,7 @@ def frame(
         arr (np.ndarray): The input array.
         width (int|float|Iterable[int|float]): Size of the padding to use.
             Passed to `flyingcircus.base.padding()`.
-        mode (str|Number): The padding mode.
+        mode (Number|Iterable[Number|Iterable]|str): The padding mode.
             Passed to `flyingcircus.base.padding()`.
         combine (callable|None): The function for combining pad width values.
             Passed to `flyingcircus.base.padding()`.
@@ -5895,6 +5895,8 @@ def multi_reframe(
     Args:
         arrs (Iterable[np.ndarray]): The input arrays.
         new_shape (Iterable[int]): The new base shape of the arrays.
+            If None, the uses the minimum shape that would fit all input
+            arrays.
         position (int|float|Iterable[int|float]): Position within new shape.
             See `flyingcircus.extra.reframe()` for more info.
         background (Number): The background value for the frame.
