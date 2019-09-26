@@ -5745,7 +5745,7 @@ def hmean(
         >>> items = range(0, 52, 2)
         >>> round(hmean(items), 3)
         13.103
-        >>> hmean([0] + list(items), False)
+        >>> hmean(items, False)
         Traceback (most recent call last):
             ...
         ZeroDivisionError: division by zero
