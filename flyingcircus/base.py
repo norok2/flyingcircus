@@ -162,6 +162,10 @@ DTYPE_STR.update({
 
 
 # ======================================================================
+_str_join = functools.partial(str.join, '')
+
+
+# ======================================================================
 def _is_hidden(filepath):
     """
     Heuristic to determine hidden files.
@@ -218,7 +222,7 @@ def _guess_container(items, container=None):
     if not callable(container):
         container = tuple
     elif container is str:
-        container = str_join
+        container = _str_join  # cannot use local declaration
     elif container in (bytes, bytearray):
         container = bytes
     try:
@@ -572,39 +576,73 @@ class Infix(object):
 
 
 # ======================================================================
-def str_join(items):
+def set_func_kws(
+        func,
+        func_kws):
     """
-    Join string together.
+    Set keyword parameters of a function to specific or default values.
 
     Args:
-        items (Iterable[str]): The input items.
+        func (callable): The function to be inspected.
+        func_kws (Mappable|None): The (key, value) pairs to set.
+            If a value is None, it will be replaced by the default value.
+            To use the names defined locally, use: `locals()`.
 
-    Returns:
-        result (str): The output string.
+    Results:
+        result (dict): A dictionary of the keyword parameters to set.
 
-    Examples:
-        >>> str_join(map(str, range(10)))
-        '0123456789'
+    See Also:
+        inspect, locals, globals.
     """
-    return ''.join(items)
+    try:
+        get_argspec = inspect.getfullargspec
+    except AttributeError:
+        get_argspec = inspect.getargspec
+    inspected = get_argspec(func)
+    defaults = dict(
+        zip(reversed(inspected.args), reversed(inspected.defaults)))
+    result = {}
+    for key in inspected.args:
+        if key in func_kws:
+            result[key] = func_kws[key]
+        elif key in defaults:
+            result[key] = defaults[key]
+    return result
 
 
 # ======================================================================
-def bytes_join(items):
+def split_func_kws(
+        func,
+        func_kws):
     """
-    Join bytes together.
+    Split a set of keywords into accepted and not accepted by some function.
 
     Args:
-        items (Iterable[bytes]): The input items.
+        func (callable): The function to be inspected.
+        func_kws (Mappable|None): The (key, value) pairs to split.
 
-    Returns:
-        result (str): The output bytes.
+    Results:
+        result (tuple): The tuple
+            contains:
+             - in_func (dict): The keywords NOT accepted by `func`.
+             - not_in_func (Mappable|None): The keywords accepted by `func`.
 
-    Examples:
-        >>> bytes_join(map(lambda x: str(x).encode(), range(10)))
-        b'0123456789'
+    See Also:
+        inspect, locals, globals.
     """
-    return b''.join(items)
+    try:
+        get_argspec = inspect.getfullargspec
+    except AttributeError:
+        get_argspec = inspect.getargspec
+    inspected = get_argspec(func)
+    in_func = {}
+    not_in_func = {}
+    for k, v in func_kws.items():
+        if k in inspected.args:
+            in_func[k] = v
+        else:
+            not_in_func[k] = v
+    return in_func, not_in_func
 
 
 # ======================================================================
@@ -1158,179 +1196,6 @@ def span(
 
 
 # ======================================================================
-def is_bin_file(file_obj):
-    """
-    Check if a file object is in binary mode.
-
-    Args:
-        file_obj (File): The input file.
-
-    Returns:
-        result (bool): The binary mode status.
-
-    Examples:
-        >>> is_bin_file(open(__file__, 'rb'))
-        True
-        >>> is_bin_file(open(__file__, 'r'))
-        False
-        >>> is_bin_file(io.BytesIO(b'ciao'))
-        True
-        >>> is_bin_file(io.StringIO('ciao'))
-        False
-    """
-    return isinstance(file_obj, io.IOBase) \
-           and not isinstance(file_obj, io.TextIOBase)
-
-
-# ======================================================================
-def is_reading_bytes(file_obj):
-    """
-    Check if reading from a file object will return bytes.
-
-    Args:
-        file_obj (File): The input file.
-
-    Returns:
-        result (bool): The result of the check.
-
-    Examples:
-        >>> is_reading_bytes(io.BytesIO(b'ciao'))
-        True
-        >>> is_reading_bytes(io.StringIO('ciao'))
-        False
-    """
-    return isinstance(file_obj.read(0), bytes)
-
-
-# ======================================================================
-def is_writing_bytes(file_obj):
-    """
-    Check if writing from a file object will require bytes.
-
-    Args:
-        file_obj (File): The input file.
-
-    Returns:
-        result (bool): The result of the check.
-
-    Examples:
-        >>> is_writing_bytes(io.BytesIO(b'ciao'))
-        True
-        >>> is_writing_bytes(io.StringIO('ciao'))
-        False
-    """
-    try:
-        file_obj.write(b'')
-    except TypeError:
-        return False
-    else:
-        return True
-
-
-# ======================================================================
-def read_stream(
-        in_file,
-        dtype,
-        mode='@',
-        num_blocks=1,
-        offset=None,
-        whence=io.SEEK_SET):
-    """
-    Read data from stream.
-
-    Args:
-        in_file (str|file): The input file.
-            If str, the file is open for reading (as binary).
-        offset (int|None): The offset where to start reading.
-        dtype (str): The data type to read.
-            Accepted values are:
-             - 'bool': boolean type (same as: '?', 1B)
-             - 'char': signed char type (same as: 'b', 1B)
-             - 'uchar': unsigned char type (same as: 'B', 1B)
-             - 'short': signed short int type (same as: 'h', 2B)
-             - 'ushort': unsigned short int  type (same as: 'H', 2B)
-             - 'int': signed int type (same as: 'i', 4B)
-             - 'uint': unsigned int type (same as: 'I', 4B)
-             - 'long': signed long type (same as: 'l', 4B)
-             - 'ulong': unsigned long type (same as: 'L', 4B)
-             - 'llong': signed long long type (same as: 'q', 8B)
-             - 'ullong': unsigned long long type (same as: 'Q', 8B)
-             - 'float': float type (same as: 'f', 4B)
-             - 'double': double type (same as: 'd', 8B)
-             - 'str': c-str type (same as: 's', 'p')
-            See Python's `struct` module for more information.
-        num_blocks (int): The number of blocks to read.
-        mode (str): Determine the byte order, size and alignment.
-            Accepted values are:
-             - '@': endianness: native,  size: native,   align: native.
-             - '=': endianness:	native,  size: standard, align: none.
-             - '<': endianness:	little,  size: standard, align: none.
-             - '>': endianness:	big,     size: standard, align: none.
-             - '!': endianness:	network, size: standard, align: none.
-        whence (int): Where to reference the offset.
-            Accepted values are:
-             - '0': absolute file positioning.
-             - '1': seek relative to the current position.
-             - '2': seek relative to the file's end.
-
-    Returns:
-        data (tuple): The data read.
-    """
-    if isinstance(in_file, str):
-        file_obj = open(in_file, 'rb')
-    else:
-        file_obj = in_file
-    if offset is not None:
-        file_obj.seek(offset, whence)
-    struct_format = mode + str(num_blocks) + DTYPE_STR[dtype]
-    read_size = struct.calcsize(struct_format)
-    data = struct.unpack_from(struct_format, file_obj.read(read_size))
-    if isinstance(in_file, str):
-        file_obj.close()
-    return data
-
-
-# ======================================================================
-def read_cstr(
-        in_file,
-        offset=None,
-        whence=io.SEEK_SET):
-    """
-    Read a C-type string from file.
-
-    Args:
-        in_file (str|file): The input file.
-            If str, the file is open for reading (as binary).
-        offset (int|None): The offset where to start reading.
-        whence (int): Where to reference the offset.
-            Accepted values are:
-             - '0': absolute file positioning.
-             - '1': seek relative to the current position.
-             - '2': seek relative to the file's end.
-
-    Returns:
-        text (str): The string read.
-    """
-    if isinstance(in_file, str):
-        file_obj = open(in_file, 'rb')
-    else:
-        file_obj = in_file
-    if offset is not None:
-        file_obj.seek(offset, whence)
-    buffer = []
-    while True:
-        c = file_obj.read(1).decode('ascii')
-        if c is None or c == '\0':
-            break
-        else:
-            buffer.append(c)
-    text = ''.join(buffer)
-    if isinstance(in_file, str):
-        file_obj.close()
-    return text
-
-
-# ======================================================================
 def is_deep(
         obj,
         recursive=True,
@@ -1541,6 +1406,51 @@ def is_mutable(
             return False
     else:
         return True
+
+
+# ======================================================================
+def multi_compare(
+        grouper,
+        items,
+        comparison=operator.eq,
+        symmetric=True):
+    """
+    Compute multiple comparisons.
+
+    Args:
+        grouper (callable): Determine how to group multiple comparisons.
+            Must accept the following signature:
+            multi_comparison(*Iterable[bool]) -> bool
+            Can be either `all` or `any`, or any callable with the supported
+            signature.
+        items (Iterable): The input items.
+        comparison (callable): Compute pair-wise comparison.
+            Must accept the following signature:
+            comparison(Any, Any) -> bool
+        symmetric (bool): Assume that the comparison is symmetric.
+            A comparison is symmetric if:
+            comparison(a, b) == comparison(b, a).
+
+    Returns:
+        result (bool): The result of the multiple comparisons.
+
+    Examples:
+        >>> multi_compare(all, [1, 1, 1, 1, 1, 1, 1, 1, 1])
+        True
+        >>> multi_compare(any, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
+        True
+        >>> multi_compare(all, 'xxxxx')
+        True
+        >>> multi_compare(all, 'yxxxy')
+        False
+        >>> multi_compare(any, 'xxxxxyxxxy')
+        True
+        >>> all_equal({0, 1})
+        False
+    """
+    pairwise = itertools.combinations(items, 2) \
+        if symmetric else itertools.permutations(items, 2)
+    return grouper(comparison(a, b) for a, b in pairwise)
 
 
 # ======================================================================
@@ -8588,68 +8498,110 @@ def common_subseq(
 
 
 # ======================================================================
-def set_func_kws(
-        func,
-        func_kws):
+def is_bin_file(file_obj):
     """
-    Set keyword parameters of a function to specific or default values.
+    Check if a file object is in binary mode.
 
     Args:
-        func (callable): The function to be inspected.
-        func_kws (Mappable|None): The (key, value) pairs to set.
-            If a value is None, it will be replaced by the default value.
-            To use the names defined locally, use: `locals()`.
+        file_obj (File): The input file.
 
-    Results:
-        kws (dict): A dictionary of the keyword parameters to set.
+    Returns:
+        result (bool): The binary mode status.
 
-    See Also:
-        inspect, locals, globals.
+    Examples:
+        >>> is_bin_file(open(__file__, 'rb'))
+        True
+        >>> is_bin_file(open(__file__, 'r'))
+        False
+        >>> is_bin_file(io.BytesIO(b'ciao'))
+        True
+        >>> is_bin_file(io.StringIO('ciao'))
+        False
     """
-    try:
-        get_argspec = inspect.getfullargspec
-    except AttributeError:
-        get_argspec = inspect.getargspec
-    inspected = get_argspec(func)
-    defaults = dict(
-        zip(reversed(inspected.args), reversed(inspected.defaults)))
-    kws = {}
-    for key in inspected.args:
-        if key in func_kws:
-            kws[key] = func_kws[key]
-        elif key in defaults:
-            kws[key] = defaults[key]
-    return kws
+    return isinstance(file_obj, io.IOBase) \
+           and not isinstance(file_obj, io.TextIOBase)
 
 
 # ======================================================================
-def split_func_kws(
-        func,
-        func_kws):
+def is_reading_bytes(file_obj):
     """
-    Split a set of keywords into accepted and not accepted by some function.
+    Check if reading from a file object will return bytes.
 
     Args:
-        func (callable): The function to be inspected.
-        func_kws (Mappable|None): The (key, value) pairs to split.
+        file_obj (File): The input file.
 
-    Results:
-        result (tuple): The tuple
-            contains:
-             - kws (dict): The keywords NOT accepted by `func`.
-             - func_kws (Mappable|None): The keywords accepted by `func`.
+    Returns:
+        result (bool): The result of the check.
 
-    See Also:
-        inspect, locals, globals.
+    Examples:
+        >>> is_reading_bytes(io.BytesIO(b'ciao'))
+        True
+        >>> is_reading_bytes(io.StringIO('ciao'))
+        False
+    """
+    return isinstance(file_obj.read(0), bytes)
+
+
+# ======================================================================
+def is_writing_bytes(file_obj):
+    """
+    Check if writing from a file object will require bytes.
+
+    Args:
+        file_obj (File): The input file.
+
+    Returns:
+        result (bool): The result of the check.
+
+    Examples:
+        >>> is_writing_bytes(io.BytesIO(b'ciao'))
+        True
+        >>> is_writing_bytes(io.StringIO('ciao'))
+        False
     """
     try:
-        get_argspec = inspect.getfullargspec
-    except AttributeError:
-        get_argspec = inspect.getargspec
-    inspected = get_argspec(func)
-    kws = {k: v for k, v in func_kws.items() if k not in inspected.args}
-    func_kws = {k: v for k, v in func_kws.items() if k in inspected.args}
-    return func_kws, kws
+        file_obj.write(b'')
+    except TypeError:
+        return False
+    else:
+        return True
+
+
+# ======================================================================
+def same_file(
+        grouper,
+        *files,
+        on_error=False):
+    """
+    Determine if two or more file objects refer to the same file.
+
+    Args:
+        files (Iterable[file]): The input file objects.
+        grouper (callable): Determine how to group multiple comparisons.
+            Must accept the following signature:
+            grouper(*Iterable[bool]) -> bool
+            Can be either `all` or `any`, or any callable with the supported
+            signature.
+        on_error (bool): Determine what to do if `fileno` is unsupported.
+
+    Returns:
+        result (bool): If the the two file objects refer to the same file.
+
+    Examples:
+        >>> same_file(all, open(__file__, 'r'), open(__file__, 'r'))
+        True
+        >>> same_file(all, open(__file__, 'r'), io.StringIO('FlyingCircus'))
+        False
+        >>> same_file(all, io.StringIO('fc'), io.StringIO('fc'))
+        False
+    """
+    try:
+        stats = tuple(os.fstat(file_.fileno()) for file_ in files)
+    except io.UnsupportedOperation:
+        return on_error
+    else:
+        inodes_devices = tuple((stat.st_ino, stat.st_dev) for stat in stats)
+        return multi_compare(grouper, inodes_devices)
 
 
 # ======================================================================
@@ -8803,28 +8755,223 @@ def blocks_r(
 
 
 # ======================================================================
-def xopen(
-        the_file,
+def auto_open(
+        file_,
         *_args,
         **_kws):
     """
-    Ensure that `the_file` is a file object, if a file path is provided.
+    Automatically open a file if a path is provided.
 
     Args:
-        the_file (str|bytes|file): The input file.
+        file_ (str|bytes|file): The file path or file object.
         *_args: Positional arguments for `open()`.
         **_kws: Keyword arguments for `open()`.
 
     Returns:
-        the_file (file):
+        file_ (file): The opened file object.
     """
-    return open(the_file, *_args, **_kws) \
-        if isinstance(the_file, (str, bytes)) else the_file
+    return open(file_, *_args, **_kws) \
+        if isinstance(file_, (str, bytes)) else file_
+
+
+# ======================================================================
+def read_stream(
+        in_file,
+        dtype,
+        mode='@',
+        num_blocks=1,
+        offset=None,
+        whence=io.SEEK_SET):
+    """
+    Read data from stream.
+
+    Args:
+        in_file (str|bytes|file): The input file.
+            Can be either a valid file path or a readable binary file object.
+            See `flyingcircus.base.auto_open()` for more details.
+        offset (int|None): The offset where to start reading.
+        dtype (str): The data type to read.
+            Accepted values are:
+             - 'bool': boolean type (same as: '?', 1B)
+             - 'char': signed char type (same as: 'b', 1B)
+             - 'uchar': unsigned char type (same as: 'B', 1B)
+             - 'short': signed short int type (same as: 'h', 2B)
+             - 'ushort': unsigned short int  type (same as: 'H', 2B)
+             - 'int': signed int type (same as: 'i', 4B)
+             - 'uint': unsigned int type (same as: 'I', 4B)
+             - 'long': signed long type (same as: 'l', 4B)
+             - 'ulong': unsigned long type (same as: 'L', 4B)
+             - 'llong': signed long long type (same as: 'q', 8B)
+             - 'ullong': unsigned long long type (same as: 'Q', 8B)
+             - 'float': float type (same as: 'f', 4B)
+             - 'double': double type (same as: 'd', 8B)
+             - 'str': c-str type (same as: 's', 'p')
+            See Python's `struct` module for more information.
+        num_blocks (int): The number of blocks to read.
+        mode (str): Determine the byte order, size and alignment.
+            Accepted values are:
+             - '@': endianness: native,  size: native,   align: native.
+             - '=': endianness:	native,  size: standard, align: none.
+             - '<': endianness:	little,  size: standard, align: none.
+             - '>': endianness:	big,     size: standard, align: none.
+             - '!': endianness:	network, size: standard, align: none.
+        whence (int): Where to reference the offset.
+            Accepted values are:
+             - '0': absolute file positioning.
+             - '1': seek relative to the current position.
+             - '2': seek relative to the file's end.
+
+    Returns:
+        data (tuple): The data read.
+    """
+    in_file_obj = auto_open(in_file, 'rb')
+    if offset is not None:
+        in_file_obj.seek(offset, whence)
+    struct_format = mode + str(num_blocks) + DTYPE_STR[dtype]
+    read_size = struct.calcsize(struct_format)
+    data = struct.unpack_from(struct_format, in_file_obj.read(read_size))
+    if in_file is not in_file_obj:
+        in_file_obj.close()
+    return data
+
+
+# ======================================================================
+def read_cstr(
+        in_file,
+        offset=None,
+        whence=io.SEEK_SET):
+    """
+    Read a C-type string from file.
+
+    Args:
+        in_file (str|bytes|file): The input file.
+            Can be either a valid file path or a readable binary file object.
+            See `flyingcircus.base.auto_open()` for more details.
+        offset (int|None): The offset where to start reading.
+        whence (int): Where to reference the offset.
+            Accepted values are:
+             - '0': absolute file positioning.
+             - '1': seek relative to the current position.
+             - '2': seek relative to the file's end.
+
+    Returns:
+        text (str): The string read.
+    """
+    in_file_obj = auto_open(in_file, 'rb')
+    if offset is not None:
+        in_file_obj.seek(offset, whence)
+    buffer = []
+    while True:
+        c = in_file_obj.read(1).decode('ascii')
+        if c is None or c == '\0':
+            break
+        else:
+            buffer.append(c)
+    text = ''.join(buffer)
+    if in_file is not in_file_obj:
+        in_file_obj.close()
+    return text
+
+
+# ======================================================================
+def process_stream(
+        in_file,
+        out_file,
+        func,
+        args=None,
+        kws=None,
+        block_size=100,
+        as_binary=False):
+    """
+    Process the content of the input file and write it to the output file.
+
+    Note: `in_file` and `out_file` should be different!
+
+    Args:
+        in_file (str|bytes|file): The input file.
+            Can be either a valid file path or readable file object.
+            Should not be the same as `out_file`.
+            See `flyingcircus.base.auto_open()` for more details.
+        out_file (str|bytes|file): The output file.
+            Can be either a valid file path or writable file object.
+            Should not be the same as `in_file`.
+            See `flyingcircus.base.auto_open()` for more details.
+        func (callable): The conversion function.
+            Must accept a string or bytes (depending on `as_binary`) as first
+            argument: func(str|bytes, *args, **kws) -> str|bytes
+        args (Iterable|None): Positional arguments for `func()`.
+        kws (Mappable|None): Keyword arguments for `func()`.
+        block_size (int): The block size to use.
+            If positive, apply `func` iteratively on input blocks of the
+            specified size.
+            If negative, apply `func` iteratively on each line.
+            If zero, apply `func` on the entire input at once.
+        as_binary (bool): Force binary I/O operations.
+            If True, the first argument of `func` must be of type `bytes`.
+            Otherwise, must be of type `str`.
+
+    Returns:
+        None.
+
+    Examples:
+        >>> text = 'flyingcircus-' * 4
+
+        >>> i_file = io.StringIO(text)
+        >>> o_file = io.StringIO('')
+        >>> process_stream(i_file, o_file, str.upper)
+        >>> pos = o_file.seek(0)
+        >>> print(o_file.read())
+        FLYINGCIRCUS-FLYINGCIRCUS-FLYINGCIRCUS-FLYINGCIRCUS-
+
+        >>> i_file = io.BytesIO(text.encode())
+        >>> o_file = io.BytesIO(b'')
+        >>> process_stream(i_file, o_file, bytes.upper)
+        >>> pos = o_file.seek(0)
+        >>> print(o_file.read())
+        b'FLYINGCIRCUS-FLYINGCIRCUS-FLYINGCIRCUS-FLYINGCIRCUS-'
+
+        >>> i_file = io.StringIO(text)
+        >>> o_file = io.StringIO('')
+        >>> process_stream(
+        ...     i_file, o_file, lambda x: '*' if x in 'irc' else x,
+        ...     block_size=1)
+        >>> pos = o_file.seek(0)
+        >>> print(o_file.read())
+        fly*ng****us-fly*ng****us-fly*ng****us-fly*ng****us-
+    """
+    args = tuple(args) if args is not None else ()
+    kws = dict(kws) if kws is not None else {}
+    bin_mode = 'b' if as_binary else ''
+    # : open files
+    in_file_obj = auto_open(in_file, 'r' + bin_mode)
+    out_file_obj = auto_open(out_file, 'w' + bin_mode)
+    input_equals_output = same_file(all, in_file_obj, out_file_obj)
+    # : process content
+    if input_equals_output:
+        content = in_file_obj.read()
+        content = func(content, *args, **kws)
+        out_file_obj.write()
+    else:
+        if block_size < 0:
+            for line in in_file_obj:
+                line = func(line, *args, **kws)
+                out_file_obj.writelines((line,))
+        elif block_size > 0:
+            for block in blocks(in_file_obj, block_size):
+                block = func(block, *args, **kws)
+                out_file_obj.write(block)
+        else:
+            out_file_obj.write(func(in_file_obj.read(), *args, **kws))
+    # : close files (only if opened here)
+    if in_file is not in_file_obj:
+        in_file_obj.close()
+    if out_file is not out_file_obj:
+        out_file_obj.close()
 
 
 # ======================================================================
 def hash_file(
-        the_file,
+        in_file,
         hash_algorithm=hashlib.md5,
         filtering=base64.urlsafe_b64encode,
         coding='ascii',
@@ -8833,9 +8980,9 @@ def hash_file(
     Compute the hash of a file.
 
     Args:
-        the_file (str|bytes|file): The input file.
-            Can be either a valid file path or a file object.
-            See `xopen()` for more details.
+        in_file (str|bytes|file): The input file.
+            Can be either a valid file path or a readable binary file object.
+            See `flyingcircus.base.auto_open()` for more details.
         hash_algorithm (callable): The hashing algorithm.
             This must support the methods provided by `hashlib` module, like
             `md5`, `sha1`, `sha256`, `sha512`.
@@ -8854,7 +9001,7 @@ def hash_file(
         hash_key (str|bytes): The result of the hashing.
     """
     hash_obj = hash_algorithm()
-    with xopen(the_file, 'rb') as file_obj:
+    with auto_open(in_file, 'rb') as file_obj:
         file_obj.seek(0)
         for block in blocks(file_obj, block_size):
             hash_obj.update(block)
@@ -8952,8 +9099,7 @@ def readline(
         skip_empty=True,
         append_newline=True,
         block_size=64 * 1024,
-        reset_offset=True,
-        encoding=None):
+        reset_offset=True):
     """
     Flexible function for reading lines incrementally.
 
@@ -8961,6 +9107,7 @@ def readline(
         file_obj (file): The input file.
         reverse (bool): Read the file in reverse mode.
             If True, the lines will be read in reverse order.
+            This requires a binary file object.
             The content of each line will NOT be reversed.
         skip_empty (bool): Skip empty lines.
         append_newline (bool):
@@ -8972,10 +9119,6 @@ def readline(
             Otherwise, starts reading from where the file current position is.
             This is passed to `blocks()` or `blocks_r()` (depending on the
             value of reverse).
-        encoding (str|None): The encoding for correct block size computation.
-            If `str`, must be a valid string encoding.
-            If None, the default encoding is used.
-            This is passed to `blocks_r()`. Only used when `reverse` is True.
 
     Yields:
         line (str|bytes): The next line.
@@ -9909,7 +10052,7 @@ def safe_filename(
 
 
 # ======================================================================
-def auto_open(
+def magic_open(
         filepath,
         *_args,
         **_kws):
@@ -9922,7 +10065,7 @@ def auto_open(
     Opening in text mode is not supported.
 
     Args:
-        filepath (str): The file path.
+        filepath (str|bytes): The file path.
         *_args: Positional arguments for `open()`.
         **_kws: Keyword arguments for `open()`.
 
@@ -9936,7 +10079,7 @@ def auto_open(
         open(), gzip.open(), bz2.open()
 
     Examples:
-        >>> file_obj = auto_open(__file__, 'rb')
+        >>> file_obj = magic_open(__file__, 'rb')
     """
     zip_module_names = 'gzip', 'bz2'
     file_obj = None
@@ -11393,7 +11536,8 @@ def is_same_sign(items):
 
     Args:
         items (Iterable): The items to check.
-            The comparison operators '>=' and '<' must be defined.
+            The comparison operators '>=' and '<' with `0` must be defined
+            for all items.
 
     Returns:
         same_sign (bool): The result of the comparison.
@@ -11703,8 +11847,8 @@ def estimate_timer_error(
     Examples:
         >>> timers = time.perf_counter, time.process_time, time.time
         >>> timer_errors = [estimate_timer_error(timer) for timer in timers]
-        >>> print([int(math.log10(t)) for t in timer_errors])
-        [-7, -6, -7]
+        >>> print([math.log10(t) < 0 for t in timer_errors])
+        [True, True, True]
     """
     result = 0.0
     for i in range(num):
