@@ -11987,7 +11987,7 @@ def time_profile(
                     break
                 if batch_time > b_timeout and (j >= min_batch or quick):
                     break
-            mean_batch = next_mean(j, mean_batch, i)
+            mean_batch = next_mean(j + 1, mean_batch, i)
             run_time = (batch_time - batch_err) / (j + 1)
             if collect_runtimes:
                 run_times.append(run_time)
@@ -12015,7 +12015,7 @@ def time_profile(
                 err_time = err_func(run_times)
         summary = dict(
             result=result, func_name=func.__name__, args=_args, kws=_kws,
-            num=i, val=val_time, err=err_time,
+            num=i + 1, val=val_time, err=err_time,
             mean=mean_time, sosd=sosd_time,
             var=var_time, stdev=stdev_time, min=min_time, max=max_time,
             median=median_time, medoid=medoid_time,
