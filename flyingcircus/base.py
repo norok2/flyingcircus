@@ -1205,7 +1205,8 @@ def is_deep(
 
     Args:
         obj (Any): The object to test.
-        recursive (bool): Consider recursive objects as shallow.
+        recursive (bool): Consider recursive iterable objects as shallow.
+            If object is non-iterable, this is ignored.
         shallow (tuple|None): Data types to always consider shallow.
             Note that recursive and self-slicing objects are handled
             separately.
@@ -1227,6 +1228,11 @@ def is_deep(
         >>> is_deep('')
         False
 
+        >>> is_deep(1, True)
+        False
+        >>> is_deep(1, False)
+        False
+
         >>> is_deep('c', True, shallow=None)
         False
         >>> is_deep('c', False, shallow=None)
@@ -1240,7 +1246,7 @@ def is_deep(
     try:
         is_shallow = \
             (shallow and isinstance(obj, shallow)) \
-            or (recursive and obj == next(iter(obj)))
+            or (obj == next(iter(obj)) and recursive)
         if is_shallow:
             raise TypeError
     except TypeError:
