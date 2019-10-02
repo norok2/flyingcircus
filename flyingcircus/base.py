@@ -160,7 +160,6 @@ DTYPE_STR.update({
     'str': 's',
 })
 
-
 # ======================================================================
 _str_join = functools.partial(str.join, '')
 
@@ -5558,6 +5557,49 @@ def cont_frac(b, a=1, limit=None):
         a_n, b_n = b_n + a_n * b_i, a_n * a_i
     b_n //= a_i
     return simplify_frac(a_n, b_n)
+
+
+# ======================================================================
+def polynomial(
+        p,
+        x):
+    """
+    Yield the result of the polynomial evaluation at given points.
+
+    y_i = sum(p_i * x_i ** i for i, p_i in enumerate(p[::-1]))
+
+    Args:
+        p (Iterable[Number]): The coefficients of the polynomial.
+            Must be given in decreasing order.
+        x (Number|Iterable[Number]): The evaluation point(s).
+
+
+    Yields:
+        y_i (Number): The evaluated polynomial.
+
+    Examples:
+        >>> list(polynomial([1, 2, 3], range(16)))
+        [3, 6, 11, 18, 27, 38, 51, 66, 83, 102, 123, 146, 171, 198, 227, 258]
+        >>> list(polynomial([4, 0, 2, 1], range(10)))
+        [1, 7, 37, 115, 265, 511, 877, 1387, 2065, 2935]
+        >>> list(polynomial([1, -2], range(-8, 8)))
+        [-10, -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
+        >>> list(polynomial([1], range(-8, 8)))
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        >>> list(polynomial([1, 0], range(-8, 8)))
+        [-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7]
+        >>> list(polynomial([4, 0, 2, 1], 1))
+        [7]
+    """
+    if not is_deep(x):
+        x = (x,)
+    for x_i in x:
+        # : alternate but less efficient/general approach
+        # sum(p_i * x_i ** i for i, p_i in enumerate(p[::-1]))
+        y_i = 0
+        for p_i in p:
+            y_i = x_i * y_i + p_i
+        yield y_i
 
 
 # ======================================================================
