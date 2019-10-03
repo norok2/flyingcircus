@@ -5562,17 +5562,21 @@ def cont_frac(b, a=1, limit=None):
 # ======================================================================
 def polynomial(
         p,
-        x):
+        x,
+        method='horner'):
     """
     Yield the result of the polynomial evaluation at given points.
 
     y_i = sum(p_i * x_i ** i for i, p_i in enumerate(p[::-1]))
 
     Args:
-        p (Iterable[Number]): The coefficients of the polynomial.
+        p (Sequence[Number]): The coefficients of the polynomial.
             Must be given in decreasing order.
         x (Number|Iterable[Number]): The evaluation point(s).
-
+        method (str): Polynomial computation method.
+            Accepted values are:
+             - 'direct': use the direct computation (slower)
+             - 'horner': use Horner's formula (faster, but less accurate)
 
     Yields:
         y_i (Number): The evaluated polynomial.
@@ -5590,16 +5594,29 @@ def polynomial(
         [-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7]
         >>> list(polynomial([4, 0, 2, 1], 1))
         [7]
+        >>> list(polynomial([1, 2, 3], range(16), 'direct'))
+        [3, 6, 11, 18, 27, 38, 51, 66, 83, 102, 123, 146, 171, 198, 227, 258]
+
+    References:
+        - Horner, W. G., and Davies Gilbert. “XXI. A New Method of Solving
+          Numerical Equations of All Orders, by Continuous Approximation.”
+          Philosophical Transactions of the Royal Society of London 109 (
+          January 1, 1819): 308–35. https://doi.org/10.1098/rstl.1819.0023.
+        - https://en.wikipedia.org/wiki/Horner%27s_method
     """
+    method = method.lower()
     if not is_deep(x):
         x = (x,)
-    for x_i in x:
-        # : alternate but less efficient/general approach
-        # sum(p_i * x_i ** i for i, p_i in enumerate(p[::-1]))
-        y_i = 0
-        for p_i in p:
-            y_i = x_i * y_i + p_i
-        yield y_i
+    if method == 'direct':
+        d = len(p) - 1
+        for x_i in x:
+            yield sum(p_i * x_i ** (d - i) for i, p_i in enumerate(p))
+    elif method == 'horner':
+        for x_i in x:
+            y_i = 0
+            for p_i in p:
+                y_i = x_i * y_i + p_i
+            yield y_i
 
 
 # ======================================================================
