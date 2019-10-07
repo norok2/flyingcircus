@@ -11050,6 +11050,208 @@ def parse_units_prefix(
 
 
 # ======================================================================
+def i_progression(
+        name,
+        start,
+        step,
+        num=None):
+    """
+    Compute the n-th term of a notable progression.
+
+    Args:
+        name (str): The name of the progression.
+            Accepted values are:
+             - `a`, `arithmetic`: Use arithmetic progression.
+             - `g`, `geometric`: Use geometric progression.
+             - `h`, `harmonic`: Use harmonic progression.
+        start (Number): The initial value.
+        step (Number): The step value.
+        num (int|None): The number of values to yield.
+            If None, yields values indefinitely (use with care!).
+
+    Yields:
+        result (Number): The n-th term of the progression.
+
+    Raises:
+        ValueError: If `name` is not supported.
+
+    Examples:
+        >>> list(i_progression('a', 10, 2, 12))
+        [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]
+        >>> list(i_progression('g', 10, 2, 12))
+        [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 20480]
+        >>> [round(x, 3) for x in i_progression('h', 1, 1, 10)]
+        [1.0, 0.5, 0.333, 0.25, 0.2, 0.167, 0.143, 0.125, 0.111, 0.1]
+        >>> list(i_progression('ga', 10, 2, 12))
+        Traceback (most recent call last):
+            ...
+        ValueError: Unknown progression `ga`
+
+    References:
+        - https://en.wikipedia.org/wiki/Arithmetic_progression
+        - https://en.wikipedia.org/wiki/Geometric_progression
+        - https://en.wikipedia.org/wiki/Harmonic_progression_(mathematics)
+    """
+    name = name.lower()
+    if name in ('a', 'arithmetic'):
+        i = 0
+        while i < num or num is None:
+            yield start
+            start += step
+            i += 1
+    elif name in ('g', 'geometric'):
+        i = 0
+        while i < num or num is None:
+            yield start
+            start *= step
+            i += 1
+    elif name in ('h', 'harmonic'):
+        i = 0
+        while i < num or num is None:
+            yield 1 / start
+            start += step
+            i += 1
+    else:
+        raise ValueError(fmtm('Unknown progression `{name}`'))
+
+
+# ======================================================================
+def progression(
+        name,
+        start,
+        step,
+        num):
+    """
+    Compute the n-th term of a notable progression.
+    
+    Args:
+        name (str): The name of the progression.
+            Accepted values are:
+             - `a`, `arithmetic`: Use arithmetic progression.
+             - `g`, `geometric`: Use geometric progression.
+             - `h`, `harmonic`: Use harmonic progression.
+        start (Number): The initial value.
+        step (Number): The step value.
+        num (int): The ordinal of the progression.
+            The initial value is the 0th.
+
+    Returns:
+        result (Number): The n-th term of the progression.
+
+    Raises:
+        ValueError: If `name` is not supported.
+
+    Examples:
+        >>> progression('a', 0, 6, 7)
+        42
+        >>> progression('g', 1, 2, 10)
+        1024
+        >>> progression('h', 1, 1, 99)
+        0.01
+        >>> progression('ga', 10, 2, 12)
+        Traceback (most recent call last):
+            ...
+        ValueError: Unknown progression `ga`
+
+    References:
+        - https://en.wikipedia.org/wiki/Arithmetic_progression
+        - https://en.wikipedia.org/wiki/Geometric_progression
+        - https://en.wikipedia.org/wiki/Harmonic_progression_(mathematics)
+    """
+    name = name.lower()
+    if name in ('a', 'arithmetic'):
+        return start + step * num
+    elif name in ('g', 'geometric'):
+        return start * step ** num
+    elif name in ('h', 'harmonic'):
+        return 1 / (start + step * num)
+    else:
+        raise ValueError(fmtm('Unknown progression `{name}`'))
+
+
+# ======================================================================
+def sum_progression(name, start, step, num=None):
+    """
+    Compute the sum of the first n terms of a notable progression.
+
+    The sum of the elements of a progression is also called a series.
+
+    Args:
+        name (str): The name of the progression.
+            Accepted values are:
+             - `a`, `arithmetic`: Use arithmetic progression.
+             - `g`, `geometric`: Use geometric progression.
+             - `h`, `harmonic`: Use harmonic progression.
+        start (Number): The initial value.
+        step (Number): The step value.
+        num (int|None): The number of values to sum.
+            If None, sums to infinity.
+
+    Returns:
+        result (Number|None): The sum value.
+            If the series diverges, returns None.
+
+    Examples:
+        >>> sum_progression('a', 10, 2, 12)
+        252
+        >>> sum_progression('g', 10, 2, 12)
+        40950.0
+        >>> round(sum_progression('h', 1, 1, 10), 3)
+        2.929
+
+        >>> print(sum_progression('a', 10, 2, None))
+        None
+        >>> print(sum_progression('g', 10, 0.5, None))
+        20.0
+        >>> print(sum_progression('h', 10, 0.5, None))
+        None
+
+        >>> sum_progression('ga', 10, 2, 12)
+        Traceback (most recent call last):
+            ...
+        ValueError: Unknown progression `ga`
+        >>> print(sum_progression('ga', 10, 2, None))
+        Traceback (most recent call last):
+            ...
+        ValueError: Unknown progression `ga`
+
+        >>> a, d, n = 10, 2, 20
+        >>> all(
+        ...     sum(i_progression(s, a, d, n)) == sum_progression(s, a, d, n)
+        ...     for s in ('a', 'g', 'h'))
+        True
+
+    References:
+        - https://en.wikipedia.org/wiki/Series_(mathematics)
+        - https://en.wikipedia.org/wiki/Arithmetic_progression
+        - https://en.wikipedia.org/wiki/Geometric_progression
+        - https://en.wikipedia.org/wiki/Harmonic_progression_(mathematics)
+    """
+    name = name.lower()
+    if name in ('a', 'arithmetic'):
+        if num is not None:
+            return num * start + (num * (num - 1) // 2) * step
+        else:
+            return num
+    elif name in ('g', 'geometric'):
+        if num is not None:
+            if step == 1:
+                return start * num
+            else:
+                return start * (1 - step ** num) / (1 - step)
+        elif abs(step) < 1:
+            return start / (1 - step)
+        else:
+            return num
+    else:
+        if num is not None:
+            return sum(i_progression(name, start, step, num))
+        else:
+            progression(name, start, step, 1)  # test if progression is valid
+            return num
+
+
+# ======================================================================
 def guess_numerical_sequence(
         items,
         rounding=3):
