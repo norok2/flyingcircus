@@ -11327,7 +11327,7 @@ def guess_numerical_sequence(
         >>> print(guess_numerical_sequence(items))
         1.527 ** range(1.333, 4.333, 1)
     """
-    tol = 10 ** -min([guess_decimals(item) for item in items if item])
+    tol = 10 ** -min(guess_decimals(item) for item in items if item)
     result = None
     diffs = tuple(diff(items))
     base = diffs[0]

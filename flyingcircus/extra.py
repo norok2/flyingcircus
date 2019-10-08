@@ -4682,8 +4682,8 @@ def gaussian_nd(
 
     position = grid_coord(
         shape, position, is_relative=rel_position, use_int=False)
-    arr = np.exp(-(sum([
-        x_i ** 2 / (2 * sigma ** 2) for x_i, sigma in zip(position, sigmas)])))
+    arr = np.exp(-(sum(
+        x_i ** 2 / (2 * sigma ** 2) for x_i, sigma in zip(position, sigmas))))
     if callable(norm):
         arr /= norm(arr)
     return arr
