@@ -4422,20 +4422,64 @@ def isqrt(num):
 
 
 # ======================================================================
-def get_pascal_numbers(
+def binomial_coeff(n, k):
+    """
+    Compute the binomial coefficient of order n and position k.
+
+    The binomial coefficient of order n and position k.
+    This is also equivalent to the number of ways of combining n items in
+    groups of size k.
+
+    If more than one binomial coefficient of the same order are needed, then
+    `flyingcircus.base.get_binomial_coeffs()` may be more efficient.
+
+    This is often indicated as `n_C_k`, `C(n, k)` or `(n k)`.
+
+    Args:
+        n (int): The order of the binomial coefficient.
+            Must be non-negative.
+        k (int): The position of the binomial coefficient.
+            Must be non-negative and smaller than or equal to `n`.
+
+    Returns:
+        result (int): The binomial coefficient.
+
+    Examples:
+        >>> binomial_coeff(10, 5)
+        252
+        >>> [binomial_coeff(10, i) for i in range(10 + 1)]
+        [1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1]
+        >>> [binomial_coeff(11, i) for i in range(11 + 1)]
+        [1, 11, 55, 165, 330, 462, 462, 330, 165, 55, 11, 1]
+
+    See Also:
+        - flyingcircus.base.get_binomial_coeffs()
+        - flyingcircus.base.binomial_triangle_range()
+
+    References:
+        - https://en.wikipedia.org/wiki/Binomial_coefficient
+        - https://en.wikipedia.org/wiki/Binomial_triangle
+    """
+    return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
+
+
+# ======================================================================
+def get_binomial_coeffs(
         num,
         full=True,
         cached=False):
     """
-    Generate the numbers of a given row of Pascal's triangle.
+    Generate the numbers of a given row of the binomial triangle.
 
-    These are the numbers in the `num`-th row (order) of the Pascal's triangle.
+    This is also known as Pascal's triangle.
+
+    These are the numbers in the `num`-th row (order) of the binomial triangle.
     If only a specific binomial coefficient is required, use
-    `scipy.special.comb(exact=True)`.
+    `flyingcircus.base.binomial_coeff()`.
 
     Args:
-        num (int): The row index of the Pascal's triangle.
-            Indexing start from 0.
+        num (int): The row index of the triangle.
+            Indexing starts from 0.
         full (bool): Compute all numbers of the row.
             If True, all numbers are yielded.
             Otherwise, it only yields non-repeated numbers (exploiting the
@@ -4447,20 +4491,24 @@ def get_pascal_numbers(
             i.e. the numbers are computed directly.
 
     Yields:
-        value (int): The next Pascal number of a given row.
+        value (int): The next binomial coefficient of a given order / row.
 
     Examples:
-        >>> list(get_pascal_numbers(12))
+        >>> list(get_binomial_coeffs(12))
         [1, 12, 66, 220, 495, 792, 924, 792, 495, 220, 66, 12, 1]
-        >>> list(get_pascal_numbers(13))
+        >>> list(get_binomial_coeffs(13))
         [1, 13, 78, 286, 715, 1287, 1716, 1716, 1287, 715, 286, 78, 13, 1]
-        >>> list(get_pascal_numbers(12, False))
+        >>> list(get_binomial_coeffs(12, cached=True))
+        [1, 12, 66, 220, 495, 792, 924, 792, 495, 220, 66, 12, 1]
+        >>> list(get_binomial_coeffs(13, cached=True))
+        [1, 13, 78, 286, 715, 1287, 1716, 1716, 1287, 715, 286, 78, 13, 1]
+        >>> list(get_binomial_coeffs(12, full=False))
         [1, 12, 66, 220, 495, 792, 924]
-        >>> list(get_pascal_numbers(13, False))
+        >>> list(get_binomial_coeffs(13, full=False))
         [1, 13, 78, 286, 715, 1287, 1716]
         >>> num = 10
         >>> for n in range(num):
-        ...     print(list(get_pascal_numbers(n)))
+        ...     print(list(get_binomial_coeffs(n)))
         [1]
         [1, 1]
         [1, 2, 1]
@@ -4471,20 +4519,27 @@ def get_pascal_numbers(
         [1, 7, 21, 35, 35, 21, 7, 1]
         [1, 8, 28, 56, 70, 56, 28, 8, 1]
         [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
+        >>> all(list(get_binomial_coeffs(n))
+        ...     == list(get_binomial_coeffs(n, cached=True))
+        ...     for n in range(10))
+        True
+        >>> all(list(get_binomial_coeffs(n))
+        ...     == [binomial_coeff(n, k) for k in range(n + 1)]
+        ...     for n in range(10))
+        True
 
     See Also:
-        - flyingcircus.base.pascal_triangle_range()
-        - sp.special.comb()
-        - sp.special.binom()
+        - flyingcircus.base.binomial_coeff()
+        - flyingcircus.base.binomial_triangle_range()
+
+    References:
         - https://en.wikipedia.org/wiki/Binomial_coefficient
-        - https://en.wikipedia.org/wiki/Pascal%27s_triangle
+        - https://en.wikipedia.org/wiki/Binomial_triangle
     """
     value = 1
     stop = (num + 1) if full and not cached else (num // 2 + 1)
     if full and cached:
-        cache = [value * (num - i) // (i + 1) for i in range(stop)]
-        # equivalent to:
-        # cache = [value for value in get_pascal_numbers(num, False, False)]
+        cache = list(get_binomial_coeffs(num, full=False, cached=False))
         for value in cache:
             yield value
         for value in cache[(-1 if num % 2 else -2)::-1]:
@@ -4496,15 +4551,18 @@ def get_pascal_numbers(
 
 
 # ======================================================================
-def pascal_triangle_range(
+def binomial_triangle(
         first,
         second=None,
         step=None,
         container=tuple):
     """
-    Generate the Pascal's triangle rows in a given range.
+    Generate the binomial triangle rows in a given range.
+    
+    This is also known as Pascal's triangle.
 
-    See `get_pascal_numbers()` for generating any given row of the triangle.
+    See `flyingcircus.base.get_binomial_coeffs()` for generating any given
+    row of the triangle.
 
     Args:
         first (int): The first value of the range.
@@ -4526,30 +4584,30 @@ def pascal_triangle_range(
             This should be a Sequence constructor.
 
     Yields:
-        row (Sequence[int]): The rows of the Pascal's triangle.
+        row (Sequence[int]): The rows of the binomial triangle.
 
     Examples:
-        >>> tuple(pascal_triangle_range(5))
+        >>> tuple(binomial_triangle(5))
         ((1,), (1, 1), (1, 2, 1), (1, 3, 3, 1), (1, 4, 6, 4, 1))
-        >>> tuple(pascal_triangle_range(5, 7))
+        >>> tuple(binomial_triangle(5, 7))
         ((1, 5, 10, 10, 5, 1), (1, 6, 15, 20, 15, 6, 1))
-        >>> tuple(pascal_triangle_range(7, 9))
+        >>> tuple(binomial_triangle(7, 9))
         ((1, 7, 21, 35, 35, 21, 7, 1), (1, 8, 28, 56, 70, 56, 28, 8, 1))
-        >>> tuple(pascal_triangle_range(5, 2))
+        >>> tuple(binomial_triangle(5, 2))
         ((1, 5, 10, 10, 5, 1), (1, 4, 6, 4, 1), (1, 3, 3, 1))
-        >>> tuple(pascal_triangle_range(0, 7, 2))
+        >>> tuple(binomial_triangle(0, 7, 2))
         ((1,), (1, 2, 1), (1, 4, 6, 4, 1), (1, 6, 15, 20, 15, 6, 1))
-        >>> tuple(pascal_triangle_range(0, 6, 2))
+        >>> tuple(binomial_triangle(0, 6, 2))
         ((1,), (1, 2, 1), (1, 4, 6, 4, 1))
-        >>> tuple(pascal_triangle_range(7, 1, -2))
+        >>> tuple(binomial_triangle(7, 1, -2))
         ((1, 7, 21, 35, 35, 21, 7, 1), (1, 5, 10, 10, 5, 1), (1, 3, 3, 1))
-        >>> tuple(pascal_triangle_range(7, 1, 2))  # empty range!
+        >>> tuple(binomial_triangle(7, 1, 2))  # empty range!
         ()
-        >>> list(pascal_triangle_range(3))
+        >>> list(binomial_triangle(3))
         [(1,), (1, 1), (1, 2, 1)]
-        >>> list(pascal_triangle_range(5, container=list))
+        >>> list(binomial_triangle(5, container=list))
         [[1], [1, 1], [1, 2, 1], [1, 3, 3, 1], [1, 4, 6, 4, 1]]
-        >>> for row in pascal_triangle_range(10):
+        >>> for row in binomial_triangle(10):
         ...    print(row)
         (1,)
         (1, 1)
@@ -4563,11 +4621,12 @@ def pascal_triangle_range(
         (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
 
     See Also:
-        - flyingcircus.base.get_pascal_numbers()
-        - sp.special.comb()
-        - sp.special.binom()
+        - flyingcircus.base.binomial_coeff()
+        - flyingcircus.base.get_binomial_coeffs()
+
+    References
         - https://en.wikipedia.org/wiki/Binomial_coefficient
-        - https://en.wikipedia.org/wiki/Pascal%27s_triangle
+        - https://en.wikipedia.org/wiki/Binomial_triangle
     """
     if second is None:
         start, stop = 0, first
@@ -4576,7 +4635,7 @@ def pascal_triangle_range(
     if not step:
         step = 1 if start < stop else -1
     for i in range(start, stop, step):
-        yield container(get_pascal_numbers(i))
+        yield container(get_binomial_coeffs(i))
 
 
 # ======================================================================

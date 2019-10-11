@@ -374,7 +374,7 @@ def binomial_coeff(
 
 
 # ======================================================================
-def is_prime_pascal(val):
+def is_prime_binomial(val):
     """
     Determine if number is prime.
 
@@ -384,7 +384,7 @@ def is_prime_pascal(val):
     0 and 1 are considered special cases; in this implementations they are
     considered primes.
 
-    It is implemented by using the Pascal triangle primality test.
+    It is implemented by using the binomial triangle primality test.
     This is known to be extremely inefficient.
 
     Args:
@@ -395,30 +395,29 @@ def is_prime_pascal(val):
         is_divisible (bool): The result of the primality.
 
     Examples:
-        >>> is_prime_pascal(100)
+        >>> is_prime_binomial(100)
         False
-        >>> is_prime_pascal(101)
+        >>> is_prime_binomial(101)
         True
-        >>> is_prime_pascal(-100)
+        >>> is_prime_binomial(-100)
         False
-        >>> is_prime_pascal(-101)
+        >>> is_prime_binomial(-101)
         True
-        >>> is_prime_pascal(2 ** 17)
+        >>> is_prime_binomial(2 ** 17)
         False
-        >>> is_prime_pascal(17 * 19)
+        >>> is_prime_binomial(17 * 19)
         False
-        >>> is_prime_pascal(2 ** 17 - 1)
+        >>> is_prime_binomial(2 ** 17 - 1)
         True
-        >>> is_prime_pascal(0)
+        >>> is_prime_binomial(0)
         True
-        >>> is_prime_pascal(1)
+        >>> is_prime_binomial(1)
         True
 
     See Also:
         - flyingcircus.base.is_prime()
         - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
-        - https://en.wikipedia.org/wiki/AKS_primality_test
     """
     val = abs(val)
     if (val % 2 == 0 and val > 2) or (val % 3 == 0 and val > 3):
@@ -426,7 +425,7 @@ def is_prime_pascal(val):
     elif val == 2 or val == 3:
         return True
     elif all(
-            n % val == 0 for n in fc.base.get_pascal_numbers(val, full=False)
+            n % val == 0 for n in fc.base.get_binomial_coeffs(val, full=False)
             if n > 1):
         return True
     else:
