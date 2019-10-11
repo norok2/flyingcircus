@@ -4422,45 +4422,117 @@ def isqrt(num):
 
 
 # ======================================================================
-def binomial_coeff(n, k):
+def perm(n, k):
     """
-    Compute the binomial coefficient of order n and position k.
+    Compute the number of ways to permuting n items into groups of size k.
 
-    The binomial coefficient of order n and position k.
-    This is also equivalent to the number of ways of combining n items in
-    groups of size k.
+    This is equivalent to the number of ways to choose k items from n items
+    without repetition and with order.
+
+    This is often indicated as `n_P_k` or `P(n, k)`.
+
+    n! / (n - k)!
+
+    Args:
+        n (int): The number of items.
+            Must be non-negative.
+        k (int): The group size.
+            Must be non-negative and smaller than or equal to `n`.
+
+    Returns:
+        result (int): The number of k-permutation of n items.
+
+    Examples:
+        >>> perm(10, 5)
+        30240
+        >>> [perm(8, i) for i in range(8 + 1)]
+        [1, 8, 56, 336, 1680, 6720, 20160, 40320, 40320]
+        >>> [perm(9, i) for i in range(9 + 1)]
+        [1, 9, 72, 504, 3024, 15120, 60480, 181440, 362880, 362880]
+        >>> perm(0, 0)
+        1
+        >>> perm(1, 0)
+        1
+        >>> perm(0, 1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Values must be non-negative and n >= k in perm(n, k)
+        >>> all(perm(n, n) == math.factorial(n) for n in range(20))
+        True
+
+    References:
+        - https://en.wikipedia.org/wiki/Permutation
+    """
+    if k > n or k < 0 or n < 0:
+        raise ValueError(
+            'Values must be non-negative and n >= k in perm(n, k)')
+    else:
+        return prod(range(n - k + 1, n + 1))
+
+
+# ======================================================================
+def comb(n, k):
+    """
+    Compute the number of ways to combining n items into groups of size k.
+
+    This is essentially binomial coefficient of order n and position k.
+    This is equivalent to the number of ways to choose k items from n items
+    without repetition and without order.
+
+    This is often indicated as `(n k)`, `n_C_k` or `C(n, k)`.
 
     If more than one binomial coefficient of the same order are needed, then
     `flyingcircus.base.get_binomial_coeffs()` may be more efficient.
 
-    This is often indicated as `n_C_k`, `C(n, k)` or `(n k)`.
-
     Args:
-        n (int): The order of the binomial coefficient.
+        n (int): The number of items.
             Must be non-negative.
-        k (int): The position of the binomial coefficient.
+        k (int): The group size.
             Must be non-negative and smaller than or equal to `n`.
 
     Returns:
-        result (int): The binomial coefficient.
+        result (int): The number of k-combinations of n items.
+
+    Raises:
+        ValueError: if the inputs are invalid.
 
     Examples:
-        >>> binomial_coeff(10, 5)
+        >>> comb(10, 5)
         252
-        >>> [binomial_coeff(10, i) for i in range(10 + 1)]
+        >>> [comb(10, i) for i in range(10 + 1)]
         [1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1]
-        >>> [binomial_coeff(11, i) for i in range(11 + 1)]
+        >>> [comb(11, i) for i in range(11 + 1)]
         [1, 11, 55, 165, 330, 462, 462, 330, 165, 55, 11, 1]
+        >>> comb(0, 0)
+        1
+        >>> comb(1, 0)
+        1
+        >>> comb(0, 1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Values must be non-negative and n >= k in comb(n, k)
+        >>> all(comb(n, k) * math.factorial(k) == perm(n, k)
+        ...     for n in range(20) for k in range(n))
+        True
 
     See Also:
         - flyingcircus.base.get_binomial_coeffs()
         - flyingcircus.base.binomial_triangle_range()
 
     References:
+        - https://en.wikipedia.org/wiki/Combination
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Binomial_triangle
     """
-    return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
+    if k > n or k < 0 or n < 0:
+        raise ValueError(
+            'Values must be non-negative and n >= k in comb(n, k)')
+    elif k > n - k:
+        # return perm(n, k) // math.factorial(n - k)
+        return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
+    else:
+        # return perm(n, n - k) // math.factorial(k)
+        return math.factorial(n) // math.factorial(n - k) // math.factorial(k)
 
 
 # ======================================================================
@@ -4475,7 +4547,7 @@ def get_binomial_coeffs(
 
     These are the numbers in the `num`-th row (order) of the binomial triangle.
     If only a specific binomial coefficient is required, use
-    `flyingcircus.base.binomial_coeff()`.
+    `flyingcircus.base.comb()`.
 
     Args:
         num (int): The row index of the triangle.
@@ -4524,12 +4596,12 @@ def get_binomial_coeffs(
         ...     for n in range(10))
         True
         >>> all(list(get_binomial_coeffs(n))
-        ...     == [binomial_coeff(n, k) for k in range(n + 1)]
+        ...     == [comb(n, k) for k in range(n + 1)]
         ...     for n in range(10))
         True
 
     See Also:
-        - flyingcircus.base.binomial_coeff()
+        - flyingcircus.base.comb()
         - flyingcircus.base.binomial_triangle_range()
 
     References:
@@ -4621,7 +4693,7 @@ def binomial_triangle(
         (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
 
     See Also:
-        - flyingcircus.base.binomial_coeff()
+        - flyingcircus.base.comb()
         - flyingcircus.base.get_binomial_coeffs()
 
     References
