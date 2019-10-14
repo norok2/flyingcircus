@@ -123,10 +123,10 @@ def is_prime_verbose(val):
         False
     """
     # : verbose implementation (skip 2 multiples!)
-    is_divisible = val == 1 or (val != 2 and val % 2 == 0)
+    is_divisible = val == 1 or (val != 2 and not (val % 2))
     i = 3
     while not is_divisible and i * i < val:
-        is_divisible = val % i == 0
+        is_divisible = not (val % i)
         # only odd factors needs to be tested
         i += 2
     return not is_divisible
@@ -172,10 +172,10 @@ def is_prime_optimized(val):
     """
     # : optimized implementation (skip 2 multiples!)
     val = abs(val)
-    if val % 2 == 0 and val > 2:
+    if not (val % 2) and val > 2:
         return False
     for i in range(3, int(val ** 0.5) + 1, 2):
-        if val % i == 0:
+        if not (val % i):
             return False
     return True
 
@@ -420,12 +420,12 @@ def is_prime_binomial(val):
         - https://en.wikipedia.org/wiki/Prime_number
     """
     val = abs(val)
-    if (val % 2 == 0 and val > 2) or (val % 3 == 0 and val > 3):
+    if not ((val % 2 and val > 2) and (val % 3 and val > 3)):
         return False
     elif val == 2 or val == 3:
         return True
     elif all(
-            n % val == 0 for n in fc.base.get_binomial_coeffs(val, full=False)
+            not (n % val) for n in fc.base.get_binomial_coeffs(val, full=False)
             if n > 1):
         return True
     else:
@@ -731,7 +731,7 @@ def symmetric_padding_loops(
     for ij in itertools.product(*tuple(range(dim) for dim in result.shape)):
         slicing = tuple(
             (i + offset) % dim
-            if (i + offset) // dim % 2 == 0 else
+            if not ((i + offset) // dim % 2) else
             (dim - 1 - i - offset) % dim
             for i, offset, dim in zip(ij, offsets, arr.shape))
         result[ij] = arr[slicing]

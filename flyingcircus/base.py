@@ -1190,7 +1190,7 @@ def span(
         start, stop = first, second
     if not step:
         step = 1 if start <= stop else -1
-    stop = stop + (step if (start - stop) % step == 0 else 0)
+    stop = stop + (step if not ((start - stop) % step) else 0)
     return range(start, stop, step)
 
 
@@ -4713,7 +4713,7 @@ def binomial_triangle(
 # ======================================================================
 def is_prime(num):
     """
-    Determine if number is prime.
+    Determine if a number is prime.
 
     A prime number is only divisible by 1 and itself.
     0 and 1 are considered special cases; in this implementations they are
@@ -4721,6 +4721,7 @@ def is_prime(num):
 
     It is implemented by directly testing for possible factors
     (i.e. the trial division algorithm, excluding multiples of 2 and 3).
+    This can be seen as a wheel division algorithm with a the {2, 3} wheel set.
 
     Args:
         num (int): The number to check for primality.
@@ -4744,6 +4745,8 @@ def is_prime(num):
         False
         >>> is_prime(2 ** 17 - 1)
         True
+        >>> is_prime(2 ** 31 - 1)
+        True
         >>> is_prime(0)
         True
         >>> is_prime(1)
@@ -4754,10 +4757,11 @@ def is_prime(num):
         - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
     """
     # : fastest implementation (skip both 2 and 3 multiples!)
     num = abs(num)
-    if (num % 2 == 0 and num > 2) or (num % 3 == 0 and num > 3):
+    if (not (num % 2) and num > 2) or (not (num % 3) and num > 3):
         return False
     i = 5
     while i * i <= num:
@@ -4765,6 +4769,79 @@ def is_prime(num):
             return False
         else:
             i += 6
+    return True
+
+
+# ======================================================================
+def is_prime_wheel(
+        num,
+        wheel=8):
+    """
+    Determine if a number is prime.
+
+    A prime number is only divisible by 1 and itself.
+    0 and 1 are considered special cases; in this implementations they are
+    considered primes.
+
+    It is implemented by testing the possible factors for a given generator
+    wheel, which can be specified.
+
+    For smaller primes, `is_prime()` is much faster than this.
+
+    Args:
+        num (int): The number to check for primality.
+            Only works for numbers larger than 1.
+        wheel (int): The upper limit on the prime numbers in the wheel.
+
+    Returns:
+        is_divisible (bool): The result of the primality.
+
+    Examples:
+        >>> is_prime_wheel(100)
+        False
+        >>> is_prime_wheel(101)
+        True
+        >>> is_prime_wheel(-100)
+        False
+        >>> is_prime_wheel(-101)
+        True
+        >>> is_prime_wheel(2 ** 17)
+        False
+        >>> is_prime_wheel(17 * 19)
+        False
+        >>> is_prime_wheel(2 ** 17 - 1)
+        True
+        >>> is_prime_wheel(2 ** 31 - 1)
+        True
+        >>> is_prime_wheel(0)
+        True
+        >>> is_prime_wheel(1)
+        True
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+    """
+    num = abs(num)
+    wheel = primes_range(2, wheel)
+    for k in wheel:
+        if not num % k:
+            return num <= k
+    prod_wheel = prod(wheel)
+    coprimes = tuple(
+        n for n in range(2, prod_wheel + 2)
+        if all(math.gcd(n, k) for k in wheel))
+    deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
+    j = 0
+    i = coprimes[0]
+    while i * i <= num:
+        if not (num % i):
+            return False
+        i += deltas[j]
+        j = (j + 1) % len(deltas)
     return True
 
 
@@ -4818,7 +4895,7 @@ def primes_range(
     if start < 2 and start < stop:
         start = 2
     step = 2 if start < stop else -2
-    if start % 2 == 0:
+    if not (start % 2):
         if start == 2:
             yield start
         start += step // 2
@@ -4867,7 +4944,7 @@ def get_primes(
             yield num
             i += 1
         num += 1
-    if num % 2 == 0:
+    if not (num % 2):
         num += 1
     while i != max_count:
         if is_prime(num):
@@ -5070,7 +5147,7 @@ def factorize(num):
     primes = get_primes()
     prime = next(primes)
     while prime * prime <= num:
-        while num % prime == 0:
+        while not (num % prime):
             num //= prime
             yield prime
         prime = next(primes)
@@ -6520,7 +6597,7 @@ def median(
     sorted_items = sorted(items) if force_sort else items
     n = len(items)
     i = n // 2
-    if n % 2 == 0 and sorted_items[i - 1] != sorted_items[i]:
+    if not (n % 2) and sorted_items[i - 1] != sorted_items[i]:
         median_ = (sorted_items[i - 1] + sorted_items[i]) / 2
     else:
         median_ = sorted_items[i]
@@ -6691,7 +6768,7 @@ def quantile(
     n = len(items)
     interp = interp.lower()
     sorted_items = sorted(items) if force_sort else items
-    is_exact = (n - 1) % int_base == 0
+    is_exact = not ((n - 1) % int_base)
     exact_factor = (n - 1) // int_base
     result = []
     for k in kk:
