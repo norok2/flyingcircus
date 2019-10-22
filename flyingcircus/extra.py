@@ -544,6 +544,33 @@ def nd_windowing(
         >>> print(nd_windowing(np.zeros((11, 13, 17)), 3, 2).shape)
         (5, 6, 8, 3, 3, 3)
 
+        Block-wise view
+        >>> arr = arange_nd((2 * 2, 2 * 3))
+        >>> print(arr)
+        [[ 0  1  2  3  4  5]
+         [ 6  7  8  9 10 11]
+         [12 13 14 15 16 17]
+         [18 19 20 21 22 23]]
+        >>> print(nd_windowing(arr, (2, 2), (2, 2)))
+        [[[[ 0  1]
+           [ 6  7]]
+        <BLANKLINE>
+          [[ 2  3]
+           [ 8  9]]
+        <BLANKLINE>
+          [[ 4  5]
+           [10 11]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[12 13]
+           [18 19]]
+        <BLANKLINE>
+          [[14 15]
+           [20 21]]
+        <BLANKLINE>
+          [[16 17]
+           [22 23]]]]
+
         >>> arr = arange_nd((4, 5))
         >>> print(arr)
         [[ 0  1  2  3  4]
