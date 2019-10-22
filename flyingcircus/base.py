@@ -5312,20 +5312,11 @@ def get_divisors(num):
     if num < 0:
         yield -1
         num = abs(num)
-    factors = sorted(collections.Counter(get_factors(num)).items())
-    num_factors = len(factors)
-    exponents = [0] * num_factors
-    while True:
-        yield prod(factors[j][0] ** exponents[j] for j in range(num_factors))
-        i = 0
-        while True:
-            exponents[i] += 1
-            if exponents[i] <= factors[i][1]:
-                break
-            exponents[i] = 0
-            i += 1
-            if i >= num_factors:
-                return
+    unique_factors, unique_powers = zip(*sorted(
+        collections.Counter(get_factors(num)).items(), reverse=True))
+    for powers in itertools.product(*(range(n + 1) for n in unique_powers)):
+        yield prod(
+            factor ** power for factor, power in zip(unique_factors, powers))
 
 
 # =====================================================================
