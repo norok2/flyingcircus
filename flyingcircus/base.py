@@ -5111,7 +5111,7 @@ def fibonacci(
 
 
 # ======================================================================
-def factorize(
+def get_factors(
         num,
         wheel=(2, 3, 5)):
     """
@@ -5133,21 +5133,21 @@ def factorize(
             Factors are yielded in increasing order.
 
     Examples:
-        >>> list(factorize(100))
+        >>> list(get_factors(100))
         [2, 2, 5, 5]
-        >>> list(factorize(1234567890))
+        >>> list(get_factors(1234567890))
         [2, 3, 3, 5, 3607, 3803]
-        >>> list(factorize(-65536))
+        >>> list(get_factors(-65536))
         [-1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-        >>> list(factorize(0))
+        >>> list(get_factors(0))
         [0]
-        >>> list(factorize(1))
+        >>> list(get_factors(1))
         [1]
-        >>> list(factorize(-1))
+        >>> list(get_factors(-1))
         [-1]
-        >>> list(factorize(987654321.0))
+        >>> list(get_factors(987654321.0))
         [3, 3, 17, 17, 379721]
-        >>> all(n == prod(factorize(n)) for n in range(1000))
+        >>> all(n == prod(get_factors(n)) for n in range(1000))
         True
 
     See Also:
@@ -5197,7 +5197,7 @@ def factorize(
 
 
 # ======================================================================
-def factorize_as_dict(num):
+def get_factors_as_dict(num):
     """
     Find all factors of a number and collect them in an ordered dict.
 
@@ -5208,19 +5208,19 @@ def factorize_as_dict(num):
         factors (collections.OrderedDict): The factors of the number.
 
     Examples:
-        >>> factorize_as_dict(100)
+        >>> get_factors_as_dict(100)
         OrderedDict([(2, 2), (5, 2)])
-        >>> factorize_as_dict(1234567890)
+        >>> get_factors_as_dict(1234567890)
         OrderedDict([(2, 1), (3, 2), (5, 1), (3607, 1), (3803, 1)])
-        >>> factorize_as_dict(65536)
+        >>> get_factors_as_dict(65536)
         OrderedDict([(2, 16)])
     """
-    factors = list(factorize(num))
+    factors = list(get_factors(num))
     return collections.OrderedDict(collections.Counter(factors))
 
 
 # ======================================================================
-def factorize_as_str(
+def get_factors_as_str(
         num,
         exp_sep='^',
         fact_sep=' * '):
@@ -5236,17 +5236,17 @@ def factorize_as_str(
         text (str): The factors of the number.
 
     Examples:
-        >>> factorize_as_str(100)
+        >>> get_factors_as_str(100)
         '2^2 * 5^2'
-        >>> factorize_as_str(1234567890)
+        >>> get_factors_as_str(1234567890)
         '2 * 3^2 * 5 * 3607 * 3803'
-        >>> factorize_as_str(65536)
+        >>> get_factors_as_str(65536)
         '2^16'
     """
     text = ''
     last_factor = 1
     exp = 0
-    for factor in factorize(num):
+    for factor in get_factors(num):
         if factor == last_factor:
             exp += 1
         else:
@@ -5262,8 +5262,74 @@ def factorize_as_str(
     return text
 
 
+# ======================================================================
+def get_divisors(num):
+    """
+    Find all divisors of a number.
+
+    It is implemented by computing the possible unique combinations of the
+    factors.
+
+    Args:
+        num (int|float): The number to factorize.
+            If float, its nearest integer is factorized.
+
+    Yields:
+        factor (int): The next factor of the number.
+            Factors are yielded in increasing order.
+
+    Examples:
+        >>> list(get_divisors(100))
+        [1, 2, 4, 5, 10, 20, 25, 50, 100]
+        >>> list(get_divisors(-100))
+        [-1, 1, 2, 4, 5, 10, 20, 25, 50, 100]
+        >>> list(get_divisors(2 ** 8))
+        [1, 2, 4, 8, 16, 32, 64, 128, 256]
+        >>> list(get_divisors(12345))
+        [1, 3, 5, 15, 823, 2469, 4115, 12345]
+        >>> list(get_divisors(0))
+        [0]
+        >>> list(get_divisors(1))
+        [1]
+        >>> list(get_divisors(2))
+        [1, 2]
+        >>> list(get_divisors(101))
+        [1, 101]
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
+        - flyingcircus.base.get_primes()
+        - flyingcircus.base.get_factors()
+
+    References:
+        - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+    """
+    if num in (0, 1):
+        yield num
+        return
+    if num < 0:
+        yield -1
+        num = abs(num)
+    factors = sorted(collections.Counter(get_factors(num)).items())
+    num_factors = len(factors)
+    exponents = [0] * num_factors
+    while True:
+        yield prod(factors[j][0] ** exponents[j] for j in range(num_factors))
+        i = 0
+        while True:
+            exponents[i] += 1
+            if exponents[i] <= factors[i][1]:
+                break
+            exponents[i] = 0
+            i += 1
+            if i >= num_factors:
+                return
+
+
 # =====================================================================
-def factorize_k_all(
+def get_k_factors_all(
         num,
         k=2,
         sort=None,
@@ -5291,14 +5357,14 @@ def factorize_k_all(
     Examples:
         >>> nums = (32, 41, 46, 60)
         >>> for i in nums:
-        ...     factorize_k_all(i, 2)
+        ...     get_k_factors_all(i, 2)
         ((2, 16), (4, 8), (8, 4), (16, 2))
         ((1, 41), (41, 1))
         ((2, 23), (23, 2))
         ((2, 30), (3, 20), (4, 15), (5, 12), (6, 10), (10, 6), (12, 5),\
  (15, 4), (20, 3), (30, 2))
         >>> for i in nums:
-        ...     factorize_k_all(i, 3)
+        ...     get_k_factors_all(i, 3)
         ((2, 2, 8), (2, 4, 4), (2, 8, 2), (4, 2, 4), (4, 4, 2), (8, 2, 2))
         ((1, 1, 41), (1, 41, 1), (41, 1, 1))
         ((1, 2, 23), (1, 23, 2), (2, 1, 23), (2, 23, 1), (23, 1, 2),\
@@ -5308,7 +5374,7 @@ def factorize_k_all(
  (5, 2, 6), (5, 3, 4), (5, 4, 3), (5, 6, 2), (6, 2, 5), (6, 5, 2),\
  (10, 2, 3), (10, 3, 2), (15, 2, 2))
     """
-    factors = tuple(factorize(num))
+    factors = tuple(get_factors(num))
     factors += (1,) * (k - len(factors))
     factorizations = [
         item
@@ -5322,7 +5388,7 @@ def factorize_k_all(
 
 
 # =====================================================================
-def factorize_k(
+def get_k_factors(
         num,
         k=2,
         mode='=',
@@ -5357,37 +5423,37 @@ def factorize_k(
         tuple (int): A listing of `k` factors of `num`.
 
     Examples:
-        >>> [factorize_k(402653184, k) for k in range(3, 6)]
+        >>> [get_k_factors(402653184, k) for k in range(3, 6)]
         [(1024, 768, 512), (192, 128, 128, 128), (64, 64, 64, 48, 32)]
-        >>> [factorize_k(402653184, k) for k in (2, 12)]
+        >>> [get_k_factors(402653184, k) for k in (2, 12)]
         [(24576, 16384), (8, 8, 8, 8, 6, 4, 4, 4, 4, 4, 4, 4)]
-        >>> factorize_k(6, 4)
+        >>> get_k_factors(6, 4)
         (3, 2, 1, 1)
-        >>> factorize_k(-12, 4)
+        >>> get_k_factors(-12, 4)
         (3, 2, 2, -1)
-        >>> factorize_k(0, 4)
+        >>> get_k_factors(0, 4)
         (1, 1, 1, 0)
-        >>> factorize_k(720, 4)
+        >>> get_k_factors(720, 4)
         (6, 6, 5, 4)
-        >>> factorize_k(720, 4, '+')
+        >>> get_k_factors(720, 4, '+')
         (4, 4, 9, 5)
-        >>> factorize_k(720, 3)
+        >>> get_k_factors(720, 3)
         (12, 10, 6)
-        >>> factorize_k(720, 3, '+')
+        >>> get_k_factors(720, 3, '+')
         (8, 6, 15)
-        >>> factorize_k(720, 3, mode='-')
+        >>> get_k_factors(720, 3, mode='-')
         (45, 4, 4)
-        >>> factorize_k(720, 3, mode='seed0')
+        >>> get_k_factors(720, 3, mode='seed0')
         (12, 6, 10)
-        >>> factorize_k(720, 3, 'alt')
+        >>> get_k_factors(720, 3, 'alt')
         (30, 4, 6)
-        >>> factorize_k(720, 3, 'alt1')
+        >>> get_k_factors(720, 3, 'alt1')
         (12, 6, 10)
-        >>> factorize_k(720, 3, '=')
+        >>> get_k_factors(720, 3, '=')
         (12, 10, 6)
     """
     if k > 1:
-        factors = list(factorize(num))
+        factors = list(get_factors(num))
         if len(factors) < k:
             factors.extend([1] * (k - len(factors)))
         groups = None
@@ -5462,7 +5528,7 @@ def optimal_shape(
         >>> [optimal_shape(i, 3) for i in range(n1, n2)]
         [(5, 4, 2), (41, 1, 1), (7, 3, 2), (43, 1, 1), (11, 2, 2), (5, 3, 3)]
     """
-    factorizations = factorize_k_all(num, dims)
+    factorizations = get_k_factors_all(num, dims)
     return sorted(factorizations, key=sort, reverse=reverse)[0]
 
 
