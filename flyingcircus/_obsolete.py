@@ -13,17 +13,16 @@ from __future__ import (
 # :: Python Standard Library Imports
 import os  # Miscellaneous operating system interfaces
 import sys  # System-specific parameters and functions
+import math  # Mathematical functions
 import functools  # Higher-order functions and operations on callable objects
 import doctest  # Test interactive Python examples
-import shlex  # Simple lexical analysis
+import string  # Common string operations
 import itertools  # Functions creating iterators for efficient looping
 
 # :: External Imports
 import numpy as np  # NumPy (multidimensional numerical arrays library)
 import scipy as sp  # SciPy (signal and image processing library)
 import flyingcircus as fc  # Everything you always wanted to have in Python.*
-from flyingcircus import base
-from flyingcircus import extra
 
 # :: External Imports Submodules
 import scipy.optimize  # SciPy: Optimization Algorithms
@@ -171,7 +170,8 @@ def is_prime_optimized(val):
         True
     """
     # : optimized implementation (skip 2 multiples!)
-    val = abs(val)
+    if val < 0:
+        val = -val
     if not (val % 2) and val > 2:
         return False
     for i in range(3, int(val ** 0.5) + 1, 2):
@@ -419,7 +419,10 @@ def is_prime_binomial(val):
         - flyingcircus.base.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
     """
-    val = abs(val)
+    if val < 0:
+        val = -val
+    if val in (0, 1):
+        return True
     if not ((val % 2 and val > 2) and (val % 3 and val > 3)):
         return False
     elif val == 2 or val == 3:
@@ -430,6 +433,101 @@ def is_prime_binomial(val):
         return True
     else:
         return False
+
+
+# ======================================================================
+def is_prime_wheel(
+        num,
+        wheel=None):
+    """
+    Determine if a number is prime.
+
+    This uses a wheel factorization implementation.
+
+    A prime number is only divisible by 1 and itself.
+    0 and 1 are considered special cases; in this implementations they are
+    considered primes.
+
+    It is implemented by testing for possible factors using wheel increment.
+
+    Args:
+        num (int): The number to check for primality.
+            Only works for numbers larger than 1.
+        wheel (int|Sequence[int]|None): The generators of the wheel.
+            If int, this is the number of prime numbers to use (must be > 1),
+            generated using `flyingcircus.base.gen_primes()`.
+            If Sequence, it must consist of the first N prime numbers in
+            increasing order.
+            If None, uses a hard-coded (2, 3) wheel, which is faster
+            for smaller inputs.
+
+    Returns:
+        is_divisible (bool): The result of the primality.
+
+    Examples:
+        >>> is_prime_wheel(100)
+        False
+        >>> is_prime_wheel(101)
+        True
+        >>> is_prime_wheel(-100)
+        False
+        >>> is_prime_wheel(-101)
+        True
+        >>> is_prime_wheel(2 ** 17)
+        False
+        >>> is_prime_wheel(17 * 19)
+        False
+        >>> is_prime_wheel(2 ** 17 - 1)
+        True
+        >>> is_prime_wheel(2 ** 31 - 1)
+        True
+        >>> is_prime_wheel(2 ** 17 - 1, 2)
+        True
+        >>> is_prime_wheel(2 ** 17 - 1, (2, 3))
+        True
+        >>> is_prime_wheel(2 ** 17 - 1, (2, 3, 5))
+        True
+        >>> is_prime_wheel(0)
+        True
+        >>> is_prime_wheel(1)
+        True
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
+
+    References:
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+    """
+    # : fastest implementation (skip both 2 and 3 multiples!)
+    if num < 0:
+        num = -num
+    if wheel is None:
+        wheel = (2, 3)
+    elif isinstance(wheel, int):
+        wheel = list(fc.base.get_primes(wheel, 2))
+    else:
+        wheel = tuple(sorted(wheel))
+    for k in wheel:
+        if not num % k:
+            return num <= k
+    prod_wheel = fc.base.prod(wheel)
+    coprimes = tuple(
+        n for n in range(2, prod_wheel + 2)
+        if all(math.gcd(n, k) == 1 for k in wheel))
+    deltas = tuple(fc.base.diff(coprimes + (coprimes[0] + prod_wheel,)))
+    len_deltas = len(deltas)
+    j = 0
+    i = coprimes[0]
+    while i * i <= num:
+        if not (num % i):
+            return False
+        i += deltas[j]
+        j += 1
+        j %= len_deltas
+    return True
 
 
 # ======================================================================
@@ -773,7 +871,7 @@ def cyclic_padding_tile(
          [2 3 1 2 3]]
     """
     shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -824,7 +922,7 @@ def cyclic_padding_pad(
          [2 3 1 2 3]]
     """
     shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         -(int(round((new_dim - dim) * offset))
           if isinstance(offset, float) else offset) % dim
@@ -871,7 +969,7 @@ def cyclic_padding_slicing(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    offsets = base.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -1012,8 +1110,8 @@ def reframe(
                [0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0.]])
     """
-    new_shape = base.auto_repeat(new_shape, arr.ndim, check=True)
-    position = base.auto_repeat(position, arr.ndim, check=True)
+    new_shape = fc.base.auto_repeat(new_shape, arr.ndim, check=True)
+    position = fc.base.auto_repeat(position, arr.ndim, check=True)
     if any(old > new for old, new in zip(arr.shape, new_shape)):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
