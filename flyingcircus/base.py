@@ -4762,14 +4762,14 @@ def _is_prime(num):
 
 # ======================================================================
 SMALL_PRIMES = (2,) + tuple(
-    n for n in range(3, 2 ** 12 + 1, 2) if _is_prime(n))
+    n for n in range(3, 2 ** 10 + 1, 2) if _is_prime(n))
 
 
 # ======================================================================
 def is_prime(
         num,
-        small_primes=frozenset(SMALL_PRIMES),
-        sorted_small_primes=tuple(sorted(SMALL_PRIMES))):
+        small_primes=SMALL_PRIMES,
+        hashed_small_primes=frozenset(SMALL_PRIMES)):
     """
     Determine if a number is prime.
 
@@ -4783,12 +4783,12 @@ def is_prime(
     Args:
         num (int): The number to check for primality.
             Only works for numbers larger than 1.
-        small_primes (Container): The first prime numbers.
-            Must contains prime starting from 2 (included).
-            Should use a high performance container like `set` or `frozenset`.
-        sorted_small_primes (Sequence): The first prime numbers (sorted).
+        small_primes (Sequence): The first prime numbers (sorted).
             Must contains prime starting from 2 (included).
             Must be in increasing order.
+        hashed_small_primes (Container): The first prime numbers.
+            Must contains prime starting from 2 (included).
+            Should use a high performance container like `set` or `frozenset`.
 
     Returns:
         result (bool): The result of the primality.
@@ -4830,17 +4830,17 @@ def is_prime(
     """
     if num < 0:
         num = -num
-    if num < sorted_small_primes[0]:
+    if num < small_primes[0]:
         return True
-    elif num <= sorted_small_primes[-1]:
-        return num in small_primes
+    elif num <= small_primes[-1] and hashed_small_primes:
+        return num in hashed_small_primes
     else:
-        for prime in sorted_small_primes:
+        for prime in small_primes:
             if not num % prime:
                 return False
             elif prime * prime > num:
                 return True
-        i = 5 + (sorted_small_primes[-1] - 1) // 6 * 6
+        i = 5 + (small_primes[-1] - 1) // 6 * 6
         while i * i <= num:
             if not num % i or not num % (i + 2):
                 return False
