@@ -4410,7 +4410,8 @@ def isqrt(num):
         >>> all(isqrt(2 ** (2 * i)) == 2 ** i for i in range(1000))
         True
     """
-    num = abs(num)
+    if num < 0:
+        num = -num
     guess = (num >> num.bit_length() // 2) + 1
     result = (guess + num // guess) // 2
     while abs(result - guess) > 1:
@@ -4711,9 +4712,7 @@ def binomial_triangle(
 
 
 # ======================================================================
-def is_prime(
-        num,
-        wheel=None):
+def _is_prime(num):
     """
     Determine if a number is prime.
 
@@ -4725,17 +4724,74 @@ def is_prime(
 
     Args:
         num (int): The number to check for primality.
-            Only works for numbers larger than 1.
-        wheel (int|Sequence[int]|None): The generators of the wheel.
-            If int, this is the number of prime numbers to use (must be > 1),
-            generated using `flyingcircus.base.gen_primes()`.
-            If Sequence, it must consist of the first N prime numbers in
-            increasing order.
-            If None, uses a hard-coded (2, 3) wheel, which is faster
-            for smaller inputs.
+            Must be greater than 1.
 
     Returns:
-        is_divisible (bool): The result of the primality.
+        result (bool): The result of the primality.
+
+    Examples:
+        >>> _is_prime(100)
+        False
+        >>> _is_prime(101)
+        True
+        >>> _is_prime(0)
+        True
+        >>> all(is_prime(n) for n in (-2, -1, 0, 1, 2))
+        True
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
+
+    References:
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+    """
+    # hard-coded (2, 3) wheel
+    if (not (num % 2) and num > 2) or (not (num % 3) and num > 3):
+        return False
+    i = 5
+    while i * i <= num:
+        if not (num % i and num % (i + 2)):
+            return False
+        else:
+            i += 6
+    return True
+
+
+# ======================================================================
+SMALL_PRIMES = (2,) + tuple(
+    n for n in range(3, 2 ** 12 + 1, 2) if _is_prime(n))
+
+
+# ======================================================================
+def is_prime(
+        num,
+        small_primes=frozenset(SMALL_PRIMES),
+        sorted_small_primes=tuple(sorted(SMALL_PRIMES))):
+    """
+    Determine if a number is prime.
+
+    A prime number is only divisible by 1 and itself.
+    0 and 1 are considered special cases; in this implementations they are
+    considered primes.
+
+    It is implemented by testing leveraging a certain number of precomputed
+    primes, later switching to trial division with a hard-coded (2, 3) wheel.
+
+    Args:
+        num (int): The number to check for primality.
+            Only works for numbers larger than 1.
+        small_primes (Container): The first prime numbers.
+            Must contains prime starting from 2 (included).
+            Should use a high performance container like `set` or `frozenset`.
+        sorted_small_primes (Sequence): The first prime numbers (sorted).
+            Must contains prime starting from 2 (included).
+            Must be in increasing order.
+
+    Returns:
+        result (bool): The result of the primality.
 
     Examples:
         >>> is_prime(100)
@@ -4754,15 +4810,13 @@ def is_prime(
         True
         >>> is_prime(2 ** 31 - 1)
         True
-        >>> is_prime(2 ** 17 - 1, 2)
+        >>> is_prime(2 ** 17 - 1, (2)
         True
         >>> is_prime(2 ** 17 - 1, (2, 3))
         True
         >>> is_prime(2 ** 17 - 1, (2, 3, 5))
         True
-        >>> is_prime(0)
-        True
-        >>> is_prime(1)
+        >>> all(is_prime(n) for n in (-2, -1, 0, 1, 2))
         True
 
     See Also:
@@ -4774,42 +4828,24 @@ def is_prime(
         - https://en.wikipedia.org/wiki/Trial_division
         - https://en.wikipedia.org/wiki/Wheel_factorization
     """
-    # : fastest implementation (skip both 2 and 3 multiples!)
-    num = abs(num)
-    if wheel is None:
-        wheel = [2, 3]
-    elif isinstance(wheel, int):
-        wheel = list(get_primes(wheel, 2))
+    if num < 0:
+        num = -num
+    if num < sorted_small_primes[0]:
+        return True
+    elif num <= sorted_small_primes[-1]:
+        return num in small_primes
     else:
-        wheel = sorted(wheel)
-    if wheel == [2, 3]:
-        if (not (num % 2) and num > 2) or (not (num % 3) and num > 3):
-            return False
-        i = 5
+        for prime in sorted_small_primes:
+            if not num % prime:
+                return False
+            elif prime * prime > num:
+                return True
+        i = 5 + (sorted_small_primes[-1] - 1) // 6 * 6
         while i * i <= num:
-            if not (num % i and num % (i + 2)):
+            if not num % i or not num % (i + 2):
                 return False
             else:
                 i += 6
-        return True
-    else:
-        for k in wheel:
-            if not num % k:
-                return num <= k
-        prod_wheel = prod(wheel)
-        coprimes = tuple(
-            n for n in range(2, prod_wheel + 2)
-            if all(math.gcd(n, k) == 1 for k in wheel))
-        deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
-        len_deltas = len(deltas)
-        j = 0
-        i = coprimes[0]
-        while i * i <= num:
-            if not (num % i):
-                return False
-            i += deltas[j]
-            j += 1
-            j %= len_deltas
         return True
 
 
@@ -5169,7 +5205,8 @@ def get_factors(
         yield -1
     elif num == 1:
         yield num
-    num = abs(num)
+    if num < 0:
+        num = -num
     # : wheel factorization
     if isinstance(wheel, int):
         wheel = tuple(get_primes(wheel, 2))
@@ -5311,7 +5348,7 @@ def get_divisors(num):
         return
     if num < 0:
         yield -1
-        num = abs(num)
+        num = -num
     unique_factors, unique_powers = zip(*sorted(
         collections.Counter(get_factors(num)).items(), reverse=True))
     for powers in itertools.product(*(range(n + 1) for n in unique_powers)):
