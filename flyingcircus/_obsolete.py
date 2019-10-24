@@ -407,7 +407,7 @@ def is_prime_binomial(val):
         False
         >>> is_prime_binomial(17 * 19)
         False
-        >>> is_prime_binomial(2 ** 17 - 1)
+        >>> is_prime_binomial(2 ** 13 - 1)
         True
         >>> is_prime_binomial(0)
         True
