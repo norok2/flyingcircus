@@ -4029,7 +4029,7 @@ def mapseq2seqmap(
 # ======================================================================
 def bits(value):
     """
-    Get the bit values for a number.
+    Get the bit values for a number (lower to higher significance).
 
     Args:
         value (int): The input value.
@@ -4041,7 +4041,7 @@ def bits(value):
         >>> list(bits(100))
         [0, 0, 1, 0, 0, 1, 1]
     """
-    # : this alternative is faster for larger values
+    # : this alternative may be faster for larger values
     # return map(int, bin(value)[:1:-1])
     while value:
         yield value & 1
@@ -4624,6 +4624,153 @@ def get_binomial_coeffs(
 
 
 # ======================================================================
+def get_fibonacci(
+        max_count=-1,
+        first=0,
+        second=1):
+    """
+    Generate the first Fibonacci-like numbers.
+
+    The next number is computed by adding the last two.
+
+    This is useful for generating a sequence of Fibonacci numbers.
+    To generate a specific Fibonacci number,
+    use `flyingcircus.base.fibonacci()`.
+
+    Args:
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        first (int): The first number of the sequence.
+        second (int): The second number of the sequence.
+
+    Yields:
+        value (int): The next Fibonacci number.
+
+    Examples:
+        >>> [x for x in get_fibonacci(16)]
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+        >>> [x for x in get_fibonacci(16, 0, 2)]
+        [0, 2, 2, 4, 6, 10, 16, 26, 42, 68, 110, 178, 288, 466, 754, 1220]
+        >>> [x for x in get_fibonacci(16, 3, 1)]
+        [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
+
+    See Also:
+        - flyingcircus.base.get_gen_fibonacci()
+        - flyingcircus.base.fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
+    """
+    i = 0
+    while i != max_count:
+        yield first
+        first, second = second, first + second
+        i += 1
+
+
+# ======================================================================
+def get_gen_fibonacci(
+        max_count=-1,
+        values=(0, 1),
+        weights=1):
+    """
+    Generate the first generalized Fibonacci-like numbers.
+
+    The next number is computed as a linear combination of the last values
+    multiplied by their respective weights.
+
+    These can be used to compute n-step Fibonacci, Lucas numbers,
+    Pell numbers, Perrin numbers, etc.
+
+    Args:
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        values (int|Sequence[int]): The initial numbers of the sequence.
+            If int, the value is repeated for the number of `weights`, and
+            `weights` must be a sequence.
+        weights (int|Sequence[int]): The weights for the linear combination.
+            If int, the value is repeated for the number of `values`, and
+            `values` must be a sequence.
+
+    Yields:
+        value (int): The next number of the sequence.
+
+    Examples:
+        >>> [x for x in get_gen_fibonacci(16)]
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
+        >>> [x for x in get_gen_fibonacci(16, (1, 1, 1))]
+        [1, 1, 1, 3, 5, 9, 17, 31, 57, 105, 193, 355, 653, 1201, 2209, 4063]
+        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1))]
+        [1, 0, 1, 2, 3, 6, 11, 20, 37, 68, 125, 230, 423, 778, 1431, 2632]
+        >>> [x for x in get_gen_fibonacci(13, (0, 1), 2)]
+        [0, 1, 2, 6, 16, 44, 120, 328, 896, 2448, 6688, 18272, 49920]
+        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1), (1, 2, 1))]
+        [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
+
+    See Also:
+        - flyingcircus.base.get_fibonacci()
+        - flyingcircus.base.fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
+    """
+    num = combine_iter_len((values, weights))
+    values = auto_repeat(values, num, check=True)
+    weights = auto_repeat(weights, num, check=True)
+    i = 0
+    while i != max_count:
+        yield values[0]
+        values = values[1:] + (sum(w * x for w, x in zip(weights, values)),)
+        i += 1
+
+
+# ======================================================================
+def fibonacci(
+        num,
+        first=0,
+        second=1):
+    """
+    Generate the n-th Fibonacci number.
+
+    This is useful for generating a specific Fibonacci number.
+    For generating a sequence of Fibonacci numbers, use
+    `flyingcircus.base.get_fibonacci()`.
+
+    Args:
+        num (int): The ordinal to generate.
+            Starts counting from 0.
+            If `num < 0`, the first number is returned.
+        first (int): The first number of the sequence.
+        second (int): The second number of the sequence.
+
+    Returns:
+        value (int): The Fibonacci number.
+
+    Examples:
+        >>> fibonacci(10)
+        55
+        >>> fibonacci(100)
+        354224848179261915075
+        >>> fibonacci(200)
+        280571172992510140037611932413038677189525
+        >>> fibonacci(300)
+        222232244629420445529739893461909967206666939096499764990979600
+        >>> fibonacci(0)
+        0
+        >>> fibonacci(1)
+        1
+        >>> fibonacci(15, 0, 2)
+        1220
+        >>> fibonacci(15, 3, 1)
+        1741
+
+    See Also:
+        - flyingcircus.base.get_fibonacci()
+        - flyingcircus.base.get_gen_fibonacci()
+        - https://en.wikipedia.org/wiki/Fibonacci_number
+    """
+    for _ in range(num):
+        first, second = second, first + second
+    return first
+
+
+# ======================================================================
 def binomial_triangle(
         first,
         second=None,
@@ -4777,11 +4924,15 @@ def is_prime(
     0 and 1 are considered special cases; in this implementations they are
     considered primes.
 
-    It is implemented by testing leveraging a certain number of precomputed
-    primes, later switching to trial division with a hard-coded (2, 3) wheel.
+    The implementation is using a certain number of precomputed primes,
+    later switching to trial division with hard-coded (2, 3) wheel
+    (up to 2 ** 20).
+    After, it uses `flyingcircus.base.is_pseudo_prime()` with bases consisting
+    of consecutive primes, and this is guaranteed to be deterministic up to
+    3317044064679887385961981 > 2 ** 81.
 
     Args:
-        num (int): The number to check for primality.
+        num (int): The number to test for primality.
             Only works for numbers larger than 1.
         small_primes (Sequence): The first prime numbers (sorted).
             Must contains prime starting from 2 (included).
@@ -4791,7 +4942,7 @@ def is_prime(
             Should use a high performance container like `set` or `frozenset`.
 
     Returns:
-        result (bool): The result of the primality.
+        result (bool): The result of the primality test.
 
     Examples:
         >>> is_prime(100)
@@ -4810,7 +4961,7 @@ def is_prime(
         True
         >>> is_prime(2 ** 31 - 1)
         True
-        >>> is_prime(2 ** 17 - 1, (2)
+        >>> is_prime(2 ** 17 - 1, (2,))
         True
         >>> is_prime(2 ** 17 - 1, (2, 3))
         True
@@ -4821,12 +4972,14 @@ def is_prime(
 
     See Also:
         - flyingcircus.base.is_prime()
+        - flyingcircus.base.is_pseudo_prime()
         - flyingcircus.base.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Trial_division
         - https://en.wikipedia.org/wiki/Wheel_factorization
+        - https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
     """
     if num < 0:
         num = -num
@@ -4834,7 +4987,7 @@ def is_prime(
         return True
     elif num <= small_primes[-1] and hashed_small_primes:
         return num in hashed_small_primes
-    else:
+    elif num <= 1048576:  # 2 ** 20
         for prime in small_primes:
             if not num % prime:
                 return False
@@ -4847,6 +5000,108 @@ def is_prime(
             else:
                 i += 6
         return True
+    else:
+        limits = (
+            25326001, 3215031751, 2152302898747, 3474749660383,
+            341550071728321, None, 3825123056546413051, None, None,
+            318665857834031151167461, 3317044064679887385961981)
+        num_bases = num.bit_length() // 2
+        for i, limit in enumerate(limits):
+            if limit and num < limit:
+                num_bases = i + 2
+                break
+        bases = tuple(get_primes(num_bases))
+        return is_pseudo_prime(num, bases)
+
+
+# ======================================================================
+def is_pseudo_prime(
+        num,
+        bases=None):
+    """
+    Determine if a number is pseudo-prime (using the Miller-Rabin test).
+
+    Args:
+        num (int): The number to test for primality.
+        bases (Iterable[int]|None): The bases for the test.
+            If None, uses the theoretical values for which the test is proven
+            to be deterministic, if the extended Riemann hypothesis is True:
+            bases = range(2, min(n-2, log2(n) ** 2)
+
+    Returns:
+        result (bool): The result of the pseudo-primality test.
+
+    Examples:
+        >>> is_pseudo_prime(100, (2,))
+        False
+        >>> is_pseudo_prime(101, (2,))
+        True
+        >>> is_pseudo_prime(-100, (2,))
+        False
+        >>> is_pseudo_prime(-101, (2,))
+        True
+        >>> is_pseudo_prime(2 ** 17, (2,))
+        False
+        >>> is_pseudo_prime(17 * 19, (2,))
+        False
+        >>> is_pseudo_prime(2 ** 17 - 1, (2,))
+        True
+        >>> is_pseudo_prime(2 ** 31 - 1, (2,))
+        True
+        >>> is_pseudo_prime(2 ** 17 - 1, (2,))
+        True
+        >>> is_pseudo_prime(2 ** 17 - 1, (2, 3))
+        True
+        >>> is_pseudo_prime(2 ** 17 - 1, (2, 3, 5))
+        True
+        >>> all(is_pseudo_prime(n) for n in (-2, -1, 0, 1, 2))
+        True
+        >>> is_pseudo_prime(2047, (2,))
+        True
+        >>> is_prime(2047)
+        False
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.is_pseudo_prime()
+        - flyingcircus.base.primes_range()
+
+    References:
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Trial_division
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+        - https://en.wikipedia.org/wiki/Miller–Rabin_primality_test
+    """
+    if num < 0:
+        num = -num
+    if num < 3:
+        return True
+    elif not num % 2:
+        return False
+    elif not bases:
+        bases = range(2, min(num - 2, num.bit_length() ** 2))
+    # num = 2 ** r * d + 1
+    r = ((num - 1) & -(num - 1)).bit_length() - 1
+    d = num >> r
+    for base in bases:
+        if base >= num:
+            base %= num
+        if base >= 2:
+            # x = base ** d mod num
+            x = pow(base, d, num)
+            if x != 1 and x != num - 1:
+                skip = False
+                for _ in range(1, r):
+                    # x = x ** 2 mod num
+                    x = pow(x, 2, num)
+                    if x == num - 1:
+                        skip = True
+                        break
+                    if x == 1:
+                        return False
+                if not skip:
+                    return False
+    return True
 
 
 # ======================================================================
@@ -5000,153 +5255,6 @@ def get_primes(
 
 
 # ======================================================================
-def get_fibonacci(
-        max_count=-1,
-        first=0,
-        second=1):
-    """
-    Generate the first Fibonacci-like numbers.
-
-    The next number is computed by adding the last two.
-
-    This is useful for generating a sequence of Fibonacci numbers.
-    To generate a specific Fibonacci number,
-    use `flyingcircus.base.fibonacci()`.
-
-    Args:
-        max_count (int): The maximum number of values to yield.
-            If `max_count == -1`, the generation proceeds indefinitely.
-        first (int): The first number of the sequence.
-        second (int): The second number of the sequence.
-
-    Yields:
-        value (int): The next Fibonacci number.
-
-    Examples:
-        >>> [x for x in get_fibonacci(16)]
-        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
-        >>> [x for x in get_fibonacci(16, 0, 2)]
-        [0, 2, 2, 4, 6, 10, 16, 26, 42, 68, 110, 178, 288, 466, 754, 1220]
-        >>> [x for x in get_fibonacci(16, 3, 1)]
-        [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
-
-    See Also:
-        - flyingcircus.base.get_gen_fibonacci()
-        - flyingcircus.base.fibonacci()
-        - https://en.wikipedia.org/wiki/Fibonacci_number
-    """
-    i = 0
-    while i != max_count:
-        yield first
-        first, second = second, first + second
-        i += 1
-
-
-# ======================================================================
-def get_gen_fibonacci(
-        max_count=-1,
-        values=(0, 1),
-        weights=1):
-    """
-    Generate the first generalized Fibonacci-like numbers.
-
-    The next number is computed as a linear combination of the last values
-    multiplied by their respective weights.
-
-    These can be used to compute n-step Fibonacci, Lucas numbers,
-    Pell numbers, Perrin numbers, etc.
-
-    Args:
-        max_count (int): The maximum number of values to yield.
-            If `max_count == -1`, the generation proceeds indefinitely.
-        values (int|Sequence[int]): The initial numbers of the sequence.
-            If int, the value is repeated for the number of `weights`, and
-            `weights` must be a sequence.
-        weights (int|Sequence[int]): The weights for the linear combination.
-            If int, the value is repeated for the number of `values`, and
-            `values` must be a sequence.
-
-    Yields:
-        value (int): The next number of the sequence.
-
-    Examples:
-        >>> [x for x in get_gen_fibonacci(16)]
-        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610]
-        >>> [x for x in get_gen_fibonacci(16, (1, 1, 1))]
-        [1, 1, 1, 3, 5, 9, 17, 31, 57, 105, 193, 355, 653, 1201, 2209, 4063]
-        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1))]
-        [1, 0, 1, 2, 3, 6, 11, 20, 37, 68, 125, 230, 423, 778, 1431, 2632]
-        >>> [x for x in get_gen_fibonacci(13, (0, 1), 2)]
-        [0, 1, 2, 6, 16, 44, 120, 328, 896, 2448, 6688, 18272, 49920]
-        >>> [x for x in get_gen_fibonacci(16, (1, 0, 1), (1, 2, 1))]
-        [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
-
-    See Also:
-        - flyingcircus.base.get_fibonacci()
-        - flyingcircus.base.fibonacci()
-        - https://en.wikipedia.org/wiki/Fibonacci_number
-    """
-    num = combine_iter_len((values, weights))
-    values = auto_repeat(values, num, check=True)
-    weights = auto_repeat(weights, num, check=True)
-    i = 0
-    while i != max_count:
-        yield values[0]
-        values = values[1:] + (sum(w * x for w, x in zip(weights, values)),)
-        i += 1
-
-
-# ======================================================================
-def fibonacci(
-        num,
-        first=0,
-        second=1):
-    """
-    Generate the n-th Fibonacci number.
-
-    This is useful for generating a specific Fibonacci number.
-    For generating a sequence of Fibonacci numbers, use
-    `flyingcircus.base.get_fibonacci()`.
-
-    Args:
-        num (int): The ordinal to generate.
-            Starts counting from 0.
-            If `num < 0`, the first number is returned.
-        first (int): The first number of the sequence.
-        second (int): The second number of the sequence.
-
-    Returns:
-        value (int): The Fibonacci number.
-
-    Examples:
-        >>> fibonacci(10)
-        55
-        >>> fibonacci(100)
-        354224848179261915075
-        >>> fibonacci(200)
-        280571172992510140037611932413038677189525
-        >>> fibonacci(300)
-        222232244629420445529739893461909967206666939096499764990979600
-        >>> fibonacci(0)
-        0
-        >>> fibonacci(1)
-        1
-        >>> fibonacci(15, 0, 2)
-        1220
-        >>> fibonacci(15, 3, 1)
-        1741
-
-    See Also:
-        - flyingcircus.base.get_fibonacci()
-        - flyingcircus.base.get_gen_fibonacci()
-        - https://en.wikipedia.org/wiki/Fibonacci_number
-    """
-    for _ in range(num):
-        first, second = second, first + second
-    return first
-
-
-# ======================================================================
 def get_factors(
         num,
         wheel=(2, 3, 5)):
@@ -5154,6 +5262,8 @@ def get_factors(
     Find all factors of a number.
 
     It is implemented by testing for possible factors using wheel increment.
+
+    This is not suitable for large numbers.
 
     Args:
         num (int|float): The number to factorize.
@@ -5306,6 +5416,8 @@ def get_divisors(num):
 
     It is implemented by computing the possible unique combinations of the
     factors.
+
+    This is not suitable for large numbers.
 
     Args:
         num (int|float): The number to factorize.
