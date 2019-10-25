@@ -4049,6 +4049,28 @@ def bits(value):
 
 
 # ======================================================================
+def bits_r(value):
+    """
+    Get the reversed bit values for a number (higher to lower significance).
+
+    Args:
+        value (int): The input value.
+
+    Yields:
+        result (int): The bits.
+
+    Examples:
+        >>> list(bits(100))
+        [0, 0, 1, 0, 0, 1, 1]
+    """
+    # : this alternative may be faster for larger values
+    # return map(int, bin(value)[2:])
+    b = value.bit_length()
+    for i in range(b - 1, -1, -1):
+        yield value >> i & 1
+
+
+# ======================================================================
 def get_bit(value, i):
     """
     Get the bit value for a number at a given position.
@@ -4382,6 +4404,35 @@ def div_ceil(a, b):
         True
     """
     return a // b + (1 if a % b else 0)
+
+
+# ======================================================================
+def ilog2(num):
+    """
+    Compute the integer base-2 logarithm of a number.
+
+    This is defined as the largest integer whose power-2 value is smaller then
+    the number, i.e. floor(log2(n))
+
+    Args:
+        num (int): The input number.
+
+    Returns:
+        result (int): The integer base-2 logarithm of num.
+
+    Examples:
+        >>> ilog2(1024)
+        10
+        >>> ilog2(1023)
+        9
+        >>> ilog2(1025)
+        10
+        >>> ilog2(2 ** 400)
+        400
+        >>> all(ilog2(2 ** i) == i for i in range(1000))
+        True
+    """
+    return num.bit_length() - 1
 
 
 # ======================================================================
