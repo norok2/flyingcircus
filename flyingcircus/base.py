@@ -5252,7 +5252,10 @@ def get_primes(
                     return
             num += 6
     else:
-        wheel = tuple(get_primes(wheel, 2))
+        if wheel > len(small_primes):
+            wheel = tuple(get_primes(wheel, 2))
+        else:
+            wheel = small_primes[:wheel]
         prod_wheel = prod(wheel)
         coprimes = tuple(
             n for n in range(2, prod_wheel + 2)
@@ -5360,7 +5363,10 @@ def get_primes_r(
                     return
             num -= 6
     else:
-        wheel = tuple(get_primes(wheel, 2))
+        if wheel > len(small_primes):
+            wheel = tuple(get_primes(wheel, 2))
+        else:
+            wheel = small_primes[:wheel]
         prod_wheel = prod(wheel)
         coprimes = tuple(
             n for n in range(prod_wheel + 1, 1, -1)
@@ -5519,13 +5525,19 @@ def get_factors(
     elif num == 1:
         yield num
     # : use small primes
-    if small_primes:
-        for prime in small_primes:
-            while not (num % prime):
-                yield prime
-                num //= prime
+    if not small_primes:
+        small_primes = 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47
+    for prime in small_primes:
+        while not (num % prime):
+            yield prime
+            num //= prime
+    else:
+        prime = small_primes[0]
     # : wheel factorization
-    wheel = tuple(get_primes(wheel, 2))
+    if wheel > len(small_primes):
+        wheel = tuple(get_primes(wheel, 2))
+    else:
+        wheel = small_primes[:wheel]
     for prime in wheel:
         while not (num % prime):
             yield prime
