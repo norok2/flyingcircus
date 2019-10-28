@@ -5569,18 +5569,17 @@ def get_factors_as_dict(num):
         num (int): The number to factorize.
 
     Returns:
-        factors (collections.OrderedDict): The factors of the number.
+        factors (collections.Counter): The factors of the number.
 
     Examples:
-        >>> get_factors_as_dict(100)
-        OrderedDict([(2, 2), (5, 2)])
-        >>> get_factors_as_dict(1234567890)
-        OrderedDict([(2, 1), (3, 2), (5, 1), (3607, 1), (3803, 1)])
-        >>> get_factors_as_dict(65536)
-        OrderedDict([(2, 16)])
+        >>> sorted(get_factors_as_dict(100).items())
+        [(2, 2), (5, 2)]
+        >>> sorted(get_factors_as_dict(1234567890).items())
+        [(2, 1), (3, 2), (5, 1), (3607, 1), (3803, 1)]
+        >>> sorted(get_factors_as_dict(65536).items())
+        [(2, 16)]
     """
-    factors = list(get_factors(num))
-    return collections.OrderedDict(collections.Counter(factors))
+    return collections.Counter(get_factors(num))
 
 
 # ======================================================================
