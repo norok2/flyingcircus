@@ -5531,8 +5531,6 @@ def get_factors(
         while not (num % prime):
             yield prime
             num //= prime
-    else:
-        prime = small_primes[0]
     # : wheel factorization
     if wheel > len(small_primes):
         wheel = tuple(get_primes(wheel, 2))
@@ -5549,6 +5547,7 @@ def get_factors(
     deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
     len_deltas = len(deltas)
     j = 0
+    # prime is the largest prime in wheel
     k = coprimes[0] + (prime - 1) // prod_wheel * prod_wheel
     while k * k <= num:
         while not (num % k):
