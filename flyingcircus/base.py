@@ -5156,6 +5156,93 @@ def is_pseudo_prime(
 
 
 # ======================================================================
+def get_primes(
+        max_count=-1,
+        start=2,
+        wheel=(2, 3),
+        small_primes=SMALL_PRIMES):
+    """
+    Compute prime numbers.
+
+    Args:
+        max_count (int): The maximum number of values to yield.
+            If `max_count == -1`, the generation proceeds indefinitely.
+        start (int): The initial value.
+            This must be positive.
+        wheel (int|Sequence[int]): The generators of the wheel.
+            If int, this is the number of prime numbers to use (must be > 1),
+            generated using `flyingcircus.base.gen_primes()`.
+            If Sequence, it must consist of the first N prime numbers in
+            increasing order.
+        small_primes (Sequence): The first prime numbers (sorted).
+            Must contains prime starting from 2 (included).
+            Must be in increasing order.
+
+    Yields:
+        num (int): The next prime number.
+
+    Examples:
+        >>> n = 15
+        >>> primes = get_primes()
+        >>> [next(primes) for i in range(n)]
+        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+        >>> list(get_primes(n))
+        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+        >>> list(get_primes(10, 101))
+        [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
+        >>> list(get_primes(10, 1000))
+        [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
+
+    See Also:
+        - flyingcircus.base.is_prime()
+        - flyingcircus.base.primes_range()
+
+    References:
+        - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Wheel_factorization
+    """
+    i = 0
+    if start < 0:
+        raise ValueError(
+            fmtm('`get_primes()` must start at a positive value, not `{num}`'))
+    if small_primes and start < small_primes[-1]:
+        for prime in small_primes:
+            if prime >= start:
+                yield prime
+                i += 1
+                start = prime
+            if i == max_count:
+                return
+    if isinstance(wheel, int):
+        wheel = list(get_primes(wheel, 2))
+    else:
+        wheel = tuple(sorted(wheel))
+    prod_wheel = prod(wheel)
+    coprimes = tuple(
+        n for n in range(2, prod_wheel + 2)
+        if all(math.gcd(n, k) == 1 for k in wheel))
+    deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
+    len_deltas = len(deltas)
+    if not small_primes or small_primes[-1] < wheel[-1]:
+        for prime in wheel:
+            if prime >= start:
+                yield prime
+                i += 1
+                start = prime
+            if i == max_count:
+                return
+    num = coprimes[0] + (start - 1) // prod_wheel * prod_wheel
+    j = 0
+    while i != max_count:
+        if num >= start and is_prime(num):
+            yield num
+            i += 1
+        num += deltas[j]
+        j += 1
+        j %= len_deltas
+
+
+# ======================================================================
 def primes_range(
         first,
         second=None):
@@ -5197,118 +5284,34 @@ def primes_range(
         - flyingcircus.base.is_prime()
         - flyingcircus.base.get_primes()
         - https://en.wikipedia.org/wiki/Prime_number
+        - https://en.wikipedia.org/wiki/Wheel_factorization
     """
     if second is None:
         start, stop = 2, first
     else:
         start, stop = first, second
-    if start < 2 and start < stop:
-        start = 2
-    step = 2 if start < stop else -2
-    if not (start % 2):
-        if start == 2:
-            yield start
-        start += step // 2
-    for num in range(start, stop, step):
-        if is_prime(num):
-            yield num
-    if start > stop and stop < 2:
-        yield 2
-
-
-# ======================================================================
-def get_primes(
-        max_count=-1,
-        start=2,
-        wheel=(2, 3)):
-    """
-    Compute prime numbers.
-
-    Args:
-        max_count (int): The maximum number of values to yield.
-            If `max_count == -1`, the generation proceeds indefinitely.
-        start (int): The initial value.
-            This must be positive.
-        wheel (int|Sequence[int]): The generators of the wheel.
-            If int, this is the number of prime numbers to use (must be > 1),
-            generated using `flyingcircus.base.gen_primes()`.
-            If Sequence, it must consist of the first N prime numbers in
-            increasing order.
-
-    Yields:
-        num (int): The next prime number.
-
-    Examples:
-        >>> n = 15
-        >>> primes = get_primes()
-        >>> [next(primes) for i in range(n)]
-        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
-        >>> list(get_primes(n))
-        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
-        >>> list(get_primes(10, 101))
-        [101, 103, 107, 109, 113, 127, 131, 137, 139, 149]
-        >>> list(get_primes(10, 1000))
-        [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
-
-    See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
-
-    References:
-        - https://en.wikipedia.org/wiki/Prime_number
-    """
-    i = 0
-    if start < 0:
-        raise ValueError(
-            fmtm('`get_primes()` must start at a positive value, not `{num}`'))
-    if isinstance(wheel, int):
-        wheel = list(get_primes(wheel, 2))
-    else:
-        wheel = sorted(wheel)
-    if wheel == [2]:
-        if start <= 2:
-            yield 2
-            i += 1
-        num = start if start % 2 else start + 1
-        while i != max_count:
+    if start < stop:
+        for prime in get_primes(-1, start):
+            if prime < stop:
+                yield prime
+            else:
+                return
+    else:  # start >= stop
+        step = 2 if start < stop else -2
+        if not start % 2:
+            start += step // 2
+        for num in range(start, stop, step):
             if is_prime(num):
                 yield num
-                i += 1
-            num += 2
-    else:
-        if wheel == [2, 3]:
-            prod_wheel = 6
-            coprimes = 5,
-            deltas = 2, 4
-            len_deltas = 2
-        else:
-            prod_wheel = prod(wheel)
-            coprimes = tuple(
-                n for n in range(2, prod_wheel + 2)
-                if all(math.gcd(n, k) == 1 for k in wheel))
-            deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
-            len_deltas = len(deltas)
-        for k in wheel:
-            if k >= start:
-                yield k
-                i += 1
-            if i == max_count:
-                return
-        num = coprimes[0] + (start - 1) // prod_wheel * prod_wheel
-        j = 0
-        while i != max_count:
-            if num >= start and is_prime(num):
-                yield num
-                i += 1
-            num += deltas[j]
-            j += 1
-            j %= len_deltas
+        if stop <= 2:
+            yield 2
 
 
 # ======================================================================
 def get_factors(
         num,
-        wheel=(2, 3, 5)):
+        wheel=(2, 3, 5),
+        small_primes=SMALL_PRIMES):
     """
     Find all factors of a number.
 
@@ -5324,6 +5327,9 @@ def get_factors(
             generated using `flyingcircus.base.gen_primes()`.
             If Sequence, it must consist of the first N prime numbers in
             increasing order.
+        small_primes (Sequence): The first prime numbers (sorted).
+            Must contains prime starting from 2 (included).
+            Must be in increasing order.
 
     Yields:
         factor (int): The next factor of the number.
@@ -5364,17 +5370,22 @@ def get_factors(
         return
     if num < 0:
         yield -1
+        num = -num
     elif num == 1:
         yield num
-    if num < 0:
-        num = -num
+    # : use small primes
+    if small_primes:
+        for prime in small_primes:
+            while not (num % prime):
+                yield prime
+                num //= prime
     # : wheel factorization
     if isinstance(wheel, int):
         wheel = tuple(get_primes(wheel, 2))
-    for k in wheel:
-        while not (num % k):
-            yield k
-            num //= k
+    for prime in wheel:
+        while not (num % prime):
+            yield prime
+            num //= prime
     prod_wheel = prod(wheel)
     coprimes = tuple(
         n for n in range(2, prod_wheel + 2)
@@ -5382,7 +5393,7 @@ def get_factors(
     deltas = tuple(diff(coprimes + (coprimes[0] + prod_wheel,)))
     len_deltas = len(deltas)
     j = 0
-    k = coprimes[0]
+    k = coprimes[0] + (prime - 1) // prod_wheel * prod_wheel
     while k * k <= num:
         while not (num % k):
             yield k
