@@ -5059,7 +5059,7 @@ def is_prime(
         num_bases = num.bit_length() // 2
         for i, limit in enumerate(limits):
             if limit and num < limit:
-                num_bases = i + 2
+                num_bases = i + 3
                 break
         bases = tuple(get_primes(num_bases))
         return is_pseudo_prime(num, bases)
