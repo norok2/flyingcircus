@@ -4067,7 +4067,7 @@ def bits_r(value):
     # return map(int, bin(value)[2:])
     b = value.bit_length()
     for i in range(b - 1, -1, -1):
-        yield value >> i & 1
+        yield (value >> i) & 1
 
 
 # ======================================================================
@@ -4088,7 +4088,7 @@ def get_bit(value, i):
         >>> [get_bit(100, i) for i in range(10)]
         [0, 0, 1, 0, 0, 1, 1, 0, 0, 0]
     """
-    return value >> i & 1
+    return (value >> i) & 1
 
 
 # ======================================================================
