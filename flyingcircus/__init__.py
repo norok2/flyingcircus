@@ -123,7 +123,10 @@ def find_all(
         pattern,
         overlap=False):
     """
-    Find all occurrencies of the pattern in the text.
+    Find all occurrences of the pattern in the text.
+
+    For dense inputs (pattern is more than ~20% of the text), a looping
+    comprehension may be faster.
 
     Args:
         text (str|bytes|bytearray): The input text.

@@ -998,6 +998,9 @@ def index_all(
     """
     Find all occurrencies of an item in an sequence.
 
+    For dense inputs (item is present in more than ~20% of the sequence),
+    a looping comprehension may be faster.
+
     For string, bytes or bytearray inputs, `flyingcircus.base.find_all()`
     is typically faster.
 
