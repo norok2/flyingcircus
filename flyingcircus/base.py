@@ -111,6 +111,15 @@ for _mode in ('base1000-', 'base10-', 'base1000', 'base10'):
     del SI_PREFIX_ASCII[_mode]['μ']
 
 # ======================================================================
+# superscript / subscript maps
+SUPERSCRIPT_MAP = str.maketrans(
+    '0123456789.e+-=()n',
+    '⁰¹²³⁴⁵⁶⁷⁸⁹·ᵉ⁺⁻⁼⁽⁾ⁿ')
+SUBSCRIPT_MAP = str.maketrans(
+    '0123456789.e+-=()n',
+    '₀₁₂₃₄₅₆₇₈₉.ₑ₊₋₌₍₎ₙ')
+
+# ======================================================================
 # :: define C types
 # : short form (base types used by `struct`)
 _STRUCT_TYPES = (
@@ -5588,27 +5597,74 @@ def get_factors_as_dict(num):
 # ======================================================================
 def get_factors_as_str(
         num,
-        exp_sep='^',
-        fact_sep=' * '):
+        mode='ascii'):
     """
     Find all factors of a number and output a human-readable text.
 
     Args:
         num (int): The number to factorize.
-        exp_sep (str): The exponent separator.
-        fact_sep (str): The factors separator.
+        mode (str|Iterable[str|None]): The formatting mode.
+            If str, available options:
+             - `ascii`: uses `^` for power, and ` * ` for multiplication.
+             - `py`: uses ` ** ` for power, and ` * ` for multiplication.
+             - `sup`: uses superscript for power, and ` ` for multiplication.
+             - `utf8`: uses superscript for power, and `×` for multiplication.
+            If Iterable of str or None, must have length 2:
+             - the first is used as exponent symbol if str, otherwise if None,
+               uses superscript notation.
+             - the second is used as multiplication symbol (requires str).
 
     Returns:
         text (str): The factors of the number.
 
     Examples:
-        >>> get_factors_as_str(100)
+        >>> get_factors_as_str(100, 'ascii')
         '2^2 * 5^2'
-        >>> get_factors_as_str(1234567890)
+        >>> get_factors_as_str(1234567890, 'ascii')
         '2 * 3^2 * 5 * 3607 * 3803'
-        >>> get_factors_as_str(65536)
+        >>> get_factors_as_str(65536, 'ascii')
+        '2^16'
+
+        >>> get_factors_as_str(100, 'py')
+        '2 ** 2 * 5 ** 2'
+        >>> get_factors_as_str(1234567890, 'py')
+        '2 * 3 ** 2 * 5 * 3607 * 3803'
+        >>> get_factors_as_str(65536, 'py')
+        '2 ** 16'
+
+        >>> get_factors_as_str(100, 'utf8')
+        '2²×5²'
+        >>> get_factors_as_str(1234567890, 'utf8')
+        '2×3²×5×3607×3803'
+        >>> get_factors_as_str(65536, 'utf8')
+        '2¹⁶'
+
+        >>> get_factors_as_str(100, 'sup')
+        '2² 5²'
+        >>> get_factors_as_str(1234567890, 'sup')
+        '2 3² 5 3607 3803'
+        >>> get_factors_as_str(65536, 'sup')
+        '2¹⁶'
+
+        >>> get_factors_as_str(100, tuple('^*'))
+        '2^2*5^2'
+        >>> get_factors_as_str(1234567890, tuple('^*'))
+        '2*3^2*5*3607*3803'
+        >>> get_factors_as_str(65536, tuple('^*'))
         '2^16'
     """
+    if isinstance(mode, str):
+        mode = mode.lower()
+        if mode == 'ascii':
+            exp_sep, fact_sep = '^', ' * '
+        elif mode == 'py':
+            exp_sep, fact_sep = ' ** ', ' * '
+        elif mode == 'sup':
+            exp_sep, fact_sep = None, ' '
+        elif mode == 'utf8':
+            exp_sep, fact_sep = None, '×'
+    else:
+        exp_sep, fact_sep = mode
     text = ''
     last_factor = 1
     exp = 0
@@ -5617,14 +5673,20 @@ def get_factors_as_str(
             exp += 1
         else:
             if exp > 1:
-                text += exp_sep + str(exp)
+                if exp_sep:
+                    text += exp_sep + str(exp)
+                else:
+                    text += str(exp).translate(SUPERSCRIPT_MAP)
             if last_factor > 1:
                 text += fact_sep
             text += str(factor)
             last_factor = factor
             exp = 1
     if exp > 1:
-        text += exp_sep + str(exp)
+        if exp_sep:
+            text += exp_sep + str(exp)
+        else:
+            text += str(exp).translate(SUPERSCRIPT_MAP)
     return text
 
 
