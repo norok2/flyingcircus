@@ -4098,6 +4098,8 @@ def get_bit(value, i):
         >>> [get_bit(100, i) for i in range(10)]
         [0, 0, 1, 0, 0, 1, 1, 0, 0, 0]
     """
+    # : altenate form
+    # return ((1 << i) & value) >> i
     return (value >> i) & 1
 
 
