@@ -981,7 +981,7 @@ def separate(
           [10 11]]]
     """
     assert(-arr.ndim <= axis < arr.ndim)
-    axis = axis % arr.ndim
+    axis %= arr.ndim
     if arr.shape[axis] % size != 0:
         aligned = fc.base.align(arr.shape[axis], size, -1 if truncate else 1)
         if truncate:
@@ -1651,7 +1651,7 @@ def ndot(
         - flyingcircus.extra.mdot_()
     """
     assert(-arr.ndim <= axis < arr.ndim)
-    axis = axis % arr.ndim
+    axis %= arr.ndim
     mask = tuple(
         slice(None) if j != axis else slicing for j in range(arr.ndim))
     s_dim = arr[mask].shape[axis]
