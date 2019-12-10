@@ -12638,7 +12638,7 @@ def to_percent(text):
 def scale_to_int(
         val,
         scale,
-        interp=round):
+        rounding=round):
     """
     Scale a float value by the specified size.
 
@@ -12646,7 +12646,7 @@ def scale_to_int(
         val (int|float): The value to scale.
             If int, the number is left untouched.
         scale (int|float): The scale size.
-        interp (callable): Interpolation function.
+        rounding (callable): Rounding function.
             Sensible choices are: `math.floor()`, `math.ceil()`, `round()`.
 
     Returns:
@@ -12668,7 +12668,7 @@ def scale_to_int(
         >>> scale_to_int(1, 10)
         1
     """
-    return int(interp(val * scale)) if not isinstance(val, int) else val
+    return int(rounding(val * scale)) if not isinstance(val, int) else val
 
 
 # ======================================================================
@@ -12739,6 +12739,8 @@ def multi_scale_to_int(
         ((1, 2), (3, 3))
         >>> multi_scale_to_int(((1, 2), 0.7), (2, 3))
         ((1, 2), (2, 2))
+        >>> multi_scale_to_int(((1, 1),), (3,), (None, 2))
+        ((1, 1),)
     """
     shape = tuple(x if x else len(scales) for x in shape)
     vals = stretch(vals, shape)
