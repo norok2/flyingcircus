@@ -5867,7 +5867,26 @@ def reframe(
         - flyingcircus.extra.padding()
 
     Examples:
+        >>> arr = np.ones(4, dtype=int)
+        >>> print(arr)
+        [1 1 1 1]
+        >>> print(reframe(arr, 5))
+        [1 1 1 1 0]
+        >>> print(reframe(arr, 5, 1))
+        [0 1 1 1 1]
+        >>> print(reframe(arr, 5, (1,)))
+        [0 1 1 1 1]
+        >>> print(reframe(arr, (5,)))
+        [1 1 1 1 0]
+        >>> print(reframe(arr, (5,), 1))
+        [0 1 1 1 1]
+        >>> print(reframe(arr, (5,), (1,)))
+        [0 1 1 1 1]
+
         >>> arr = np.ones((2, 3), dtype=int)
+        >>> print(arr)
+        [[1 1 1]
+         [1 1 1]]
         >>> print(reframe(arr, (4, 5)))
         [[0 0 0 0 0]
          [0 1 1 1 0]
@@ -5922,7 +5941,7 @@ def reframe(
 def multi_reframe(
         arrs,
         new_shape=None,
-        position=0.5,
+        positions=0.5,
         background=0.0,
         dtype=None,
         rounding=round):
@@ -5939,7 +5958,7 @@ def multi_reframe(
         new_shape (Iterable[int]): The new base shape of the arrays.
             If None, the uses the minimum shape that would fit all input
             arrays.
-        position (int|float|Iterable[int|float]): Position within new shape.
+        positions (int|float|Iterable[int|float]): Position within new shape.
             See `flyingcircus.extra.reframe()` for more info.
         background (Number): The background value for the frame.
         dtype (data-type): Desired output data-type.
@@ -5952,6 +5971,63 @@ def multi_reframe(
         result (np.ndarray): The output array.
             It contains all reframed arrays from `arrs`, through the last dim.
             The shape of this array is `new_shape` + `len(arrs)`.
+
+    Examples:
+        >>> arrs = [np.arange(i) + 1 for i in range(1, 9)]
+        >>> for arr in arrs: print(arr)
+        [1]
+        [1 2]
+        [1 2 3]
+        [1 2 3 4]
+        [1 2 3 4 5]
+        [1 2 3 4 5 6]
+        [1 2 3 4 5 6 7]
+        [1 2 3 4 5 6 7 8]
+        >>> print(multi_reframe(arrs).transpose())
+        [[0 0 0 0 1 0 0 0]
+         [0 0 0 1 2 0 0 0]
+         [0 0 1 2 3 0 0 0]
+         [0 0 1 2 3 4 0 0]
+         [0 0 1 2 3 4 5 0]
+         [0 1 2 3 4 5 6 0]
+         [1 2 3 4 5 6 7 0]
+         [1 2 3 4 5 6 7 8]]
+        >>> print(multi_reframe(arrs, positions=0.0).transpose())
+        [[1 0 0 0 0 0 0 0]
+         [1 2 0 0 0 0 0 0]
+         [1 2 3 0 0 0 0 0]
+         [1 2 3 4 0 0 0 0]
+         [1 2 3 4 5 0 0 0]
+         [1 2 3 4 5 6 0 0]
+         [1 2 3 4 5 6 7 0]
+         [1 2 3 4 5 6 7 8]]
+        >>> print(multi_reframe(arrs, positions=1.0).transpose())
+        [[0 0 0 0 0 0 0 1]
+         [0 0 0 0 0 0 1 2]
+         [0 0 0 0 0 1 2 3]
+         [0 0 0 0 1 2 3 4]
+         [0 0 0 1 2 3 4 5]
+         [0 0 1 2 3 4 5 6]
+         [0 1 2 3 4 5 6 7]
+         [1 2 3 4 5 6 7 8]]
+        >>> print(multi_reframe(arrs, (9,), 1).transpose())
+        [[0 1 0 0 0 0 0 0 0]
+         [0 1 2 0 0 0 0 0 0]
+         [0 1 2 3 0 0 0 0 0]
+         [0 1 2 3 4 0 0 0 0]
+         [0 1 2 3 4 5 0 0 0]
+         [0 1 2 3 4 5 6 0 0]
+         [0 1 2 3 4 5 6 7 0]
+         [0 1 2 3 4 5 6 7 8]]
+        >>> print(multi_reframe(arrs, (9,), 1.0).transpose())
+        [[0 0 0 0 0 0 0 0 1]
+         [0 0 0 0 0 0 0 1 2]
+         [0 0 0 0 0 0 1 2 3]
+         [0 0 0 0 0 1 2 3 4]
+         [0 0 0 0 1 2 3 4 5]
+         [0 0 0 1 2 3 4 5 6]
+         [0 0 1 2 3 4 5 6 7]
+         [0 1 2 3 4 5 6 7 8]]
     """
     # calculate new shape
     if new_shape is None:
@@ -5961,10 +6037,10 @@ def multi_reframe(
         for i, shape in enumerate(shapes):
             shape_arr[i, :len(shape)] = np.array(shape)
         new_shape = tuple(
-            max(*list(shape_arr[:, i]))
+            int(max(*list(shape_arr[:, i])))
             for i in range(len(new_shape)))
 
-    position = fc.base.auto_repeat(position, len(arrs))
+    positions = fc.base.auto_repeat(positions, len(arrs))
 
     if dtype is None:
         # : alternative to looping
@@ -5974,9 +6050,8 @@ def multi_reframe(
         for arr in arrs:
             dtype = np.promote_types(dtype, arr.dtype)
 
-    result = np.array(new_shape + (len(arrs),), dtype=dtype)
-    for i, arr in enumerate(arrs):
-        # ratio should not be kept: keep_ratio_method=None
+    result = np.zeros(new_shape + (len(arrs),), dtype=dtype)
+    for i, (arr, position) in enumerate(zip(arrs, positions)):
         result[..., i] = reframe(
             arr, new_shape, position, background, rounding)
     return result
@@ -6191,7 +6266,7 @@ def multi_resample(
             shape_arr[i, :len(shape)] = np.array(shape)
         combiner = fc.base.lcm if lossless else max
         new_shape = tuple(
-            combiner(list(shape_arr[:, i]))
+            int(combiner(list(shape_arr[:, i])))
             for i in range(len(new_shape)))
     else:
         new_shape = tuple(new_shape)
