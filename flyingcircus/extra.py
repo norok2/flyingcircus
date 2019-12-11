@@ -6053,7 +6053,8 @@ def multi_reframe(
     result = np.zeros(new_shape + (len(arrs),), dtype=dtype)
     for i, (arr, position) in enumerate(zip(arrs, positions)):
         result[..., i] = reframe(
-            arr, new_shape, position, background, rounding)
+            arr.astype(dtype) if dtype != arr.dtype else arr,
+            new_shape, position, background, rounding)
     return result
 
 
@@ -6122,7 +6123,7 @@ def zoom(
         arr,
         factors,
         window=None,
-        interp_order=0,
+        interp_order=3,
         extra_dim=True,
         fill_dim=True,
         cx_mode='cartesian'):
@@ -6136,13 +6137,14 @@ def zoom(
             If Iterable, its size must match the number of dims of `arr`.
             Values larger than 1 increase `arr` size along the axis.
             Values smaller than 1 decrease `arr` size along the axis.
-        window (int|Iterable[int]|None): Uniform pre-filter window size.
+        window (int|Iterable[int]|str|None): Uniform pre-filter window size.
             This is the size of the window for the uniform filter using
             `scipy.ndimage.uniform_filter()`.
             If Iterable, its size must match the number of dims of `arr`.
             If int, uses an isotropic window with the specified size.
-            If None, the window is calculated automatically from the `zoom`
-            parameter.
+            If equal to "auto", the window is calculated automatically
+            from the `zoom` parameter.
+            If None, no prefiltering is done.
         interp_order (int): Order of the spline interpolation.
             0: nearest. Accepted range: [0, 5].
         extra_dim (bool): Force extra dimensions in the zoom parameters.
@@ -6154,20 +6156,27 @@ def zoom(
         result (np.ndarray): The output array.
     """
     factors, shape = zoom_prepare(factors, arr.shape, extra_dim, fill_dim)
-    if window is None:
+    if isinstance(window, str) and window.lower() == 'auto':
         window = [round(1.0 / (2.0 * x)) for x in factors]
     if np.issubdtype(arr.dtype, np.complexfloating):
-        arr = filter_cx(
-            arr, sp.ndimage.uniform_filter, (window,), mode=cx_mode)
+        if window is not None:
+            arr = filter_cx(
+                arr, sp.ndimage.uniform_filter, (window,), mode=cx_mode)
         arr = filter_cx(
             arr.reshape(shape), sp.ndimage.zoom, (factors,),
             dict(order=interp_order), mode=cx_mode)
     else:
-        arr = sp.ndimage.uniform_filter(arr, window)
+        if window is not None:
+            arr = sp.ndimage.uniform_filter(arr, window)
         arr = sp.ndimage.zoom(
             arr.reshape(shape), factors, order=interp_order)
     return arr
 
+
+# ======================================================================
+def repeat():
+    # TODO: similar to zoom() but works for integer scaling factors only
+    raise NotImplementedError
 
 # ======================================================================
 def resample(
@@ -6175,7 +6184,7 @@ def resample(
         new_shape,
         aspect=None,
         window=None,
-        interp_order=0,
+        interp_order=3,
         extra_dim=True,
         fill_dim=True,
         cx_mode='cartesian'):
@@ -6222,7 +6231,7 @@ def multi_resample(
         new_shape=None,
         lossless=False,
         window=None,
-        interp_order=0,
+        interp_order=3,
         extra_dim=True,
         fill_dim=True,
         dtype=None):
@@ -6237,7 +6246,8 @@ def multi_resample(
     Args:
         arrs (Iterable[np.ndarray]): The input arrays,
         new_shape (Iterable[int]): The new base shape of the arrays.
-        lossless (bool): allow for lossy resampling.
+        lossless (bool): Forse lossless resampling.
+            If True, `window` and `interp_order` parameters are ignored.
         window (int|Iterable[int]|None): Uniform pre-filter window size.
             This is the size of the window for the uniform filter using
             `scipy.ndimage.uniform_filter()`.
@@ -6256,6 +6266,62 @@ def multi_resample(
         result (np.ndarray): The output array.
             It contains all reshaped arrays from `arrs`, through the last dim.
             The shape of this array is `new_shape` + `len(arrs)`.
+
+    Examples:
+        >>> arrs = [np.arange(i) + 1 for i in range(1, 9)]
+        >>> for arr in arrs: print(arr)
+        [1]
+        [1 2]
+        [1 2 3]
+        [1 2 3 4]
+        [1 2 3 4 5]
+        [1 2 3 4 5 6]
+        [1 2 3 4 5 6 7]
+        [1 2 3 4 5 6 7 8]
+        >>> print(multi_resample(arrs).transpose())
+        [[1 1 1 1 1 1 1 1]
+         [1 1 1 1 2 2 2 2]
+         [1 1 2 2 2 2 3 3]
+         [1 1 2 2 3 3 4 4]
+         [1 2 2 3 3 4 4 5]
+         [1 2 2 3 4 5 5 6]
+         [1 2 3 4 4 5 6 7]
+         [1 2 3 4 5 6 7 8]]
+        >>> print(multi_resample(arrs[:4], lossless=True).transpose())
+        [[1 1 1 1 1 1 1 1 1 1 1 1]
+         [1 1 1 1 1 1 2 2 2 2 2 2]
+         [1 1 1 2 2 2 2 2 2 3 3 3]
+         [1 1 2 2 2 2 3 3 3 3 4 4]]
+        >>> print(multi_resample(arrs, interp_order=3).transpose())
+        [[1 1 1 1 1 1 1 1]
+         [1 1 1 1 2 2 2 2]
+         [1 1 1 2 2 3 3 3]
+         [1 1 2 2 3 3 4 4]
+         [1 1 2 3 3 4 5 5]
+         [1 2 2 3 4 5 5 6]
+         [1 2 3 4 4 5 6 7]
+         [1 2 3 4 5 6 7 8]]
+        >>> print(np.transpose(np.round(multi_resample(
+        ...     arrs, interp_order=1, dtype=float), 3)))
+        [[1.    1.    1.    1.    1.    1.    1.    1.   ]
+         [1.    1.143 1.286 1.429 1.571 1.714 1.857 2.   ]
+         [1.    1.286 1.571 1.857 2.143 2.429 2.714 3.   ]
+         [1.    1.429 1.857 2.286 2.714 3.143 3.571 4.   ]
+         [1.    1.571 2.143 2.714 3.286 3.857 4.429 5.   ]
+         [1.    1.714 2.429 3.143 3.857 4.571 5.286 6.   ]
+         [1.    1.857 2.714 3.571 4.429 5.286 6.143 7.   ]
+         [1.    2.    3.    4.    5.    6.    7.    8.   ]]
+        >>> print(np.transpose(np.round(multi_resample(
+        ...     arrs, interp_order=3, dtype=float), 3)))
+        [[1.    1.    1.    1.    1.    1.    1.    1.   ]
+         [1.    1.055 1.198 1.394 1.606 1.802 1.945 2.   ]
+         [1.    1.111 1.397 1.787 2.213 2.603 2.889 3.   ]
+         [1.    1.268 1.819 2.303 2.697 3.181 3.732 4.   ]
+         [1.    1.426 2.175 2.752 3.248 3.825 4.574 5.   ]
+         [1.    1.618 2.471 3.138 3.862 4.529 5.382 6.   ]
+         [1.    1.811 2.741 3.558 4.442 5.259 6.189 7.   ]
+         [1.    2.    3.    4.    5.    6.    7.    8.   ]]
+
     """
     # calculate new shape
     if new_shape is None:
@@ -6283,11 +6349,12 @@ def multi_resample(
         for arr in arrs:
             dtype = np.promote_types(dtype, arr.dtype)
 
-    result = np.array(new_shape + (len(arrs),), dtype=dtype)
+    result = np.zeros(new_shape + (len(arrs),), dtype=dtype)
     for i, arr in enumerate(arrs):
-        # ratio should not be kept: keep_ratio_method=None
+        # ratio should not be kept: aspect=None
         result[..., i] = resample(
-            arr, new_shape, aspect=None, window=window,
+            arr.astype(dtype) if dtype != arr.dtype else arr,
+            new_shape, aspect=None, window=window,
             interp_order=interp_order, extra_dim=extra_dim, fill_dim=fill_dim)
     return result
 
