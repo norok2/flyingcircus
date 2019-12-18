@@ -22,7 +22,7 @@ import doctest  # Test interactive Python examples
 
 # ======================================================================
 # :: External Imports
-# import flyingcircus as fc  # Everything you always wanted to have in Python.*
+# import flyingcircus as fc  # Everything you always wanted to have in Python*
 # from flyingcircus import msg, dbg, fmt, fmtm, elapsed, report
 
 # ======================================================================

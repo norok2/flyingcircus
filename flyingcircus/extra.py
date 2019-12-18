@@ -44,7 +44,7 @@ from numpy.fft import fftshift, ifftshift
 from numpy.fft import fftn, ifftn
 
 # :: Local Imports
-import flyingcircus as fc  # Everything you always wanted to have in Python.*
+import flyingcircus as fc  # Everything you always wanted to have in Python*
 
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
