@@ -980,7 +980,7 @@ def separate(
          [[ 8  9]
           [10 11]]]
     """
-    assert(-arr.ndim <= axis < arr.ndim)
+    assert (-arr.ndim <= axis < arr.ndim)
     axis %= arr.ndim
     if arr.shape[axis] % size != 0:
         aligned = fc.base.align(arr.shape[axis], size, -1 if truncate else 1)
@@ -1237,6 +1237,70 @@ def is_broadcastable(items):
     return all(
         fc.base.all_equal(dim for dim in dims if dim > 1)
         for dims in zip(*tuple(shape[::-1] for shape in shapes)))
+
+
+# ======================================================================
+def multi_broadcast(arrs):
+    """
+    Automatic reshape the input to ensure broadcastable result.
+
+    This is obtained by generating views of the input arrays in their
+    tensor-product space.
+
+    Args:
+        arrs (Iterable[np.ndarray]): The input arrays.
+
+    Yields:
+        arr (np.ndarray): The broadcastable view of the array.
+
+    Examples:
+        >>> arrs = [np.arange(1, n + 1) for n in range(2, 4)]
+        >>> for arr in arrs:
+        ...     print(arr)
+        [1 2]
+        [1 2 3]
+        >>> for arr in multi_broadcast(arrs):
+        ...     print(arr)
+        [[1]
+         [2]]
+        [[1 2 3]]
+        >>> arrs = list(multi_broadcast(arrs))
+        >>> print((arrs[0] + arrs[1]).shape)
+        (2, 3)
+        >>> print(arrs[0] + arrs[1])
+        [[2 3 4]
+         [3 4 5]]
+
+        >>> arrs = [arange_nd((2, n)) + 1 for n in range(1, 3)]
+        >>> for arr in arrs:
+        ...     print(arr)
+        [[1]
+         [2]]
+        [[1 2]
+         [3 4]]
+        >>> for arr in multi_broadcast(arrs):
+        ...     print(arr)
+        [[[[1]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[2]]]]
+        [[[[1 2]
+           [3 4]]]]
+        >>> arrs = list(multi_broadcast(arrs))
+        >>> print((arrs[0] + arrs[1]).shape)
+        (2, 1, 2, 2)
+        >>> print(arrs[0] + arrs[1])
+        [[[[2 3]
+           [4 5]]]
+        <BLANKLINE>
+        <BLANKLINE>
+         [[[3 4]
+           [5 6]]]]
+    """
+    for i, arr in enumerate(arrs):
+        yield arr[tuple(
+            slice(None) if j == i else None
+            for j, arr in enumerate(arrs) for d in arr.shape)]
 
 
 # ======================================================================
@@ -1650,7 +1714,7 @@ def ndot(
         - flyingcircus.extra.mdot()
         - flyingcircus.extra.mdot_()
     """
-    assert(-arr.ndim <= axis < arr.ndim)
+    assert (-arr.ndim <= axis < arr.ndim)
     axis %= arr.ndim
     mask = tuple(
         slice(None) if j != axis else slicing for j in range(arr.ndim))
@@ -6177,6 +6241,7 @@ def zoom(
 def repeat():
     # TODO: similar to zoom() but works for integer scaling factors only
     raise NotImplementedError
+
 
 # ======================================================================
 def resample(
