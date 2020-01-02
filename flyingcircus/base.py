@@ -9310,9 +9310,11 @@ def is_bin_file(file_obj):
         result (bool): The binary mode status.
 
     Examples:
-        >>> is_bin_file(open(__file__, 'rb'))
+        >>> with open(__file__, 'rb') as file_obj:
+        ...     is_bin_file(file_obj)
         True
-        >>> is_bin_file(open(__file__, 'r'))
+        >>> with open(__file__, 'r') as file_obj:
+        ...     is_bin_file(file_obj)
         False
         >>> is_bin_file(io.BytesIO(b'ciao'))
         True
@@ -9886,10 +9888,12 @@ def from_cached(
     hash_key = hash_object((func, kws))  # can be used in filename
     filepath = os.path.join(dirpath, fmtm(filename))
     if os.path.isfile(filepath) and not force:
-        result = load_func(open(filepath, 'rb'))
+        with open(filepath, 'rb') as file_obj:
+            result = load_func(file_obj)
     else:
         result = func(**kws)
-        save_func(open(filepath, 'wb'), result)
+        with open(filepath, 'wb') as file_obj:
+            save_func(file_obj, result)
     return result
 
 
