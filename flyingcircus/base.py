@@ -1277,7 +1277,7 @@ def freeze(
     The following conversions are performed:
      - Iterable -> tuple
      - set -> frozenset
-     - dict -> tuple
+     - dict (any container with `items()` method) -> tuple
 
     This is useful to sanitize default parameters in functions.
 
