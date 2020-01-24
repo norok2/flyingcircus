@@ -1207,20 +1207,13 @@ def span(
 # ======================================================================
 def is_deep(
         obj,
-        recursive=False,
-        shallow=(str, bytes, bytearray)):
+        skip=(str, bytes, bytearray)):
     """
     Determine if an object is deep, i.e. it can be iterated through.
 
     Args:
         obj (Any): The object to test.
-        recursive (bool): Consider recursive iterable objects as deep.
-            An object is considered recursive if `obj == next(iter(obj))`.
-            If the object is non-iterable or `next()` can be called on the
-            object itself, this is ignored.
-        shallow (tuple|None): Data types to always consider shallow.
-            Note that recursive and self-slicing objects are handled
-            separately.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (bool): If the object is deep or not.
@@ -1243,42 +1236,21 @@ def is_deep(
         >>> is_deep('')
         False
 
-        >>> is_deep(1, True)
+        >>> is_deep(1, skip=None)
         False
-        >>> is_deep(1, False)
-        False
-
-        >>> is_deep('c', True, shallow=None)
+        >>> is_deep('c', skip=None)
         True
-        >>> is_deep('c', False, shallow=None)
-        False
-
-        >>> is_deep('', True, shallow=None)
-        True
-        >>> is_deep('', False, shallow=None)
+        >>> is_deep('', skip=None)
         True
     """
-    if shallow and isinstance(obj, shallow):
-        return False
-    elif not hasattr(obj, '__iter__'):
-        return False
-    elif not hasattr(obj, '__next__') and not recursive:
-        try:
-            if obj == next(iter(obj)):
-                return False
-        except StopIteration:
-            return True
-        else:
-            return True
-    else:
-        return True
+    return hasattr(obj, '__iter__') and not (skip and isinstance(obj, skip))
 
 
 # ======================================================================
 def freeze(
         items,
         max_depth=-1,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Recursively convert mutable containers to immutable counterparts.
 
@@ -1292,8 +1264,7 @@ def freeze(
     Args:
         items: The input items.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (tuple): The output items.
@@ -1311,17 +1282,16 @@ def freeze(
     if max_depth == 0:
         return items
     else:
-        is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
         if hasattr(items, 'items'):
             return tuple(
-                freeze(item, max_depth - 1, is_deep_kws)
-                if is_deep(item, **is_deep_kws) else item
+                freeze(item, max_depth - 1, skip)
+                if is_deep(item, skip) and item != items else item
                 for item in items.items())
         else:
             container = frozenset if isinstance(items, set) else tuple
             return container(
-                freeze(item, max_depth - 1, is_deep_kws)
-                if is_deep(item, **is_deep_kws) else item
+                freeze(item, max_depth - 1, skip)
+                if is_deep(item, skip) and item != items else item
                 for item in items)
 
 
@@ -1329,7 +1299,7 @@ def freeze(
 def unfreeze(
         items,
         max_depth=-1,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Recursively convert immutable containers to mutable counterparts.
 
@@ -1340,8 +1310,7 @@ def unfreeze(
     Args:
         items: The input items.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (tuple): The output items.
@@ -1359,17 +1328,16 @@ def unfreeze(
     if max_depth == 0:
         return items
     else:
-        is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
         try:
             return dict(
-                unfreeze(item, max_depth - 1, is_deep_kws)
-                if is_deep(item, **is_deep_kws) else item
+                unfreeze(item, max_depth - 1, skip)
+                if is_deep(item, skip) and item != items else item
                 for item in items)
         except TypeError:
             container = set if isinstance(items, frozenset) else list
             return container(
-                unfreeze(item, max_depth - 1, is_deep_kws)
-                if is_deep(item, **is_deep_kws) else item
+                unfreeze(item, max_depth - 1, skip)
+                if is_deep(item, skip) and item != items else item
                 for item in items)
 
 
@@ -1520,7 +1488,7 @@ def nesting_level(
         deep=True,
         max_depth=-1,
         combine=max,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Compute the nesting level of nested iterables.
 
@@ -1533,8 +1501,7 @@ def nesting_level(
         max_depth (int): Maximum depth to reach. Negative for unlimited.
         combine (callable): Combine multiple depth at the same level.
             If `deep` is False, this parameter is ignored.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (int): The nesting level.
@@ -1563,8 +1530,7 @@ def nesting_level(
         >>> nesting_level(((1, 2), 1, (1, (2, 3))), True, combine=min)
         1
     """
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
-    if not is_deep(obj, **is_deep_kws):
+    if not is_deep(obj, skip):
         return 0
     elif len(obj) == 0:
         return 1
@@ -1573,11 +1539,11 @@ def nesting_level(
     else:
         if deep:
             next_level = combine(
-                nesting_level(x, deep, max_depth - 1, combine, is_deep_kws)
+                nesting_level(x, deep, max_depth - 1, combine, skip)
                 for x in obj)
         else:
             next_level = nesting_level(
-                obj[0], deep, max_depth - 1, combine, is_deep_kws)
+                obj[0], deep, max_depth - 1, combine, skip)
         return 1 + next_level
 
 
@@ -1588,7 +1554,7 @@ def nested_len(
         max_depth=-1,
         combine=max,
         check_same=True,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Compute the length of nested iterables.
 
@@ -1604,8 +1570,7 @@ def nested_len(
             has the same effect).
             If `deep` is False, this parameter is ignored.
         check_same (bool): Check that same-level items have the same length.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (tuple[int]): The length of the nested iterables.
@@ -1639,14 +1604,13 @@ def nested_len(
         ...     ((1, 2), (1,), ((1, (2, 3)),)), combine=None, check_same=False)
         (3, (2,), (1,), (1, (2, (2,))))
     """
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
-    if not is_deep(obj, **is_deep_kws):
+    if not is_deep(obj, skip):
         return ()
     else:
         if deep:
             next_level = tuple(
                 nested_len(
-                    x, deep, max_depth - 1, combine, check_same, is_deep_kws)
+                    x, deep, max_depth - 1, combine, check_same, skip)
                 for x in obj)
             if check_same and not all_equal(next_level):
                 raise ValueError(
@@ -1657,7 +1621,7 @@ def nested_len(
         else:
             next_level = nested_len(
                 next(iter(obj)), deep, max_depth - 1, combine,
-                check_same, is_deep_kws)
+                check_same, skip)
         return (len(obj),) + tuple(x for x in next_level if x)
 
 
@@ -1771,7 +1735,7 @@ def auto_repeat(
 def stretch(
         items,
         shape,
-        is_deep_kws=None):
+        skip=None):
     """
     Automatically stretch the values to the target shape.
 
@@ -1782,8 +1746,7 @@ def stretch(
     Args:
         items (Any|Iterable): The input items.
         shape (Sequence[int]): The target shape (nested lengths).
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         result (tuple): The values stretched to match the target shape.
@@ -1830,8 +1793,7 @@ def stretch(
     See Also:
         - flyingcircus.base.auto_repeat()
     """
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
-    if not is_deep(items, **is_deep_kws):
+    if not is_deep(items, skip):
         result = auto_repeat(items, shape)
     else:
         old_shape = nested_len(items, check_same=False)
@@ -1849,7 +1811,7 @@ def stretch(
             except ValueError:
                 result = tuple(
                     stretch(item, shape[1:])
-                    if is_deep(item, **is_deep_kws)
+                    if is_deep(item, skip)
                     else auto_repeat(item, shape[1:])
                     for item in items)
             else:
@@ -1857,7 +1819,7 @@ def stretch(
         elif old_shape[0] == shape[0]:
             result = tuple(
                 stretch(item, shape[1:])
-                if is_deep(item, **is_deep_kws)
+                if is_deep(item, skip)
                 else auto_repeat(item, shape[1:])
                 for item in items)
         else:
@@ -1870,7 +1832,7 @@ def stretch(
 def flatten(
         items,
         max_depth=-1,
-        is_deep_kws=None):
+        shallow=(str, bytes, bytearray)):
     """
     Recursively flattens nested Iterables.
 
@@ -1879,8 +1841,9 @@ def flatten(
     Args:
         items (Iterable): The input items.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        shallow (tuple|None): Data types to always consider shallow.
+            Note that recursive and self-slicing objects are handled
+            separately.
 
     Yields:
         item (any): The next non-Iterable item of the flattened items.
@@ -1903,19 +1866,19 @@ def flatten(
         >>> ll2 = [[(1, 2, 3), (4, 5)], [(1, 2), (3, 4, 5)], ['1, 2', [6, 7]]]
         >>> list(flatten(ll2))
         [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, '1, 2', 6, 7]
-        >>> list(flatten(ll2, is_deep_kws=dict(shallow=(tuple, str))))
+        >>> list(flatten(ll2, shallow=(tuple, str)))
         [(1, 2, 3), (4, 5), (1, 2), (3, 4, 5), '1, 2', 6, 7]
         >>> list(flatten(ll2, max_depth=1))
         [(1, 2, 3), (4, 5), (1, 2), (3, 4, 5), '1, 2', [6, 7]]
-        >>> list(flatten(ll2, is_deep_kws=dict(shallow=None)))
+        >>> list(flatten(ll2, shallow=None))
         [1, 2, 3, 4, 5, 1, 2, 3, 4, 5, '1', ',', ' ', '2', 6, 7]
         >>> list(
         ...     flatten([['best', 'func'], 'ever'], 1,
-        ...     is_deep_kws=dict(shallow=None)))
+        ...     shallow=None))
         ['best', 'func', 'e', 'v', 'e', 'r']
         >>> list(
         ...     flatten([['best', 'func'], 'ever'],
-        ...     is_deep_kws=dict(shallow=None)))
+        ...     shallow=None))
         ['b', 'e', 's', 't', 'f', 'u', 'n', 'c', 'e', 'v', 'e', 'r']
         >>> list(flatten(list(range(10))))
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -1924,14 +1887,16 @@ def flatten(
         >>> list(flatten([[0, 1], range(2, 5), (i for i in range(5, 10))]))
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
     for item in items:
-        if is_deep(item, **is_deep_kws) and not max_depth == 0:
-            # yield from flatten(item, avoid, max_depth - 1)
-            for subitem in flatten(item, max_depth - 1, is_deep_kws):
-                yield subitem
-        else:
+        if shallow and isinstance(item, shallow) or \
+                item == items or max_depth == 0:
             yield item
+        else:
+            try:
+                for subitem in flatten(item, max_depth - 1, shallow):
+                    yield subitem
+            except TypeError:
+                yield item
 
 
 # ======================================================================
@@ -2168,7 +2133,7 @@ def deep_map(
         items,
         container=None,
         max_depth=-1,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Compute a function on each element of a nested structure of iterables.
 
@@ -2182,8 +2147,7 @@ def deep_map(
             If None, this is inferred from `items` if possible, otherwise
             uses `tuple`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         new_items (Iterable): The mapped items.
@@ -2199,7 +2163,6 @@ def deep_map(
         >>> print(deep_map(lambda x: x, items, tuple))
         (1, 2, (3, 4, 5), 2, (3, (4, 5)))
     """
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
     final_container = type(items) if container is None else container
     if not callable(final_container):
         final_container = tuple
@@ -2207,7 +2170,7 @@ def deep_map(
     # note: this cannot be rewritten as generator because of recursion!
 
     # : alternate implementation (slower)
-    # if is_deep(items, **is_deep_kws):
+    # if is_deep(items, skip):
     #     return final_container(
     #         deep_map(func, item, container, avoid, max_depth - 1)
     #         for item in items)
@@ -2217,14 +2180,14 @@ def deep_map(
     # : alternate implementation (slower)
     # return final_container(
     #     deep_map(func, item, container, avoid, max_depth - 1)
-    #     if is_deep(item, **is_deep_kws) else func(item)
+    #     if is_deep(item, skip) else func(item)
     #     for item in items)
 
     new_items = []
     for item in items:
-        if is_deep(item, **is_deep_kws):
+        if is_deep(item, skip):
             new_items.append(
-                deep_map(func, item, container, max_depth - 1, is_deep_kws))
+                deep_map(func, item, container, max_depth - 1, skip))
         else:
             new_items.append(func(item))
     return final_container(new_items)
@@ -2303,7 +2266,7 @@ def deep_convert(
         container,
         items,
         max_depth=-1,
-        is_deep_kws=None):
+        skip=(str, bytes, bytearray)):
     """
     Convert the containers from a nested structure of iterables.
 
@@ -2314,8 +2277,7 @@ def deep_convert(
             If None, no conversion is performed.
         items (Iterable): The input items.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         new_items (container): The converted nested structure of iterables.
@@ -2326,8 +2288,8 @@ def deep_convert(
         [1, 2, [3, 4, 5], 2, [3, [4, 5], 'ciao']]
         >>> deep_convert(tuple, items)
         (1, 2, (3, 4, 5), 2, (3, (4, 5), 'ciao'))
-        >>> deep_convert(tuple, items, is_deep_kws=dict(shallow=None))
-        (1, 2, (3, 4, 5), 2, (3, (4, 5), ('c', 'i', 'a', 'o')))
+        >>> deep_convert(tuple, items, skip=None)
+        (1, 2, (3, 4, 5), 2, (3, (4, 5), (('c',), ('i',), ('a',), ('o',))))
         >>> deep_convert(None, items)
         [1, 2, [3, 4, 5], 2, (3, [4, 5], 'ciao')]
         >>> print(
@@ -2340,15 +2302,14 @@ def deep_convert(
         True
     """
     # note: this cannot be rewritten as generator because of recursion!
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
     if container is not None:
         new_items = []
         for item in items:
-            if is_deep(item, **is_deep_kws):
-                new_items.append(
-                    deep_convert(container, item, max_depth - 1, is_deep_kws))
-            else:
+            if max_depth == 0 or not is_deep(item, skip) or item == items:
                 new_items.append(item)
+            else:
+                new_items.append(
+                    deep_convert(container, item, max_depth - 1, skip))
         return container(new_items)
     else:
         return items
@@ -2361,8 +2322,8 @@ def deep_filter_map(
         map_condition=None,
         filter_condition=None,
         container=None,
-        is_deep_kws=None,
-        max_depth=-1):
+        max_depth=-1,
+        skip=(str, bytes, bytearray)):
     """
     Apply conditional mapping, filtering and conversion on nested structures.
 
@@ -2411,9 +2372,8 @@ def deep_filter_map(
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
             uses `tuple`.
-        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
+        skip (tuple|None): Types to skip descending into.
 
     Returns:
         new_items (Iterable): The mapped and filtered items.
@@ -2474,7 +2434,6 @@ def deep_filter_map(
     final_container = type(items) if container is None else container
     if not callable(final_container):
         final_container = tuple
-    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
 
     if func is None:
         def func(x): return x
@@ -2485,14 +2444,14 @@ def deep_filter_map(
 
     new_items = []
     for item in items:
-        if not is_deep(item, **is_deep_kws):
+        if max_depth == 0 or not is_deep(item, skip) or item == items:
             if filter_condition(item):
                 new_items.append(func(item) if map_condition(item) else item)
         else:
             new_items.append(
                 deep_filter_map(
                     item, func, map_condition, filter_condition, container,
-                    is_deep_kws, max_depth - 1))
+                    max_depth - 1, skip))
     return final_container(new_items)
 
 
