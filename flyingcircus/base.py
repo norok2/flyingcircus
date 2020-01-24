@@ -1207,15 +1207,17 @@ def span(
 # ======================================================================
 def is_deep(
         obj,
-        recursive=True,
+        recursive=False,
         shallow=(str, bytes, bytearray)):
     """
     Determine if an object is deep, i.e. it can be iterated through.
 
     Args:
         obj (Any): The object to test.
-        recursive (bool): Consider recursive iterable objects as shallow.
-            If object is non-iterable, this is ignored.
+        recursive (bool): Consider recursive iterable objects as deep.
+            An object is considered recursive if `obj == next(iter(obj))`.
+            If the object is non-iterable or `next()` can be called on the
+            object itself, this is ignored.
         shallow (tuple|None): Data types to always consider shallow.
             Note that recursive and self-slicing objects are handled
             separately.
@@ -1230,6 +1232,10 @@ def is_deep(
         True
         >>> is_deep([1, 2, 3])
         True
+        >>> is_deep(range(4))
+        True
+        >>> is_deep((i for i in range(4)))
+        True
         >>> is_deep('ciao')
         False
         >>> is_deep('c')
@@ -1243,25 +1249,27 @@ def is_deep(
         False
 
         >>> is_deep('c', True, shallow=None)
-        False
-        >>> is_deep('c', False, shallow=None)
         True
+        >>> is_deep('c', False, shallow=None)
+        False
 
         >>> is_deep('', True, shallow=None)
         True
         >>> is_deep('', False, shallow=None)
         True
     """
-    try:
-        is_shallow = \
-            (shallow and isinstance(obj, shallow)) \
-            or (obj == next(iter(obj)) and recursive)
-        if is_shallow:
-            raise TypeError
-    except TypeError:
+    if shallow and isinstance(obj, shallow):
         return False
-    except StopIteration:
-        return True
+    elif not hasattr(obj, '__iter__'):
+        return False
+    elif not hasattr(obj, '__next__') and not recursive:
+        try:
+            if obj == next(iter(obj)):
+                return False
+        except StopIteration:
+            return True
+        else:
+            return True
     else:
         return True
 
@@ -1740,26 +1748,22 @@ def auto_repeat(
     See Also:
         - flyingcircus.base.stretch()
     """
-    try:
-        iter(obj)
-    except TypeError:
-        force = True
-    finally:
-        result = obj
-        if isinstance(n, int):
-            if force:
-                result = (obj,) * n
-            if check and len(result) != n:
-                raise ValueError('Incompatible input value length.')
-        else:
-            if nested_len(obj, check_same=True) != n or force:
-                result = auto_repeat(obj, n[-1], force, check)
-                for i in n[-2::-1]:
-                    result = auto_repeat(result, i, True, check)
-            if check and \
-                    nested_len(result, check_same=True) \
-                    != n + (nested_len(obj, check_same=True) if force else ()):
-                raise ValueError('Incompatible input value length.')
+    force = force or not hasattr(obj, '__iter__')
+    result = obj
+    if isinstance(n, int):
+        if force:
+            result = (obj,) * n
+        if check and len(result) != n:
+            raise ValueError('Incompatible input value length.')
+    else:
+        if nested_len(obj, check_same=True) != n or force:
+            result = auto_repeat(obj, n[-1], force, check)
+            for i in n[-2::-1]:
+                result = auto_repeat(result, i, True, check)
+        if check and \
+                nested_len(result, check_same=True) \
+                != n + (nested_len(obj, check_same=True) if force else ()):
+            raise ValueError('Incompatible input value length.')
     return result
 
 
@@ -1916,6 +1920,8 @@ def flatten(
         >>> list(flatten(list(range(10))))
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         >>> list(flatten(range(10)))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> list(flatten([[0, 1], range(2, 5), (i for i in range(5, 10))]))
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     """
     is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
@@ -2355,7 +2361,7 @@ def deep_filter_map(
         map_condition=None,
         filter_condition=None,
         container=None,
-        avoid=(str, bytes),
+        is_deep_kws=None,
         max_depth=-1):
     """
     Apply conditional mapping, filtering and conversion on nested structures.
@@ -2405,7 +2411,8 @@ def deep_filter_map(
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
             uses `tuple`.
-        avoid (tuple|None): Data types to skip.
+        is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
+            These are passed to `flyingcircus.base.is_deep()`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
 
     Returns:
@@ -2463,11 +2470,11 @@ def deep_filter_map(
         ...    == deep_convert(tuple, items))
         True
     """
+    # note: this cannot be rewritten as generator because of recursion!
     final_container = type(items) if container is None else container
     if not callable(final_container):
         final_container = tuple
-
-    # note: this cannot be rewritten as generator because of recursion!
+    is_deep_kws = {} if is_deep_kws is None else dict(is_deep_kws)
 
     if func is None:
         def func(x): return x
@@ -2475,20 +2482,17 @@ def deep_filter_map(
         def map_condition(_): return True
     if filter_condition is None:
         def filter_condition(_): return True
+
     new_items = []
     for item in items:
-        try:
-            no_expand = avoid and isinstance(item, avoid)
-            if no_expand or max_depth == 0 or item == next(iter(item)):
-                raise TypeError
-        except TypeError:
+        if not is_deep(item, **is_deep_kws):
             if filter_condition(item):
                 new_items.append(func(item) if map_condition(item) else item)
         else:
             new_items.append(
                 deep_filter_map(
                     item, func, map_condition, filter_condition, container,
-                    avoid, max_depth - 1))
+                    is_deep_kws, max_depth - 1))
     return final_container(new_items)
 
 
