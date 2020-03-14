@@ -11125,58 +11125,58 @@ def compact_num_str(
 
 
 # ======================================================================
-def has_decorator(
+def has_delim(
         text,
-        pre_decor='"',
-        post_decor='"'):
+        pre_delim='"',
+        post_delim='"'):
     """
     Determine if a string is delimited by some characters (decorators).
 
     Args:
         text (str): The text input string.
-        pre_decor (str): initial string decorator.
-        post_decor (str): final string decorator.
+        pre_delim (str): initial string decorator.
+        post_delim (str): final string decorator.
 
     Returns:
-        has_decorator (bool): True if text is delimited by the specified chars.
+        has_delim (bool): True if text is delimited by the specified chars.
 
     Examples:
-        >>> has_decorator('"test"')
+        >>> has_delim('"test"')
         True
-        >>> has_decorator('"test')
+        >>> has_delim('"test')
         False
-        >>> has_decorator('<test>', '<', '>')
+        >>> has_delim('<test>', '<', '>')
         True
     """
-    return text.startswith(pre_decor) and text.endswith(post_decor)
+    return text.startswith(pre_delim) and text.endswith(post_delim)
 
 
 # ======================================================================
-def strip_decorator(
+def strip_delim(
         text,
-        pre_decor='"',
-        post_decor='"'):
+        pre_delim='"',
+        post_delim='"'):
     """
     Strip initial and final character sequences (decorators) from a string.
 
     Args:
         text (str): The text input string.
-        pre_decor (str): initial string decorator.
-        post_decor (str): final string decorator.
+        pre_delim (str): initial string decorator.
+        post_delim (str): final string decorator.
 
     Returns:
         text (str): the text without the specified decorators.
 
     Examples:
-        >>> strip_decorator('"test"')
+        >>> strip_delim('"test"')
         'test'
-        >>> strip_decorator('"test')
+        >>> strip_delim('"test')
         'test'
-        >>> strip_decorator('<test>', '<', '>')
+        >>> strip_delim('<test>', '<', '>')
         'test'
     """
-    begin = len(pre_decor) if text.startswith(pre_decor) else None
-    end = -len(post_decor) if text.endswith(post_decor) else None
+    begin = len(pre_delim) if text.startswith(pre_delim) else None
+    end = -len(post_delim) if text.endswith(post_delim) else None
     return text[begin:end]
 
 
@@ -11261,16 +11261,16 @@ def to_bool(
 # ======================================================================
 def auto_convert(
         text,
-        pre_decor=None,
-        post_decor=None,
+        pre_delim=None,
+        post_delim=None,
         casts=(int, float, complex, to_bool)):
     """
     Convert value to numeric if possible, or strip delimiters from string.
 
     Args:
         text (str|Number): The text input string.
-        pre_decor (str): initial string decorator.
-        post_decor (str): final string decorator.
+        pre_delim (str): initial string decorator.
+        post_delim (str): final string decorator.
         casts (Iterable[callable]): The cast conversion methods.
             Each callable must be able to perform the desired conversion,
             or raise either a ValueError or a TypeError on failure.
@@ -11295,9 +11295,9 @@ def auto_convert(
         False
     """
     if isinstance(text, str):
-        if pre_decor and post_decor and \
-                has_decorator(text, pre_decor, post_decor):
-            text = strip_decorator(text, pre_decor, post_decor)
+        if pre_delim and post_delim and \
+                has_delim(text, pre_delim, post_delim):
+            text = strip_delim(text, pre_delim, post_delim)
         val = None
         for cast in casts:
             try:
@@ -11938,7 +11938,7 @@ def progression(
         num):
     """
     Compute the n-th term of a notable progression.
-    
+
     Args:
         name (str): The name of the progression.
             Accepted values are:
@@ -12274,8 +12274,8 @@ def str2dict(
         in_str,
         entry_sep=',',
         key_val_sep='=',
-        pre_decor='{',
-        post_decor='}',
+        pre_delim='{',
+        post_delim='}',
         strip_key_str=None,
         strip_val_str=None,
         convert=True):
@@ -12289,8 +12289,8 @@ def str2dict(
         in_str (str): The input string.
         entry_sep (str): The entry separator.
         key_val_sep (str): The key-value separator.
-        pre_decor (str): initial decorator (to be removed before parsing).
-        post_decor (str): final decorator (to be removed before parsing).
+        pre_delim (str): initial decorator (to be removed before parsing).
+        post_delim (str): final decorator (to be removed before parsing).
         strip_key_str (str): Chars to be stripped from both ends of the key.
             If None, whitespaces are stripped. Empty string for no stripping.
         strip_val_str (str): Chars to be stripped from both ends of the value.
@@ -12310,8 +12310,8 @@ def str2dict(
     See Also:
         dict2str
     """
-    if has_decorator(in_str, pre_decor, post_decor):
-        in_str = strip_decorator(in_str, pre_decor, post_decor)
+    if has_delim(in_str, pre_delim, post_delim):
+        in_str = strip_delim(in_str, pre_delim, post_delim)
     entries = in_str.split(entry_sep)
     out_dict = {}
     for entry in entries:
@@ -12343,8 +12343,8 @@ def dict2str(
         in_dict,
         entry_sep=',',
         key_val_sep='=',
-        pre_decor='{',
-        post_decor='}',
+        pre_delim='{',
+        post_delim='}',
         strip_key_str=None,
         strip_val_str=None,
         sorting=None):
@@ -12355,8 +12355,8 @@ def dict2str(
         in_dict (dict): The input dictionary.
         entry_sep (str): The entry separator.
         key_val_sep (str): The key-value separator.
-        pre_decor (str): initial decorator (to be appended to the output).
-        post_decor (str): final decorator (to be appended to the output).
+        pre_delim (str): initial decorator (to be appended to the output).
+        post_delim (str): final decorator (to be appended to the output).
         strip_key_str (str): Chars to be stripped from both ends of the key.
             If None, whitespaces are stripped. Empty string for no stripping.
         strip_val_str (str): Chars to be stripped from both ends of the value.
@@ -12380,7 +12380,7 @@ def dict2str(
         key = key.strip(strip_key_str)
         val = str(in_dict[key]).strip(strip_val_str)
         out_list.append(key_val_sep.join([key, val]))
-    out_str = pre_decor + entry_sep.join(out_list) + post_decor
+    out_str = pre_delim + entry_sep.join(out_list) + post_delim
     return out_str
 
 
