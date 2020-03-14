@@ -2456,6 +2456,118 @@ def deep_filter_map(
 
 
 # ======================================================================
+def partition_inplace(
+        seq,
+        condition,
+        start=0,
+        stop=-1):
+    """
+    Partition a sequence into items
+
+    Args:
+        seq (Sequence): The input sequence.
+        condition (callable): The partitioning condition.
+            Must have the following signature: condition(Any) -> bool.
+            If the condition is met,
+        start (int): The start index.
+            The index is forced within boundaries modulo len(seq).
+        stop (int): The stop index.
+            The index is forced within boundaries modulo len(seq).
+
+    Returns:
+        result (int): The index that delimits the partitioning.
+
+    Examples:
+        >>> seq = list(range(10))
+        >>> k = partition_inplace(seq, lambda x: x % 2 == 0)
+        >>> print(seq[:k], seq[k:])
+        [0, 2, 4, 6, 8] [5, 3, 7, 1, 9]
+
+        >>> k = partition_inplace(seq, lambda x: x >= 5)
+        >>> print(seq[:k], seq[k:])
+        [6, 8, 5, 7, 9] [4, 3, 0, 1, 2]
+
+        >>> k = partition_inplace(seq, lambda x: x < 5)
+        >>> print(seq[:k], seq[k:])
+        [4, 3, 0, 1, 2] [6, 8, 5, 7, 9]
+
+        >>> seq = list(range(10))
+        >>> k = partition_inplace(seq, lambda x: x % 5, 2, 8)
+        >>> print(seq[2:k], seq[k:9])
+        [2, 3, 4, 6, 7, 8] [5]
+    """
+    n = len(seq)
+    start %= n
+    stop %= n
+    for i in range(start, stop + 1):
+        if condition(seq[i]):
+            seq[start], seq[i] = seq[i], seq[start]
+            start += 1
+    return start
+
+
+# ======================================================================
+def select_ordinal(
+        seq,
+        k):
+    """
+    Find the smallest k-th element in a sequence.
+
+    This is equivalent to `sorted(seq)[k]` but it can be asymptotically
+    more efficient.
+
+    Args:
+        seq (Sequence): The input sequence.
+        k (int): The input index.
+            This is 0-based and supports negative indexing.
+            If k > len(seq) or k < -len(seq), None is returned.
+
+    Returns:
+        result: The smallest k-th element.
+
+    Examples:
+        >>> seq = [2 * x for x in range(10)]
+        >>> print(select_ordinal(seq, 0))
+        0
+        >>> print(select_ordinal(seq, 9))
+        18
+        >>> print(select_ordinal(seq, 4))
+        8
+        >>> print(select_ordinal(seq, -10))
+        0
+        >>> print(select_ordinal(seq, -1))
+        18
+        >>> print(select_ordinal(seq, -6))
+        8
+        >>> print(select_ordinal(seq, 10))
+        None
+        >>> print(select_ordinal(seq, -11))
+        None
+    """
+    seq = list(seq)
+    if k < 0:
+        k += len(seq)
+    start, stop = 0, len(seq) - 1
+    while start <= stop:
+        # compute a partition
+        x = seq[stop]
+        p = start
+        for i in range(start, stop):
+            if seq[i] <= x:
+                seq[p], seq[i] = seq[i], seq[p]
+                p += 1
+        seq[p], seq[stop] = seq[stop], seq[p]
+        # determine if p corresponds to k
+        if p == k:
+            return seq[p]
+        elif p > k:
+            stop = p - 1
+        else:
+            start = p + 1
+    return None
+
+
+# ======================================================================
 def uniques(items):
     """
     Get unique items (keeping order of appearance).
