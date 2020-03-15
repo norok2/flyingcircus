@@ -3385,7 +3385,7 @@ def cyclic_permutations(
         items,
         forward=True):
     """
-    Generate cyclic permutations of given items
+    Generate cyclic permutations of given items.
 
     Args:
         items (Sequence): The input items.
@@ -3494,20 +3494,17 @@ def unique_permutations(
     items = sorted(items)
     while True:
         yield container(items)
-
         for k in indexes[1:]:
             if items[k] < items[k + 1]:
                 break
         else:
             return
-
         k_val = items[k]
         for i in indexes:
             if k_val < items[i]:
                 break
         else:
             i = 0
-
         items[k], items[i] = items[i], items[k]
         items[k + 1:] = items[-1:k:-1]
 
@@ -3551,11 +3548,35 @@ def cartesian_product(
     """
     containers = [_guess_container(seq, container) for seq in seqs]
     container = tuple if not all_equal(containers) else containers[0]
-    results = [[]]
-    for pool in map(container, seqs):
-        results = [x + [y] for x in results for y in pool]
-    for result in results:
-        yield container(result)
+
+    # : faster but more memory-consuming method
+    # results = [[]]
+    # for pool in map(container, seqs):
+    #     results = [x + [y] for x in results for y in pool]
+    # for result in results:
+    #     yield container(result)
+
+    # : recursive version with limited control over container
+    # if not seqs:
+    #     yield ()
+    # else:
+    #     for item in seqs[0]:
+    #         for items in cartesian_product(*seqs[1:]):
+    #             yield (item,) + items
+
+    i = 0
+    while True:
+        result = []
+        k = i
+        for seq in seqs:
+            m = len(seq)
+            result.append(seq[k % m])
+            k //= m
+        if k > 0:
+            return
+        else:
+            yield container(result)
+            i += 1
 
 
 # ======================================================================
