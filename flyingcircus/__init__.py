@@ -121,7 +121,9 @@ else:
 def find_all(
         text,
         pattern,
-        overlap=False):
+        overlap=False,
+        start=0,
+        stop=-1):
     """
     Find all occurrences of the pattern in the text.
 
@@ -132,6 +134,10 @@ def find_all(
         text (str|bytes|bytearray): The input text.
         pattern (str|bytes|bytearray): The pattern to find.
         overlap (bool): Detect overlapping patterns.
+        start (int): The start index.
+            The index is forced within boundaries modulo len(seq).
+        stop (int): The stop index.
+            The index is forced within boundaries modulo len(seq).
 
     Yields:
         position (int): The position of the next finding.
@@ -164,16 +170,21 @@ def find_all(
         >>> list(find_all('000000000', '000', True))
         [0, 1, 2, 3, 4, 5, 6]
     """
-    len_text = len(text)
-    offset = 1 if overlap else (len(pattern) or 1)
-    i = 0
-    while i < len_text:
-        i = text.find(pattern, i)
-        if i >= 0:
-            yield i
-            i += offset
-        else:
-            break
+    n = len(text)
+    if n > 0:
+        start %= n
+        stop %= n
+        offset = 1 if overlap else (len(pattern) or 1)
+        i = start
+        while True:
+            i = text.find(pattern, i)
+            if 0 <= i <= stop:
+                yield i
+                i += offset
+            else:
+                break
+    else:
+        return
 
 
 # ======================================================================
@@ -684,8 +695,13 @@ elapsed(os.path.basename(__file__))
 
 # ======================================================================
 # : populate flyingcircus namespace with submodules
+from flyingcircus.base import *
 import flyingcircus.base
-import flyingcircus.extra
+
+# warnings.warn(
+#     '`flyingcircus.base` will not be available or will not provide'
+#     '\nthe same names (functions, classes, etc.) in the future.',
+#     PendingDeprecationWarning)
 
 # ======================================================================
 if __name__ == '__main__':
