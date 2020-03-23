@@ -1003,9 +1003,11 @@ def iter_at(
 # ======================================================================
 def index_all(
         seq,
-        item):
+        item,
+        start=0,
+        stop=-1):
     """
-    Find all occurrencies of an item in an sequence.
+    Find all occurrences of an item in an sequence.
 
     For dense inputs (item is present in more than ~20% of the sequence),
     a looping comprehension may be faster.
@@ -1016,6 +1018,10 @@ def index_all(
     Args:
         seq (Sequence): The input sequence.
         item (Any): The item to find.
+        start (int): The start index.
+            The index is forced within boundaries modulo len(seq).
+        stop (int): The stop index (included).
+            The index is forced within boundaries modulo len(seq).
 
     Yields:
         position (int): The position of the next finding.
@@ -1031,6 +1037,8 @@ def index_all(
         []
         >>> list(index_all((1, 2, 3, 5, 3, 4, 5, 7, None), None))
         [8]
+        >>> list(index_all((1, 2, 3, 5, 3, 4, 5, 7, 8), ()))
+        []
         >>> list(index_all('0010120123012340123450123456', '0'))
         [0, 1, 3, 6, 10, 15, 21]
         >>> list(index_all('  1 12 123 1234 12345 123456', '0'))
@@ -1056,12 +1064,20 @@ def index_all(
         - flyingcircus.base.find_all()
     """
     try:
-        len_seq = len(seq)
-        i = 0
-        while i < len_seq:
-            i = seq.index(item, i)
-            yield i
-            i += 1
+        n = len(seq)
+        if n > 0:
+            start %= n
+            stop %= n
+            i = start
+            while True:
+                i = seq.index(item, i)
+                if i <= stop:
+                    yield i
+                    i += 1
+                else:
+                    return
+        else:
+            return
     except ValueError:
         pass
 
@@ -2471,7 +2487,7 @@ def partition_inplace(
             If the condition is met,
         start (int): The start index.
             The index is forced within boundaries modulo len(seq).
-        stop (int): The stop index.
+        stop (int): The stop index (included).
             The index is forced within boundaries modulo len(seq).
 
     Returns:
@@ -3529,13 +3545,13 @@ def cartesian_product(
         result (Sequence): The next output elements.
 
     Examples:
-        >>> list(cartesian_product([1, 2], [3, 4, 5]))
+        >>> sorted(cartesian_product([1, 2], [3, 4, 5]))
         [[1, 3], [1, 4], [1, 5], [2, 3], [2, 4], [2, 5]]
-        >>> list(cartesian_product((1, 2), (3, 4, 5)))
+        >>> sorted(cartesian_product((1, 2), (3, 4, 5)))
         [(1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5)]
-        >>> list(cartesian_product(range(2), range(3)))
+        >>> sorted(cartesian_product(range(2), range(3)))
         [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
-        >>> list(cartesian_product('abc', 'ABC'))
+        >>> sorted(cartesian_product('abc', 'ABC'))
         ['aA', 'aB', 'aC', 'bA', 'bB', 'bC', 'cA', 'cB', 'cC']
 
     See Also:
@@ -3549,14 +3565,14 @@ def cartesian_product(
     containers = [_guess_container(seq, container) for seq in seqs]
     container = tuple if not all_equal(containers) else containers[0]
 
-    # : faster but more memory-consuming method
-    # results = [[]]
-    # for pool in map(container, seqs):
-    #     results = [x + [y] for x in results for y in pool]
+    # : iterative method (fast but very memory-consuming method)
+    # results = ((),)
+    # for pool in seqs:
+    #     results = tuple(x + (y,) for x in results for y in pool)
     # for result in results:
-    #     yield container(result)
+    #     yield result
 
-    # : recursive version with limited control over container
+    # : recursive version (fast but very memory-consuming method)
     # if not seqs:
     #     yield ()
     # else:
@@ -3564,13 +3580,45 @@ def cartesian_product(
     #         for items in cartesian_product(*seqs[1:]):
     #             yield (item,) + items
 
+    # # : iterative method with explicit indexing
+    # len_seqs = list(map(len, seqs))
+    # indexes = [0] * len(seqs)
+    # while True:
+    #     yield container(seq[i] for seq, i in zip(seqs, indexes))
+    #     j = n - 1
+    #     while True:
+    #         indexes[j] += 1
+    #         if indexes[j] < len_seqs[j]:
+    #             break
+    #         indexes[j] = 0
+    #         j -= 1
+    #         if j < 0:
+    #             return
+
+    # : iterative method with modulo arithmetics (faster but backward loops)
+    # i = 0
+    # while True:
+    #     result = []
+    #     k = i
+    #     for seq in seqs:
+    #         m = len(seq)
+    #         result.append(seq[k % m])
+    #         k //= m
+    #     if k > 0:
+    #         return
+    #     else:
+    #         yield container(result)
+    #         i += 1
+
+    # : iterative method with modulo arithmetics
+    n = len(seqs)
+    seqs = list(zip(seqs[::-1], list(map(len, seqs[::-1]))))
     i = 0
+    result = [None] * n
     while True:
-        result = []
         k = i
-        for seq in seqs:
-            m = len(seq)
-            result.append(seq[k % m])
+        for j, (seq, m) in enumerate(seqs):
+            result[n - j - 1] = seq[k % m]
             k //= m
         if k > 0:
             return
@@ -4011,6 +4059,110 @@ def search_sorted(
 
 
 # ======================================================================
+def find_subseq(
+        seq,
+        subseq,
+        start=0,
+        stop=-1):
+    """
+    Find occurrences of a sub-sequence in a sequence.
+
+    Args:
+        seq (Sequence): The input sequence.
+        subseq (Sequence): The input sub-sequence.
+        start (int): The start index.
+            The index is forced within boundaries modulo len(seq).
+        stop (int): The stop index (included).
+            The index is forced within boundaries modulo len(seq).
+
+    Yields:
+        result (int): The index of the next match.
+
+    Examples:
+        >>> list(find_subseq(list(range(100)), list(range(50, 60))))
+        [50]
+        >>> list(find_subseq(list(range(100)), []))
+        []
+        >>> list(find_subseq([], list(range(50, 60))))
+        []
+        >>> list(find_subseq([], []))
+        []
+        >>> list(find_subseq(list(range(100)), list(range(95, 105))))
+        []
+        >>> list(find_subseq(list(range(10)), list(range(3, 8))))
+        [3]
+        >>> list(find_subseq(list(range(10)), list(range(5))))
+        [0]
+        >>> list(find_subseq(list(range(10)), list(range(5, 10))))
+        [5]
+        >>> list(find_subseq(list(range(10)) * 10, list(range(3, 8))))
+        [3, 13, 23, 33, 43, 53, 63, 73, 83, 93]
+        >>> list(find_subseq('4312431234321', '1234'))
+        [6]
+
+    See Also:
+        - flyingcircus.base.find_all()
+    """
+    n = len(seq)
+    m = len(subseq)
+    if n > 0 and m > 0:
+        start %= n
+        stop %= n
+
+        # : naive with fast looping, slicing and short-circuit
+        for i in index_all(seq, subseq[0], start, stop - m + 1):
+            if seq[i + m - 1] == subseq[m - 1] and seq[i:i + m] == subseq:
+                yield i
+
+        # : naive with looping
+        # for i in range(start, stop - m + 1):
+        #     if all(seq[i + j] == subseq[j] for j in range(m)):
+        #         yield i
+
+        # : naive with slicing
+        # for i in range(start, stop - m + 1):
+        #     if seq[i:i + m] == subseq:
+        #         yield i
+
+        # : naive with slicing and short-circuit
+        # for i in range(start, stop - m + 1):
+        #     if seq[i] == subseq[0] and seq[i:i + m] == subseq:
+        #         yield i
+
+        # : Knuth–Morris–Pratt (KMP) algorithm
+        # offsets = [0] * m
+        # j = 1
+        # k = 0
+        # while j < m:
+        #     if subseq[j] == subseq[k]:
+        #         k += 1
+        #         offsets[j] = k
+        #         j += 1
+        #     else:
+        #         if k != 0:
+        #             k = offsets[k - 1]
+        #         else:
+        #             offsets[j] = 0
+        #             j += 1
+        # i = start
+        # j = 0
+        # while i <= stop:
+        #     if seq[i] == subseq[j]:
+        #         i += 1
+        #         j += 1
+        #     if j == m:
+        #         yield i - j
+        #         j = offsets[j - 1]
+        #     elif i <= stop and seq[i] != subseq[j]:
+        #         if j != 0:
+        #             j = offsets[j - 1]
+        #         else:
+        #             i += 1
+    else:
+        return
+
+
+# ======================================================================
 def seqmap2mapseq(
         data,
         labels=None,
@@ -4052,6 +4204,9 @@ def seqmap2mapseq(
         (('a', [1, None, None]), ('b', [None, 4, 6]))
         >>> data == mapseq2seqmap((seqmap2mapseq(data)))
         True
+
+    See Also:
+        - flyingcircus.base.mapseq2seqmap()
     """
     if mapping_container is None:
         mapping_container = type(next(iter(data)))
@@ -4112,6 +4267,9 @@ def mapseq2seqmap(
         [[('a', 1)], [('b', 4)], [('b', 6)]]
         >>> data == seqmap2mapseq((mapseq2seqmap(data)))
         True
+
+    See Also:
+        - flyingcircus.base.seqmap2mapseq()
     """
     if mapping_container is None:
         mapping_container = type(data)
