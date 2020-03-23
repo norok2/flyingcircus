@@ -428,7 +428,7 @@ def is_prime_binomial(val):
     elif val == 2 or val == 3:
         return True
     elif all(
-            not (n % val) for n in fc.base.get_binomial_coeffs(val, full=False)
+            not (n % val) for n in fc.get_binomial_coeffs(val, full=False)
             if n > 1):
         return True
     else:
@@ -507,17 +507,17 @@ def is_prime_wheel(
     if wheel is None:
         wheel = (2, 3)
     elif isinstance(wheel, int):
-        wheel = list(fc.base.get_primes(wheel, 2))
+        wheel = list(fc.get_primes(wheel, 2))
     else:
         wheel = tuple(sorted(wheel))
     for k in wheel:
         if not num % k:
             return num <= k
-    prod_wheel = fc.base.prod(wheel)
+    prod_wheel = fc.prod(wheel)
     coprimes = tuple(
         n for n in range(2, prod_wheel + 2)
         if all(math.gcd(n, k) == 1 for k in wheel))
-    deltas = tuple(fc.base.diff(coprimes + (coprimes[0] + prod_wheel,)))
+    deltas = tuple(fc.diff(coprimes + (coprimes[0] + prod_wheel,)))
     len_deltas = len(deltas)
     j = 0
     i = coprimes[0]
@@ -695,7 +695,7 @@ def sequence(
     if step is None:
         step = 1 if stop > start else -1
     if precision is None:
-        precision = fc.base.guess_decimals(step)
+        precision = fc.guess_decimals(step)
     for i in range(int(round(stop - start, precision + 1) / step) + 1):
         item = start + i * step
         if precision:
@@ -768,8 +768,8 @@ def cyclic_padding_loops(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -818,8 +818,8 @@ def symmetric_padding_loops(
          [3 3 2 1 1]
          [3 3 2 1 1]]
     """
-    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -870,8 +870,8 @@ def cyclic_padding_tile(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -921,8 +921,8 @@ def cyclic_padding_pad(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    shape = fc.base.auto_repeat(shape, arr.ndim, check=True)
-    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
+    shape = fc.auto_repeat(shape, arr.ndim, check=True)
+    offsets = fc.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         -(int(round((new_dim - dim) * offset))
           if isinstance(offset, float) else offset) % dim
@@ -969,7 +969,7 @@ def cyclic_padding_slicing(
          [5 6 4 5 6]
          [2 3 1 2 3]]
     """
-    offsets = fc.base.auto_repeat(offsets, arr.ndim, check=True)
+    offsets = fc.auto_repeat(offsets, arr.ndim, check=True)
     offsets = tuple(
         (int(round((new_dim - dim) * offset))
          if isinstance(offset, float) else offset) % dim
@@ -1110,8 +1110,8 @@ def reframe(
                [0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0.]])
     """
-    new_shape = fc.base.auto_repeat(new_shape, arr.ndim, check=True)
-    position = fc.base.auto_repeat(position, arr.ndim, check=True)
+    new_shape = fc.auto_repeat(new_shape, arr.ndim, check=True)
+    position = fc.auto_repeat(position, arr.ndim, check=True)
     if any(old > new for old, new in zip(arr.shape, new_shape)):
         raise ValueError('new shape cannot be smaller than the old one.')
     position = tuple(
