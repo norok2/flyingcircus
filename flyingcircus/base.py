@@ -4079,15 +4079,21 @@ def find_subseq(
         result (int): The index of the next match.
 
     Examples:
-        >>> list(find_subseq(list(range(100)), list(range(50, 60))))
-        [50]
-        >>> list(find_subseq(list(range(100)), []))
+        >>> list(find_subseq(list(range(10)), list(range(5, 7))))
+        [5]
+        >>> list(find_subseq(list(range(10)), []))
         []
-        >>> list(find_subseq([], list(range(50, 60))))
+        >>> list(find_subseq([], list(range(5, 7))))
         []
         >>> list(find_subseq([], []))
         []
-        >>> list(find_subseq(list(range(100)), list(range(95, 105))))
+        >>> list(find_subseq(list(range(10)), list(range(5, 12))))
+        []
+        >>> list(find_subseq(list(range(10)), list(range(-2, 5))))
+        []
+        >>> list(find_subseq(list(range(10)), list(range(-5, -1))))
+        []
+        >>> list(find_subseq(list(range(10)), list(range(11, 12))))
         []
         >>> list(find_subseq(list(range(10)), list(range(3, 8))))
         [3]
@@ -4097,8 +4103,14 @@ def find_subseq(
         [5]
         >>> list(find_subseq(list(range(10)) * 10, list(range(3, 8))))
         [3, 13, 23, 33, 43, 53, 63, 73, 83, 93]
-        >>> list(find_subseq('4312431234321', '1234'))
-        [6]
+
+        >>> seq = '12431243123431212'
+        >>> list(find_subseq(seq, '1234'))
+        [8]
+        >>> list(find_subseq(seq, '12'))
+        [0, 4, 8, 13, 15]
+        >>> list(find_subseq(seq, '12')) == list(find_all(seq, '12'))
+        True
 
     See Also:
         - flyingcircus.find_all()
@@ -4109,10 +4121,10 @@ def find_subseq(
         start %= n
         stop %= n
 
-        # : naive with fast looping, slicing and short-circuit
-        for i in index_all(seq, subseq[0], start, stop - m + 1):
-            if seq[i + m - 1] == subseq[m - 1] and seq[i:i + m] == subseq:
-                yield i
+        # # : naive with fast looping, slicing and short-circuit
+        # for i in index_all(seq, subseq[0], start, stop - m + 1):
+        #     if seq[i + m - 1] == subseq[m - 1] and seq[i:i + m] == subseq:
+        #         yield i
 
         # : naive with looping
         # for i in range(start, stop - m + 1):
@@ -4130,34 +4142,34 @@ def find_subseq(
         #         yield i
 
         # : Knuth–Morris–Pratt (KMP) algorithm
-        # offsets = [0] * m
-        # j = 1
-        # k = 0
-        # while j < m:
-        #     if subseq[j] == subseq[k]:
-        #         k += 1
-        #         offsets[j] = k
-        #         j += 1
-        #     else:
-        #         if k != 0:
-        #             k = offsets[k - 1]
-        #         else:
-        #             offsets[j] = 0
-        #             j += 1
-        # i = start
-        # j = 0
-        # while i <= stop:
-        #     if seq[i] == subseq[j]:
-        #         i += 1
-        #         j += 1
-        #     if j == m:
-        #         yield i - j
-        #         j = offsets[j - 1]
-        #     elif i <= stop and seq[i] != subseq[j]:
-        #         if j != 0:
-        #             j = offsets[j - 1]
-        #         else:
-        #             i += 1
+        offsets = [0] * m
+        j = 1
+        k = 0
+        while j < m:
+            if subseq[j] == subseq[k]:
+                k += 1
+                offsets[j] = k
+                j += 1
+            else:
+                if k != 0:
+                    k = offsets[k - 1]
+                else:
+                    offsets[j] = 0
+                    j += 1
+        i = start
+        j = 0
+        while i <= stop:
+            if seq[i] == subseq[j]:
+                i += 1
+                j += 1
+            if j == m:
+                yield i - j
+                j = offsets[j - 1]
+            elif i <= stop and seq[i] != subseq[j]:
+                if j != 0:
+                    j = offsets[j - 1]
+                else:
+                    i += 1
     else:
         return
 

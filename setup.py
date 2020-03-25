@@ -138,8 +138,7 @@ setup(
     ],
 
     keywords=['utils', 'misc', 'iterators', 'metaprogramming', 'science',
-              'mathematics', 'math', 'physics', 'format', 'formatting',
-              'numpy', 'scipy',],
+              'mathematics', 'math', 'physics', 'format',],
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests']),
 
@@ -147,9 +146,6 @@ setup(
         'setuptools',  # here to ensure proper installation
         'setuptools_scm',  # here to ensure proper installation
         'blessed',
-        'numpy',
-        'scipy',
-        'numexpr',
         'appdirs',
     ],
 
