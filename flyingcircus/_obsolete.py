@@ -308,7 +308,7 @@ def binomial_coeff(
     is faster.
 
     If all binomial coefficient for a given `n` are required, then
-    `flyingcircus.base.get_pascal_numbers()` is computationally more efficient.
+    `flyingcircus.get_pascal_numbers()` is computationally more efficient.
 
     Args:
         n (int): The major index of the binomial coefficient.
@@ -357,8 +357,8 @@ def binomial_coeff(
         True
 
     See Also:
-        - flyingcircus.base.get_pascal_numbers()
-        - flyingcircus.base.pascal_triangle()
+        - flyingcircus.get_pascal_numbers()
+        - flyingcircus.pascal_triangle()
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Pascal%27s_triangle
     """
@@ -415,8 +415,8 @@ def is_prime_binomial(val):
         True
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
         - https://en.wikipedia.org/wiki/Prime_number
     """
     if val < 0:
@@ -455,7 +455,7 @@ def is_prime_wheel(
             Only works for numbers larger than 1.
         wheel (int|Sequence[int]|None): The generators of the wheel.
             If int, this is the number of prime numbers to use (must be > 1),
-            generated using `flyingcircus.base.gen_primes()`.
+            generated using `flyingcircus.gen_primes()`.
             If Sequence, it must consist of the first N prime numbers in
             increasing order.
             If None, uses a hard-coded (2, 3) wheel, which is faster
@@ -493,8 +493,8 @@ def is_prime_wheel(
         True
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number

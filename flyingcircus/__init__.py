@@ -229,7 +229,7 @@ def nested_delimiters(
         [(0, 3, 0), (7, 10, 1), (4, 11, 0)]
 
     See Also:
-        - flyingcircus.base.nested_pairs()
+        - flyingcircus.nested_pairs()
     """
     l_offset = len(l_delim) if including else 0
     r_offset = len(r_delim) if including else 0
@@ -365,7 +365,7 @@ def fmt(
 
     See Also:
         - flyingcircus.fmtm()
-        - flyingcircus.base.partial_format()
+        - flyingcircus.partial_format()
     """
     return text.format(*_args, **_kws)
 
@@ -406,7 +406,7 @@ def fmtm(
 
     See Also:
         - flyingcircus.fmt()
-        - flyingcircus.base.partial_format()
+        - flyingcircus.partial_format()
     """
     if source is None:
         frame = inspect.currentframe()

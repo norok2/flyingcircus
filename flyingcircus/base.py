@@ -723,7 +723,7 @@ def join(
         TypeError: sequence item 0: expected a bytes-like object, str found
 
     See Also:
-        - flyingcircus.base.join_()
+        - flyingcircus.join_()
     """
     iter_operands = iter(operands)
     result = next(iter_operands)
@@ -778,7 +778,7 @@ def join(
 # ======================================================================
 def join_(*operands, **_kws):
     """
-    Star magic version of `flyingcircus.base.join()`.
+    Star magic version of `flyingcircus.join()`.
 
     Examples:
         >>> join_([1], [2], [3])
@@ -801,7 +801,7 @@ def join_(*operands, **_kws):
         TypeError: can only concatenate tuple (not "list") to tuple
 
     See Also:
-        - flyingcircus.base.join()
+        - flyingcircus.join()
     """
     return join(operands, **_kws)
 
@@ -842,7 +842,7 @@ def reverse_mapping(
         {2: 2}
 
     See Also:
-        - flyingcircus.base.reverse_mapping_iter()
+        - flyingcircus.reverse_mapping_iter()
     """
     result = {v: k for k, v in mapping.items()}
     if check and len(mapping) != len(result):
@@ -882,7 +882,7 @@ def reverse_mapping_iter(mapping):
         {1: [1, 1, 2], 2: [1, 2]}
 
     See Also:
-        - flyingcircus.base.reverse_mapping()
+        - flyingcircus.reverse_mapping()
     """
     result = {}
     for key, values in mapping.items():
@@ -903,7 +903,7 @@ def multi_at(
     Extract selected items according to the specified indexes.
 
     Note that this is mostly equivalent to (but faster than)
-    `flyingcircus.base.iter_at()`.
+    `flyingcircus.iter_at()`.
 
     Args:
         items (Sequence): The input items.
@@ -939,7 +939,7 @@ def multi_at(
         dfh
 
     See Also:
-        - flyingcircus.base.iter_at()
+        - flyingcircus.iter_at()
     """
     try:
         iter(indexes)
@@ -960,7 +960,7 @@ def iter_at(
     """
     Iterate over selected items according to the specified indexes.
 
-    Note that this is mostly equivalent to `flyingcircus.base.multi_at()`
+    Note that this is mostly equivalent to `flyingcircus.multi_at()`
     except that this yields a generator.
 
     Args:
@@ -983,7 +983,7 @@ def iter_at(
         [9, 25, 49]
 
     See Also:
-        - flyingcircus.base.multi_at()
+        - flyingcircus.multi_at()
     """
     try:
         iter(indexes)
@@ -1012,7 +1012,7 @@ def index_all(
     For dense inputs (item is present in more than ~20% of the sequence),
     a looping comprehension may be faster.
 
-    For string, bytes or bytearray inputs, `flyingcircus.base.find_all()`
+    For string, bytes or bytearray inputs, `flyingcircus.find_all()`
     is typically faster.
 
     Args:
@@ -1061,7 +1061,7 @@ def index_all(
         []
 
     See Also:
-        - flyingcircus.base.find_all()
+        - flyingcircus.find_all()
     """
     try:
         n = len(seq)
@@ -1093,7 +1093,7 @@ def nested_pairs(
 
     The delimiters are matched according to nesting level.
     For string, bytes or bytearray inputs,
-    `flyingcircus.base.find_nested_delims()` is a better option, because it
+    `flyingcircus.find_nested_delims()` is a better option, because it
     supports multi-char delimiters and it is typically faster.
 
     Args:
@@ -1123,7 +1123,7 @@ def nested_pairs(
         ValueError: Found `1` unmatched right token(s) `}` (position: 3).
 
     See Also:
-        - flyingcircus.base.nested_delimiters()
+        - flyingcircus.nested_delimiters()
     """
     l_offset = r_offset = int(including)
     stack = []
@@ -1726,7 +1726,7 @@ def auto_repeat(
         (((1, 1), (1, 1)), ((1, 1), (1, 1)), ((1, 1), (1, 1)))
 
     See Also:
-        - flyingcircus.base.stretch()
+        - flyingcircus.stretch()
     """
     force = force or not hasattr(obj, '__iter__')
     result = obj
@@ -1755,7 +1755,7 @@ def stretch(
     """
     Automatically stretch the values to the target shape.
 
-    This is similar to `flyingcircus.base.auto_repeat()`, except that it
+    This is similar to `flyingcircus.auto_repeat()`, except that it
     can flexibly repeat values only when needed.
     This is similar to shape broadcasting of multi-dimensional arrays.
 
@@ -1807,7 +1807,7 @@ def stretch(
  ((4, 4, 4, 4), (5, 5, 5, 5), (6, 6, 6, 6))))
 
     See Also:
-        - flyingcircus.base.auto_repeat()
+        - flyingcircus.auto_repeat()
     """
     if not is_deep(items, skip):
         result = auto_repeat(items, shape)
@@ -2230,7 +2230,7 @@ def deep_filter(
             uses `tuple`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
         is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
-            These are passed to `flyingcircus.base.is_deep()`.
+            These are passed to `flyingcircus.is_deep()`.
 
     Returns:
         new_items (Iterable): The filtered items.
@@ -2344,10 +2344,10 @@ def deep_filter_map(
     Apply conditional mapping, filtering and conversion on nested structures.
 
     The behavior of this function can be obtained by combining the following:
-     - flyingcircus.base.conditional_apply()
-     - flyingcircus.base.deep_map()
-     - flyingcircus.base.deep_filter()
-     - flyingcircus.base.deep_convert()
+     - flyingcircus.conditional_apply()
+     - flyingcircus.deep_map()
+     - flyingcircus.deep_filter()
+     - flyingcircus.deep_convert()
 
     In particular:
 
@@ -2672,7 +2672,7 @@ def pairwise_map(
     """
     Apply a binary function to consecutive elements in an iterable.
 
-    The same can be obtained combining `map()` and `flyingcircus.base.slide()`,
+    The same can be obtained combining `map()` and `flyingcircus.slide()`,
     but this is faster.
 
     Args:
@@ -2701,7 +2701,7 @@ def pairwise_map(
         True
 
     See Also:
-        - flyingcircus.base.slide()
+        - flyingcircus.slide()
     """
     iter_items = iter(items)
     try:
@@ -2780,9 +2780,9 @@ def slide(
         ((1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6))
 
     See Also:
-        - flyingcircus.base.separate()
-        - flyingcircus.base.split()
-        - flyingcircus.base.chunks()
+        - flyingcircus.separate()
+        - flyingcircus.split()
+        - flyingcircus.chunks()
     """
     if step > 1:
         iters = [
@@ -2874,7 +2874,7 @@ def separate(
     The number of elements for each yield is fixed.
 
     For different handling of the last group for uneven splits, and for
-    splitting into groups of varying size, see `flyingcircus.base.split()`.
+    splitting into groups of varying size, see `flyingcircus.split()`.
 
     Args:
         items (Iterable): The input items.
@@ -2903,9 +2903,9 @@ def separate(
         True
 
     See Also:
-        - flyingcircus.base.slide()
-        - flyingcircus.base.split()
-        - flyingcircus.base.chunks()
+        - flyingcircus.slide()
+        - flyingcircus.split()
+        - flyingcircus.chunks()
     """
     # : alternate (slower) implementations
     # iterators = tuple(items[i::n] for i in range(n))
@@ -2955,10 +2955,10 @@ def split(
         True
 
     See Also:
-        - flyingcircus.base.slide()
-        - flyingcircus.base.separate()
-        - flyingcircus.base.split()
-        - flyingcircus.base.chunks()
+        - flyingcircus.slide()
+        - flyingcircus.separate()
+        - flyingcircus.split()
+        - flyingcircus.chunks()
     """
     if isinstance(sizes, int):
         sizes = auto_repeat(sizes, len(items) // sizes)
@@ -3031,9 +3031,9 @@ def chunks(
         ([0, 1, 2], [3, 4, 5], [6, 7, 8], [9])
 
     See Also:
-        - flyingcircus.base.slide()
-        - flyingcircus.base.separate()
-        - flyingcircus.base.split()
+        - flyingcircus.slide()
+        - flyingcircus.separate()
+        - flyingcircus.split()
     """
     reversed_modes = {
         math.ceil: ['upper', '+', 1],
@@ -3117,12 +3117,12 @@ def combinations(
         True
 
     See Also:
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.unique_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.unique_permutations()
+        - flyingcircus.cartesian_product()
     """
     container = _guess_container(items, container)
     num = len(items)
@@ -3199,12 +3199,12 @@ def multi_combinations(
         True
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.unique_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.unique_permutations()
+        - flyingcircus.cartesian_product()
     """
     container = _guess_container(items, container)
     num = len(items)
@@ -3281,12 +3281,12 @@ def permutations(
         True
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.unique_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.combinations()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.unique_permutations()
+        - flyingcircus.cartesian_product()
     """
     container = _guess_container(items, container)
     num = len(items)
@@ -3370,12 +3370,12 @@ def multi_permutations(
         True
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.unique_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.combinations()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.unique_permutations()
+        - flyingcircus.cartesian_product()
     """
     container = _guess_container(items, container)
     num = len(items)
@@ -3411,12 +3411,12 @@ def cyclic_permutations(
         result (Sequence): The next output elements.
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.unique_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.combinations()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.unique_permutations()
+        - flyingcircus.cartesian_product()
 
     Examples:
         >>> list(cyclic_permutations(tuple(range(4))))
@@ -3451,7 +3451,7 @@ def unique_permutations(
     Generate unique permutations of items in an efficient way.
 
     If items does not contain repeating elements, this is equivalent to
-    `flyingcircus.base.permutations()`.
+    `flyingcircus.permutations()`.
 
     Args:
         items (Sequence): The input items.
@@ -3498,12 +3498,12 @@ def unique_permutations(
           2: Generating All Permutations.
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.cartesian_product()
+        - flyingcircus.combinations()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.cartesian_product()
     """
     container = _guess_container(items, container)
     indexes = range(len(items) - 1, -1, -1)
@@ -3555,12 +3555,12 @@ def cartesian_product(
         ['aA', 'aB', 'aC', 'bA', 'bB', 'bC', 'cA', 'cB', 'cC']
 
     See Also:
-        - flyingcircus.base.combinations()
-        - flyingcircus.base.multi_combinations()
-        - flyingcircus.base.permutations()
-        - flyingcircus.base.multi_permutations()
-        - flyingcircus.base.cyclic_permutations()
-        - flyingcircus.base.unique_permutations()
+        - flyingcircus.combinations()
+        - flyingcircus.multi_combinations()
+        - flyingcircus.permutations()
+        - flyingcircus.multi_permutations()
+        - flyingcircus.cyclic_permutations()
+        - flyingcircus.unique_permutations()
     """
     containers = [_guess_container(seq, container) for seq in seqs]
     container = tuple if not all_equal(containers) else containers[0]
@@ -3960,7 +3960,7 @@ def is_sorted(
         False
 
     See Also:
-        - flyingcircus.base.pairwise_map()
+        - flyingcircus.pairwise_map()
     """
     result = all(pairwise_map(compare, items, False))
     if both:
@@ -4040,7 +4040,7 @@ def search_sorted(
         0
 
     See Also:
-        - flyingcircus.base.is_sorted()
+        - flyingcircus.is_sorted()
     """
     first = 0
     last = len(seq) - 1
@@ -4101,7 +4101,7 @@ def find_subseq(
         [6]
 
     See Also:
-        - flyingcircus.base.find_all()
+        - flyingcircus.find_all()
     """
     n = len(seq)
     m = len(subseq)
@@ -4206,7 +4206,7 @@ def seqmap2mapseq(
         True
 
     See Also:
-        - flyingcircus.base.mapseq2seqmap()
+        - flyingcircus.mapseq2seqmap()
     """
     if mapping_container is None:
         mapping_container = type(next(iter(data)))
@@ -4269,7 +4269,7 @@ def mapseq2seqmap(
         True
 
     See Also:
-        - flyingcircus.base.seqmap2mapseq()
+        - flyingcircus.seqmap2mapseq()
     """
     if mapping_container is None:
         mapping_container = type(data)
@@ -4562,7 +4562,7 @@ def diff(
     """
     Compute the pairwise difference of arbitrary items.
 
-    This is similar to `flyingcircus.base.div()`, but uses subtraction instead
+    This is similar to `flyingcircus.div()`, but uses subtraction instead
     of division.
 
     Args:
@@ -4591,7 +4591,7 @@ def div(
     """
     Compute the pairwise division of arbitrary items.
 
-    This is similar to `flyingcircus.base.diff()`, but uses division instead
+    This is similar to `flyingcircus.diff()`, but uses division instead
     of subtraction.
 
     Args:
@@ -4800,7 +4800,7 @@ def comb(n, k):
     This is often indicated as `(n k)`, `n_C_k` or `C(n, k)`.
 
     If more than one binomial coefficient of the same order are needed, then
-    `flyingcircus.base.get_binomial_coeffs()` may be more efficient.
+    `flyingcircus.get_binomial_coeffs()` may be more efficient.
 
     Args:
         n (int): The number of items.
@@ -4834,8 +4834,8 @@ def comb(n, k):
         True
 
     See Also:
-        - flyingcircus.base.get_binomial_coeffs()
-        - flyingcircus.base.binomial_triangle_range()
+        - flyingcircus.get_binomial_coeffs()
+        - flyingcircus.binomial_triangle_range()
 
     References:
         - https://en.wikipedia.org/wiki/Combination
@@ -4865,7 +4865,7 @@ def get_binomial_coeffs(
 
     These are the numbers in the `num`-th row (order) of the binomial triangle.
     If only a specific binomial coefficient is required, use
-    `flyingcircus.base.comb()`.
+    `flyingcircus.comb()`.
 
     Args:
         num (int): The row index of the triangle.
@@ -4919,8 +4919,8 @@ def get_binomial_coeffs(
         True
 
     See Also:
-        - flyingcircus.base.comb()
-        - flyingcircus.base.binomial_triangle_range()
+        - flyingcircus.comb()
+        - flyingcircus.binomial_triangle_range()
 
     References:
         - https://en.wikipedia.org/wiki/Binomial_coefficient
@@ -4952,7 +4952,7 @@ def get_fibonacci(
 
     This is useful for generating a sequence of Fibonacci numbers.
     To generate a specific Fibonacci number,
-    use `flyingcircus.base.fibonacci()`.
+    use `flyingcircus.fibonacci()`.
 
     Args:
         max_count (int): The maximum number of values to yield.
@@ -4972,8 +4972,8 @@ def get_fibonacci(
         [3, 1, 4, 5, 9, 14, 23, 37, 60, 97, 157, 254, 411, 665, 1076, 1741]
 
     See Also:
-        - flyingcircus.base.get_gen_fibonacci()
-        - flyingcircus.base.fibonacci()
+        - flyingcircus.get_gen_fibonacci()
+        - flyingcircus.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     i = 0
@@ -5023,8 +5023,8 @@ def get_gen_fibonacci(
         [1, 0, 1, 2, 4, 9, 19, 41, 88, 189, 406, 872, 1873, 4023, 8641, 18560]
 
     See Also:
-        - flyingcircus.base.get_fibonacci()
-        - flyingcircus.base.fibonacci()
+        - flyingcircus.get_fibonacci()
+        - flyingcircus.fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     num = combine_iter_len((values, weights))
@@ -5047,7 +5047,7 @@ def fibonacci(
 
     This is useful for generating a specific Fibonacci number.
     For generating a sequence of Fibonacci numbers, use
-    `flyingcircus.base.get_fibonacci()`.
+    `flyingcircus.get_fibonacci()`.
 
     Args:
         num (int): The ordinal to generate.
@@ -5078,8 +5078,8 @@ def fibonacci(
         1741
 
     See Also:
-        - flyingcircus.base.get_fibonacci()
-        - flyingcircus.base.get_gen_fibonacci()
+        - flyingcircus.get_fibonacci()
+        - flyingcircus.get_gen_fibonacci()
         - https://en.wikipedia.org/wiki/Fibonacci_number
     """
     for _ in range(num):
@@ -5098,7 +5098,7 @@ def binomial_triangle(
     
     This is also known as Pascal's triangle.
 
-    See `flyingcircus.base.get_binomial_coeffs()` for generating any given
+    See `flyingcircus.get_binomial_coeffs()` for generating any given
     row of the triangle.
 
     Args:
@@ -5158,8 +5158,8 @@ def binomial_triangle(
         (1, 9, 36, 84, 126, 126, 84, 36, 9, 1)
 
     See Also:
-        - flyingcircus.base.comb()
-        - flyingcircus.base.get_binomial_coeffs()
+        - flyingcircus.comb()
+        - flyingcircus.get_binomial_coeffs()
 
     References
         - https://en.wikipedia.org/wiki/Binomial_coefficient
@@ -5204,8 +5204,8 @@ def _is_prime(num):
         True
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
@@ -5244,7 +5244,7 @@ def is_prime(
     The implementation is using a certain number of precomputed primes,
     later switching to trial division with hard-coded (2, 3) wheel
     (up to 2 ** 20).
-    After, it uses `flyingcircus.base.is_pseudo_prime()` with bases consisting
+    After, it uses `flyingcircus.is_pseudo_prime()` with bases consisting
     of consecutive primes, and this is guaranteed to be deterministic up to
     3317044064679887385961981 > 2 ** 81.
 
@@ -5291,9 +5291,9 @@ def is_prime(
         True
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.is_pseudo_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.is_pseudo_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
@@ -5385,9 +5385,9 @@ def is_pseudo_prime(
         False
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.is_pseudo_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.is_pseudo_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
@@ -5449,7 +5449,7 @@ def get_primes(
             If None, uses a hard-coded sequence.
         wheel (int): The number of primes to use as wheel.
             Must be > 1.
-            The wheel is generated using `flyingcircus.base.get_primes()`.
+            The wheel is generated using `flyingcircus.get_primes()`.
 
     Yields:
         num (int): The next prime number.
@@ -5481,8 +5481,8 @@ def get_primes(
         [1009, 1013, 1019, 1021, 1031, 1033, 1039, 1049, 1051, 1061]
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
@@ -5563,7 +5563,7 @@ def get_primes_r(
             If None, uses a hard-coded sequence.
         wheel (int): The number of primes to use as wheel.
             Must be > 1.
-            The wheel is generated using `flyingcircus.base.get_primes()`.
+            The wheel is generated using `flyingcircus.get_primes()`.
 
     Yields:
         num (int): The next prime number.
@@ -5601,8 +5601,8 @@ def get_primes_r(
         [7, 5, 3, 2]
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
 
     References:
         - https://en.wikipedia.org/wiki/Prime_number
@@ -5702,8 +5702,8 @@ def primes_range(
         [47, 43, 41, 37, 31, 29, 23, 19, 17, 13, 11, 7, 5, 3, 2]
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.get_primes()
+        - flyingcircus.is_prime()
+        - flyingcircus.get_primes()
         - https://en.wikipedia.org/wiki/Prime_number
         - https://en.wikipedia.org/wiki/Wheel_factorization
     """
@@ -5746,7 +5746,7 @@ def get_factors(
             If None, uses a hard-coded sequence.
         wheel (int): The number of primes to use as wheel.
             Must be > 1.
-            The wheel is generated using `flyingcircus.base.get_primes()`.
+            The wheel is generated using `flyingcircus.get_primes()`.
 
     Yields:
         factor (int): The next factor of the number.
@@ -5771,9 +5771,9 @@ def get_factors(
         True
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
-        - flyingcircus.base.get_primes()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
+        - flyingcircus.get_primes()
 
     References:
         - https://en.wikipedia.org/wiki/Trial_division
@@ -5981,10 +5981,10 @@ def get_divisors(num):
         [1, 101]
 
     See Also:
-        - flyingcircus.base.is_prime()
-        - flyingcircus.base.primes_range()
-        - flyingcircus.base.get_primes()
-        - flyingcircus.base.get_factors()
+        - flyingcircus.is_prime()
+        - flyingcircus.primes_range()
+        - flyingcircus.get_primes()
+        - flyingcircus.get_factors()
 
     References:
         - https://en.wikipedia.org/wiki/Trial_division
@@ -6092,7 +6092,7 @@ def get_k_factors(
              - 'alt1': factors are alternated before splitting;
              - 'optimal', 'similar', '!', '=': factors have the similar sizes.
         balanced (bool): Balance the number of primes in each factor.
-            See `flyingcircus.base.chunks()` for more info.
+            See `flyingcircus.chunks()` for more info.
 
     Returns:
         tuple (int): A listing of `k` factors of `num`.
@@ -6269,7 +6269,7 @@ def gcd(values):
 # ======================================================================
 def gcd_(*values):
     """
-    Star magic version of `flyingcircus.base.gcd()`.
+    Star magic version of `flyingcircus.gcd()`.
 
     Examples:
         >>> gcd_(12, 24, 18)
@@ -6313,7 +6313,7 @@ def lcm(values):
 # ======================================================================
 def lcm_(*items):
     """
-    Star magic version of `flyingcircus.base.lcm()`.
+    Star magic version of `flyingcircus.lcm()`.
 
     Examples:
         >>> lcm_(2, 3, 4)
@@ -6615,9 +6615,9 @@ def mean(items):
     Compute the arithmetic mean of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_amean()`
-     - `flyingcircus.base.i_amean()`
-     - `flyingcircus.base.i_mean()`
+     - `flyingcircus.next_amean()`
+     - `flyingcircus.i_amean()`
+     - `flyingcircus.i_mean()`
 
     This is substantially faster than `statistics.mean()`.
 
@@ -6638,17 +6638,17 @@ def mean(items):
         [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5]
 
     See Also:
-        - flyingcircus.base.gmean()
-        - flyingcircus.base.hmean()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.mean_and_var()
-        - flyingcircus.base.mean_and_stdev()
-        - flyingcircus.base.mean_and_mean_abs_dev()
-        - flyingcircus.base.median()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_mean()
+        - flyingcircus.gmean()
+        - flyingcircus.hmean()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.mean_and_var()
+        - flyingcircus.mean_and_stdev()
+        - flyingcircus.mean_and_mean_abs_dev()
+        - flyingcircus.median()
+        - flyingcircus.next_amean()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_mean()
     """
     return sum(items) / len(items)
 
@@ -6678,11 +6678,11 @@ def gmean(
         [1.0, 1.0, 1.414, 1.817, 2.213, 2.605, 2.994, 3.38, 3.764, 4.147]
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.hmean()
-        - flyingcircus.base.median()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.i_gmean()
+        - flyingcircus.mean()
+        - flyingcircus.hmean()
+        - flyingcircus.median()
+        - flyingcircus.next_gmean()
+        - flyingcircus.i_gmean()
     """
     if valid and items:
         items = tuple(i for i in items if i)
@@ -6719,11 +6719,11 @@ def hmean(
         [0.0, 1.0, 1.333, 1.636, 1.92, 2.19, 2.449, 2.7, 2.943, 3.181]
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.gmean()
-        - flyingcircus.base.median()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.i_hmean()
+        - flyingcircus.mean()
+        - flyingcircus.gmean()
+        - flyingcircus.median()
+        - flyingcircus.next_hmean()
+        - flyingcircus.i_hmean()
     """
     if valid:
         items = tuple((1 / i) for i in items if i)
@@ -6753,10 +6753,10 @@ def absolute_deviations(
         [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5]
 
     See Also:
-        - flyingcircus.base.squared_deviations()
-        - flyingcircus.base.soad()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.mean_abs_dev()
+        - flyingcircus.squared_deviations()
+        - flyingcircus.soad()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.mean_abs_dev()
     """
     for item in items:
         yield abs(value - item)
@@ -6781,10 +6781,10 @@ def squared_deviations(
         [100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, 1, 4, 9, 16, 25]
 
     See Also:
-        - flyingcircus.base.absolute_deviations()
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.var()
+        - flyingcircus.absolute_deviations()
+        - flyingcircus.sosd()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.var()
     """
     for item in items:
         yield (value - item) * (value - item)
@@ -6815,13 +6815,13 @@ def mean_and_soad(items):
         True
 
     See Also:
-        - flyingcircus.base.absolute_deviations()
-        - flyingcircus.base.mean()
-        - flyingcircus.base.soad()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.mean_and_mean_abs_dev()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.absolute_deviations()
+        - flyingcircus.mean()
+        - flyingcircus.soad()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.mean_and_mean_abs_dev()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_mean_and_sosd()
     """
     mean_val = mean(items)
     soad_val = sum(absolute_deviations(mean_val, items))
@@ -6848,10 +6848,10 @@ def soad(items):
         338.0
 
     See Also:
-        - flyingcircus.base.absolute_deviations()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.mean_and_sosd()
+        - flyingcircus.absolute_deviations()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.sosd()
+        - flyingcircus.mean_and_sosd()
     """
     return sum(absolute_deviations(mean(items), items))
 
@@ -6862,8 +6862,8 @@ def mean_and_sosd(items):
     Compute the mean and the sum-of-squared-deviations of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_and_sosd()`
-     - `flyingcircus.base.i_mean_and_sosd()`
+     - `flyingcircus.next_mean_and_sosd()`
+     - `flyingcircus.i_mean_and_sosd()`
 
     The sum-of-squared-deviations (SoSD) is useful for numerically stable
     computation of the variance and the standard deviation.
@@ -6885,14 +6885,14 @@ def mean_and_sosd(items):
         True
 
     See Also:
-        - flyingcircus.base.squared_deviations()
-        - flyingcircus.base.mean()
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.mean_and_var()
-        - flyingcircus.base.mean_and_stdev()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.squared_deviations()
+        - flyingcircus.mean()
+        - flyingcircus.sosd()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.mean_and_var()
+        - flyingcircus.mean_and_stdev()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_mean_and_sosd()
     """
     mean_val = mean(items)
     sosd_val = sum(squared_deviations(mean_val, items))
@@ -6905,8 +6905,8 @@ def sosd(items):
     Compute the mean and the sum-of-squared-deviations of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_and_sosd()`
-     - `flyingcircus.base.i_mean_and_sosd()`
+     - `flyingcircus.next_mean_and_sosd()`
+     - `flyingcircus.i_mean_and_sosd()`
 
     The sum-of-squared-deviations (SoSD) is useful for numerically stable
     computation of the variance and the standard deviation.
@@ -6923,15 +6923,15 @@ def sosd(items):
         5850.0
 
     See Also:
-        - flyingcircus.base.squared_deviations()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.soad()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_mean_and_sosd()
+        - flyingcircus.squared_deviations()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.soad()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_mean_and_sosd()
     """
     return sum(squared_deviations(mean(items), items))
 
@@ -6961,11 +6961,11 @@ def sosd2var(
         True
 
     See Also:
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.var()
-        - flyingcircus.base.var2sosd()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.sosd()
+        - flyingcircus.var()
+        - flyingcircus.var2sosd()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     return sosd_ / (num - ddof)
 
@@ -6995,11 +6995,11 @@ def var2sosd(
         True
 
     See Also:
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.var()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.sosd()
+        - flyingcircus.var()
+        - flyingcircus.sosd2var()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     return var_ * (num - ddof)
 
@@ -7029,11 +7029,11 @@ def sosd2stdev(
         True
 
     See Also:
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.stdev()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.sosd()
+        - flyingcircus.stdev()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
+        - flyingcircus.stdev2sosd()
     """
     return (sosd_ / (num - ddof)) ** 0.5
 
@@ -7063,11 +7063,11 @@ def stdev2sosd(
         True
 
     See Also:
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.stdev()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
-        - flyingcircus.base.sosd2stdev()
+        - flyingcircus.sosd()
+        - flyingcircus.stdev()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
+        - flyingcircus.sosd2stdev()
     """
     return (stdev_ * stdev_) * (num - ddof)
 
@@ -7080,10 +7080,10 @@ def var(
     Compute the variance of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_and_var()`
-     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2var()`.
-     - `flyingcircus.base.i_var()`
-     - `flyingcircus.base.i_mean_and_var()`
+     - `flyingcircus.next_mean_and_var()`
+     - `flyingcircus.next_mean_and_sosd()` and `.sosd2var()`.
+     - `flyingcircus.i_var()`
+     - `flyingcircus.i_mean_and_var()`
 
     This is substantially faster than `statistics.variance()`.
 
@@ -7104,15 +7104,15 @@ def var(
         True
 
     See Also:
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.mean_and_var()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.stdev()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.mean_and_var()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.stdev()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
     """
     mean_val, sosd_val = mean_and_sosd(items)
     return sosd2var(sosd_val, len(items), ddof)
@@ -7126,10 +7126,10 @@ def stdev(
     Compute the standard deviation of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_mean_and_stdev()`
-     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2stdev()`.
-     - `flyingcircus.base.i_stdev()`
-     - `flyingcircus.base.i_mean_and_stdev()`
+     - `flyingcircus.next_mean_and_stdev()`
+     - `flyingcircus.next_mean_and_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.i_stdev()`
+     - `flyingcircus.i_mean_and_stdev()`
 
     This is substantially faster than `statistics.stdev()`.
 
@@ -7152,15 +7152,15 @@ def stdev(
         True
 
     See Also:
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_stdev()
-        - flyingcircus.base.next_mean_and_stdev()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.mean_and_stdev()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.var()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_stdev()
+        - flyingcircus.next_mean_and_stdev()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.mean_and_stdev()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.var()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     mean_val, sosd_val = mean_and_sosd(items)
     return sosd2stdev(sosd_val, len(items), ddof)
@@ -7174,13 +7174,13 @@ def mean_and_var(
     Compute the mean and variance of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_amean()`
-     - `flyingcircus.base.next_mean_and_var()`
-     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2var()`.
-     - `flyingcircus.base.i_mean()`
-     - `flyingcircus.base.i_var()`
-     - `flyingcircus.base.i_mean_and_var()`
-     - `flyingcircus.base.i_mean_and_sosd()` and `.sosd2var()`
+     - `flyingcircus.next_amean()`
+     - `flyingcircus.next_mean_and_var()`
+     - `flyingcircus.next_mean_and_sosd()` and `.sosd2var()`.
+     - `flyingcircus.i_mean()`
+     - `flyingcircus.i_var()`
+     - `flyingcircus.i_mean_and_var()`
+     - `flyingcircus.i_mean_and_sosd()` and `.sosd2var()`
 
     This is faster than computing the two values separately.
 
@@ -7203,14 +7203,14 @@ def mean_and_var(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.var()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
+        - flyingcircus.mean()
+        - flyingcircus.var()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
     """
     mean_, sosd_ = mean_and_sosd(items)
     return mean_, sosd2var(sosd_, len(items), ddof)
@@ -7224,13 +7224,13 @@ def mean_and_stdev(
     Compute the mean and the standard deviation of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_amean()`
-     - `flyingcircus.base.next_mean_and_stdev()`
-     - `flyingcircus.base.next_mean_and_sosd()` and `.sosd2stdev()`.
-     - `flyingcircus.base.i_mean()`
-     - `flyingcircus.base.i_stdev()`
-     - `flyingcircus.base.i_mean_and_stdev()`
-     - `flyingcircus.base.i_mean_and_sosd()` and `.sosd2stdev()`
+     - `flyingcircus.next_amean()`
+     - `flyingcircus.next_mean_and_stdev()`
+     - `flyingcircus.next_mean_and_sosd()` and `.sosd2stdev()`.
+     - `flyingcircus.i_mean()`
+     - `flyingcircus.i_stdev()`
+     - `flyingcircus.i_mean_and_stdev()`
+     - `flyingcircus.i_mean_and_sosd()` and `.sosd2stdev()`
 
     This is faster than computing the two values separately.
 
@@ -7253,14 +7253,14 @@ def mean_and_stdev(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.stdev()
-        - flyingcircus.base.i_mean_and_stdev()
-        - flyingcircus.base.next_mean_and_stdev()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.mean()
+        - flyingcircus.stdev()
+        - flyingcircus.i_mean_and_stdev()
+        - flyingcircus.next_mean_and_stdev()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     mean_, sosd_ = mean_and_sosd(items)
     return mean_, sosd2stdev(sosd_, len(items), ddof)
@@ -7290,11 +7290,11 @@ def mean_and_mean_abs_dev(items):
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.mean_abs_dev()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.soad()
-        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.mean()
+        - flyingcircus.mean_abs_dev()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.soad()
+        - flyingcircus.absolute_deviations()
     """
     mean_, soad_ = mean_and_soad(items)
     mean_abs_dev_ = soad_ / len(items)
@@ -7318,11 +7318,11 @@ def mean_abs_dev(items):
         13.0
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.mean_abs_dev()
-        - flyingcircus.base.mean_and_soad()
-        - flyingcircus.base.soad()
-        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.mean()
+        - flyingcircus.mean_abs_dev()
+        - flyingcircus.mean_and_soad()
+        - flyingcircus.soad()
+        - flyingcircus.absolute_deviations()
     """
     return soad(items) / len(items)
 
@@ -7335,11 +7335,11 @@ def median(
     Compute the median of a numeric sequence.
 
     For iterative computation see:
-     - `flyingcircus.base.next_median()`
-     - `flyingcircus.base.next_medoid_and_median()`
-     - `flyingcircus.base.i_median()`
-     - `flyingcircus.base.i_medoid_and_median()`
-     - `flyingcircus.base.i_median_and_median_abs_dev()`
+     - `flyingcircus.next_median()`
+     - `flyingcircus.next_medoid_and_median()`
+     - `flyingcircus.i_median()`
+     - `flyingcircus.i_medoid_and_median()`
+     - `flyingcircus.i_median_and_median_abs_dev()`
 
     This is roughly comparable to `statistics.median()`.
 
@@ -7364,17 +7364,17 @@ def median(
         True
 
     See Also:
-        - flyingcircus.base.median_and_median_abs_dev()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid_and_median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_medoid_and_median()
-        - flyingcircus.base.i_median_and_median_abs_dev()
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.quantile()
-        - flyingcircus.base.interquantilic_range()
-        - flyingcircus.base.sym_interquantilic_range()
-        - flyingcircus.base.median_abs_dev()
+        - flyingcircus.median_and_median_abs_dev()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid_and_median()
+        - flyingcircus.i_median()
+        - flyingcircus.i_medoid_and_median()
+        - flyingcircus.i_median_and_median_abs_dev()
+        - flyingcircus.medoid()
+        - flyingcircus.quantile()
+        - flyingcircus.interquantilic_range()
+        - flyingcircus.sym_interquantilic_range()
+        - flyingcircus.median_abs_dev()
     """
     sorted_items = sorted(items) if force_sort else items
     n = len(items)
@@ -7411,12 +7411,12 @@ def median_and_median_abs_dev(
         True
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.median_abs_dev()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_median_abs_dev()
-        - flyingcircus.base.i_median_and_median_abs_dev()
-        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.median()
+        - flyingcircus.median_abs_dev()
+        - flyingcircus.i_median()
+        - flyingcircus.i_median_abs_dev()
+        - flyingcircus.i_median_and_median_abs_dev()
+        - flyingcircus.absolute_deviations()
 
     """
     median_val = median(items, force_sort=force_sort)
@@ -7446,12 +7446,12 @@ def median_abs_dev(
         13.0
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.median_and_median_abs_dev()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_median_abs_dev()
-        - flyingcircus.base.i_median_and_median_abs_dev()
-        - flyingcircus.base.absolute_deviations()
+        - flyingcircus.median()
+        - flyingcircus.median_and_median_abs_dev()
+        - flyingcircus.i_median()
+        - flyingcircus.i_median_abs_dev()
+        - flyingcircus.i_median_and_median_abs_dev()
+        - flyingcircus.absolute_deviations()
     """
     return median(
         tuple(
@@ -7539,10 +7539,10 @@ def quantile(
         ValueError: Invalid factor `1.1` (larger than 1.0)
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.quantiloid()
-        - flyingcircus.base.interquantilic_range()
-        - flyingcircus.base.sym_interquantilic_range()
+        - flyingcircus.median()
+        - flyingcircus.quantiloid()
+        - flyingcircus.interquantilic_range()
+        - flyingcircus.sym_interquantilic_range()
     """
     # interps = 'linear', 'lower', 'upper', 'midpoint', 'nearest'
     use_tuple = is_deep(factor)
@@ -7611,8 +7611,8 @@ def medoid(
     perform the multiple required calle with `force_sort` set to False.
 
     For iterative computation see:
-     - `flyingcircus.base.next_medoid()`
-     - `flyingcircus.base.i_medoid()`
+     - `flyingcircus.next_medoid()`
+     - `flyingcircus.i_medoid()`
 
     If the number of items is not odd, returns the medoid from the lower or
     upper half depending on the value of `lower` being True or False.
@@ -7648,14 +7648,14 @@ def medoid(
         'n'
 
     See Also:
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
-        - flyingcircus.base.median()
-        - flyingcircus.base.quantiloid()
-        - flyingcircus.base.interquantilic_range()
-        - flyingcircus.base.sym_interquantilic_range()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
+        - flyingcircus.median()
+        - flyingcircus.quantiloid()
+        - flyingcircus.interquantilic_range()
+        - flyingcircus.sym_interquantilic_range()
     """
     sorted_items = sorted(items) if force_sort else items
     i = int(round((len(items) - 1) / 2)) if lower else len(items) // 2
@@ -7719,10 +7719,10 @@ def quantiloid(
         True
 
     See Also:
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.quantile()
-        - flyingcircus.base.interquantilic_range()
-        - flyingcircus.base.sym_interquantilic_range()
+        - flyingcircus.medoid()
+        - flyingcircus.quantile()
+        - flyingcircus.interquantilic_range()
+        - flyingcircus.sym_interquantilic_range()
     """
     use_tuple = is_deep(factor)
     kk = auto_repeat(factor, 1, False, False)
@@ -7766,8 +7766,8 @@ def interquantilic_range(
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
         quantilic_func (callable): The quantilic function.
-            Must be either `flyingcircus.base.quantile()` or
-            `flyingcircus.base.quantiloid()` (or any other callable
+            Must be either `flyingcircus.quantile()` or
+            `flyingcircus.quantiloid()` (or any other callable
             implementing the same signature).
         quantilic_kws (Mapping|None): Keyword parameters for `quantilic_func`.
 
@@ -7780,10 +7780,10 @@ def interquantilic_range(
         5.0
 
     See Also:
-        - flyingcircus.base.quantile()
-        - flyingcircus.base.quantiloid()
-        - flyingcircus.base.sym_interquantilic_range()
-        - flyingcircus.base.median_abs_dev()
+        - flyingcircus.quantile()
+        - flyingcircus.quantiloid()
+        - flyingcircus.sym_interquantilic_range()
+        - flyingcircus.median_abs_dev()
     """
     quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
     q_a, q_b = quantilic_func(
@@ -7816,8 +7816,8 @@ def sym_interquantilic_range(
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
         quantilic_func (callable): The quantilic function.
-            Must be either `flyingcircus.base.quantile()` or
-            `flyingcircus.base.quantiloid()` (or any other callable
+            Must be either `flyingcircus.quantile()` or
+            `flyingcircus.quantiloid()` (or any other callable
             implementing the same signature).
         quantilic_kws (Mapping|None): Keyword parameters for `quantilic_func`.
 
@@ -7830,10 +7830,10 @@ def sym_interquantilic_range(
         5.0
 
     See Also:
-        - flyingcircus.base.quantile()
-        - flyingcircus.base.quantiloid()
-        - flyingcircus.base.interquantilic_range()
-        - flyingcircus.base.median_abs_dev()
+        - flyingcircus.quantile()
+        - flyingcircus.quantiloid()
+        - flyingcircus.interquantilic_range()
+        - flyingcircus.median_abs_dev()
     """
     return interquantilic_range(
         items, 0.5 - sym_factor, 0.5 + sym_factor, force_sort=force_sort,
@@ -7872,17 +7872,17 @@ def next_amean(
         True
         
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.mean()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     return (num * mean_ + value) / (num + 1), num + 1
 
@@ -7922,16 +7922,16 @@ def next_gmean(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.gmean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.mean()
+        - flyingcircus.gmean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     if value or not valid:
         # : alternate (slower) implementation
@@ -7979,17 +7979,17 @@ def next_hmean(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.hmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.mean()
+        - flyingcircus.hmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     if value or not valid:
         if not num:
@@ -8011,8 +8011,8 @@ def next_mean(
 
     This is useful for low memory footprint computation.
 
-    The difference between `flyingcircus.base.next_amean()` and
-    `flyingcircus.base.next_mean()` is that the latter does return the number
+    The difference between `flyingcircus.next_amean()` and
+    `flyingcircus.next_mean()` is that the latter does return the number
     of items processed.
 
     Args:
@@ -8037,18 +8037,18 @@ def next_mean(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.mean()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     return (num * mean_ + value) / (num + 1)
 
@@ -8094,19 +8094,19 @@ def next_mean_and_var(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.var()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.mean()
+        - flyingcircus.var()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_var()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     last = mean_
     mean_, num_ = next_amean(value, mean_, num)
@@ -8164,22 +8164,22 @@ def next_mean_and_sosd(
            doi:10.2307/1266577
 
     See Also:
-        - flyingcircus.base.squared_deviations()
-        - flyingcircus.base.mean()
-        - flyingcircus.base.sosd()
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.mean_and_var()
-        - flyingcircus.base.mean_and_stdev()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.squared_deviations()
+        - flyingcircus.mean()
+        - flyingcircus.sosd()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.mean_and_var()
+        - flyingcircus.mean_and_stdev()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     last = mean_
     mean_, num = next_amean(value, mean_, num)
@@ -8235,16 +8235,16 @@ def next_median(
         26
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.median()
+        - flyingcircus.i_median()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     if not buffer:
         median_ = value
@@ -8313,18 +8313,18 @@ def next_medoid(
         26
 
     See Also:
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
+        - flyingcircus.medoid()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
     """
     if not buffer:
         medoid_ = value
@@ -8404,19 +8404,19 @@ def next_medoid_and_median(
         (26, 26)
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.next_gmean()
-        - flyingcircus.base.next_hmean()
-        - flyingcircus.base.next_mean()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
+        - flyingcircus.median()
+        - flyingcircus.i_median()
+        - flyingcircus.medoid()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
+        - flyingcircus.next_amean()
+        - flyingcircus.next_gmean()
+        - flyingcircus.next_hmean()
+        - flyingcircus.next_mean()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
     """
     if not buffer:
         medoid_ = value
@@ -8443,12 +8443,12 @@ def i_amean(
     """
     Compute the arithmetic mean a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_amean()`.
+    Internally uses `flyingcircus.next_amean()`.
 
     This is substantially faster than `statistics.mean()`.
 
-    The difference between `flyingcircus.base.i_amean()` and
-    `flyingcircus.base.i_mean()` is that the latter does return the number
+    The difference between `flyingcircus.i_amean()` and
+    `flyingcircus.i_mean()` is that the latter does return the number
     of items processed.
 
     Args:
@@ -8470,16 +8470,16 @@ def i_amean(
         True
         
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.mean()
+        - flyingcircus.next_amean()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.i_mean_and_stdev()
     """
     for item in items:
         mean_, num = next_amean(item, mean_, num)
@@ -8495,7 +8495,7 @@ def i_gmean(
     """
     Compute the mean a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_gmean()`.
+    Internally uses `flyingcircus.next_gmean()`.
 
     This is substantially faster than `statistics.mean()`.
 
@@ -8533,7 +8533,7 @@ def i_hmean(
     """
     Compute the mean a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_hmean()`.
+    Internally uses `flyingcircus.next_hmean()`.
 
     This is substantially faster than `statistics.mean()`.
 
@@ -8570,12 +8570,12 @@ def i_mean(
     """
     Compute the arithmetic mean a numeric iterable.
 
-    Internally uses `flyingcircus.base.i_amean()`.
+    Internally uses `flyingcircus.i_amean()`.
 
     This is substantially faster than `statistics.mean()`.
 
-    The difference between `flyingcircus.base.i_amean()` and
-    `flyingcircus.base.i_mean()` is that the latter does return the number
+    The difference between `flyingcircus.i_amean()` and
+    `flyingcircus.i_mean()` is that the latter does return the number
     of items processed.
 
     Args:
@@ -8597,16 +8597,16 @@ def i_mean(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.next_amean()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.mean()
+        - flyingcircus.next_amean()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.i_mean_and_stdev()
     """
     mean_, num = i_amean(items, mean_, num)
     return mean_
@@ -8621,7 +8621,7 @@ def i_mean_and_sosd(
     """
     Compute the mean and the variance of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_and_sosd()`.
+    Internally uses `flyingcircus.next_mean_and_sosd()`.
 
     This is useful for low memory footprint computation.
 
@@ -8648,16 +8648,16 @@ def i_mean_and_sosd(
         True
 
     See Also:
-        - flyingcircus.base.mean_and_sosd()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.i_mean_and_stdev()
+        - flyingcircus.mean_and_sosd()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_var()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.i_mean_and_stdev()
     """
     for i, item in enumerate(items):
         mean_, sosd_, num = next_mean_and_sosd(item, mean_, sosd_, num)
@@ -8674,14 +8674,14 @@ def i_var(
     """
     Compute the variance of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
-    `flyingcircus.base.sosd2var()`.
+    Internally uses `flyingcircus.next_mean_and_sosd()` and
+    `flyingcircus.sosd2var()`.
 
     This is useful for low memory footprint computation.
 
     Note that both mean and variance MUST be updated at each iteration,
     therefore if both the mean and the variance are required use
-    `flyingcircus.base.i_mean_var()`.
+    `flyingcircus.i_mean_var()`.
 
     Args:
         items (Iterable[Number]): The input items.
@@ -8701,19 +8701,19 @@ def i_var(
         True
 
     See Also:
-        - flyingcircus.base.var()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.i_mean_and_stdev()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
+        - flyingcircus.var()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.i_mean_and_stdev()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
     """
     sosd_ = var2sosd(var_, num, ddof)
     mean_, sosd_, num_ = i_mean_and_sosd(items, mean_, sosd_, num)
@@ -8730,14 +8730,14 @@ def i_stdev(
     """
     Compute the standard deviation of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
-    `flyingcircus.base.sosd2stdev()`.
+    Internally uses `flyingcircus.next_mean_and_sosd()` and
+    `flyingcircus.sosd2stdev()`.
 
     This is useful for low memory footprint computation.
 
     Note that both mean and std. deviation MUST be updated at each iteration,
     therefore if both the mean and the standard deviation are required use
-    `flyingcircus.base.i_mean_stdev()`.
+    `flyingcircus.i_mean_stdev()`.
 
     Args:
         items (Iterable[Number]): The input items.
@@ -8757,19 +8757,19 @@ def i_stdev(
         True
 
     See Also:
-        - flyingcircus.base.stdev()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.i_mean_and_stdev()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.stdev()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.i_mean_and_stdev()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     sosd_ = stdev2sosd(stdev_, num, ddof)
     mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
@@ -8786,8 +8786,8 @@ def i_mean_and_var(
     """
     Compute the mean and the variance of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
-    `flyingcircus.base.sosd2var()`.
+    Internally uses `flyingcircus.next_mean_and_sosd()` and
+    `flyingcircus.sosd2var()`.
 
     This is useful for low memory footprint computation.
 
@@ -8817,20 +8817,20 @@ def i_mean_and_var(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.var()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_stdev()
-        - flyingcircus.base.sosd2var()
-        - flyingcircus.base.var2sosd()
+        - flyingcircus.mean()
+        - flyingcircus.var()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_stdev()
+        - flyingcircus.sosd2var()
+        - flyingcircus.var2sosd()
     """
     sosd_ = var2sosd(var_, num, ddof)
     mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
@@ -8847,8 +8847,8 @@ def i_mean_and_stdev(
     """
     Compute the mean and standard deviation of a numeric iterable.
 
-    Internally uses `flyingcircus.base.next_mean_and_sosd()` and
-    `flyingcircus.base.sosd2stdev()`.
+    Internally uses `flyingcircus.next_mean_and_sosd()` and
+    `flyingcircus.sosd2stdev()`.
 
     This is useful for low memory footprint computation.
 
@@ -8878,20 +8878,20 @@ def i_mean_and_stdev(
         True
 
     See Also:
-        - flyingcircus.base.mean()
-        - flyingcircus.base.var()
-        - flyingcircus.base.next_mean_and_var()
-        - flyingcircus.base.next_mean_and_sosd()
-        - flyingcircus.base.i_amean()
-        - flyingcircus.base.i_gmean()
-        - flyingcircus.base.i_hmean()
-        - flyingcircus.base.i_mean()
-        - flyingcircus.base.i_mean_and_sosd()
-        - flyingcircus.base.i_var()
-        - flyingcircus.base.i_stdev()
-        - flyingcircus.base.i_mean_and_var()
-        - flyingcircus.base.sosd2stdev()
-        - flyingcircus.base.stdev2sosd()
+        - flyingcircus.mean()
+        - flyingcircus.var()
+        - flyingcircus.next_mean_and_var()
+        - flyingcircus.next_mean_and_sosd()
+        - flyingcircus.i_amean()
+        - flyingcircus.i_gmean()
+        - flyingcircus.i_hmean()
+        - flyingcircus.i_mean()
+        - flyingcircus.i_mean_and_sosd()
+        - flyingcircus.i_var()
+        - flyingcircus.i_stdev()
+        - flyingcircus.i_mean_and_var()
+        - flyingcircus.sosd2stdev()
+        - flyingcircus.stdev2sosd()
     """
     sosd_ = stdev2sosd(stdev_, num, ddof)
     mean_, sosd_, num = i_mean_and_sosd(items, mean_, sosd_, num)
@@ -8952,14 +8952,14 @@ def i_median(
         True
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.median_and_median_abs_dev()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid_and_median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
-        - flyingcircus.base.i_median_and_median_abs_dev()
+        - flyingcircus.median()
+        - flyingcircus.median_and_median_abs_dev()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid_and_median()
+        - flyingcircus.i_median()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
+        - flyingcircus.i_median_and_median_abs_dev()
     """
     iter_items = iter(items)
     median_ = next(iter_items)
@@ -9026,12 +9026,12 @@ def i_medoid(
         True
 
     See Also:
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.medoid()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
+        - flyingcircus.i_median()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
     """
     if max_buffer:
         iter_items = iter(items)
@@ -9058,7 +9058,7 @@ def i_medoid_and_median(
     This is useful for low memory footprint approximate computation.
 
     This is faster and more memory efficient than computing both
-    `flyingcircus.base.i_medoid()` and `flyingcircus.base.i_median()`
+    `flyingcircus.i_medoid()` and `flyingcircus.i_median()`
     separately.
 
     Args:
@@ -9104,14 +9104,14 @@ def i_medoid_and_median(
         [(53, 53, 13), (73, 63.0, 13), (73, 73, 13), (73, 73, 13)]
 
     See Also:
-        - flyingcircus.base.median()
-        - flyingcircus.base.medoid()
-        - flyingcircus.base.next_median()
-        - flyingcircus.base.next_medoid()
-        - flyingcircus.base.next_medoid_and_median()
-        - flyingcircus.base.i_median()
-        - flyingcircus.base.i_medoid()
-        - flyingcircus.base.i_medoid_and_median()
+        - flyingcircus.median()
+        - flyingcircus.medoid()
+        - flyingcircus.next_median()
+        - flyingcircus.next_medoid()
+        - flyingcircus.next_medoid_and_median()
+        - flyingcircus.i_median()
+        - flyingcircus.i_medoid()
+        - flyingcircus.i_medoid_and_median()
     """
     if max_buffer:
         i = 0
@@ -9845,7 +9845,7 @@ def read_stream(
     Args:
         in_file (str|bytes|file): The input file.
             Can be either a valid file path or a readable binary file object.
-            See `flyingcircus.base.auto_open()` for more details.
+            See `flyingcircus.auto_open()` for more details.
         offset (int|None): The offset where to start reading.
         dtype (str): The data type to read.
             Accepted values are:
@@ -9903,7 +9903,7 @@ def read_cstr(
     Args:
         in_file (str|bytes|file): The input file.
             Can be either a valid file path or a readable binary file object.
-            See `flyingcircus.base.auto_open()` for more details.
+            See `flyingcircus.auto_open()` for more details.
         offset (int|None): The offset where to start reading.
         whence (int): Where to reference the offset.
             Accepted values are:
@@ -9948,11 +9948,11 @@ def process_stream(
         in_file (str|bytes|file): The input file.
             Can be either a valid file path or readable file object.
             Should not be the same as `out_file`.
-            See `flyingcircus.base.auto_open()` for more details.
+            See `flyingcircus.auto_open()` for more details.
         out_file (str|bytes|file): The output file.
             Can be either a valid file path or writable file object.
             Should not be the same as `in_file`.
-            See `flyingcircus.base.auto_open()` for more details.
+            See `flyingcircus.auto_open()` for more details.
         func (callable): The conversion function.
             Must accept a string or bytes (depending on `as_binary`) as first
             argument: func(str|bytes, *args, **kws) -> str|bytes
@@ -10039,7 +10039,7 @@ def hash_file(
     Args:
         in_file (str|bytes|file): The input file.
             Can be either a valid file path or a readable binary file object.
-            See `flyingcircus.base.auto_open()` for more details.
+            See `flyingcircus.auto_open()` for more details.
         hash_algorithm (callable): The hashing algorithm.
             This must support the methods provided by `hashlib` module, like
             `md5`, `sha1`, `sha256`, `sha512`.
@@ -10051,7 +10051,7 @@ def hash_file(
             If str, must be a valid coding.
             If None, the object is kept as bytes.
         block_size (int|None): The block size.
-            See `size` argument of `flyingcircus.base.blocks` for exact
+            See `size` argument of `flyingcircus.blocks` for exact
             behavior.
 
     Returns:
@@ -10833,8 +10833,8 @@ def split_path(
         '/path/to/file.ext'
 
     See Also:
-        - flyingcircus.base.join_path()
-        - flyingcircus.base.multi_split_path()
+        - flyingcircus.join_path()
+        - flyingcircus.multi_split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -10888,8 +10888,8 @@ def multi_split_path(
         '/path/to/file.ext'
 
     See Also:
-        - flyingcircus.base.join_path()
-        - flyingcircus.base.split_path()
+        - flyingcircus.join_path()
+        - flyingcircus.split_path()
     """
     root, base_ext = os.path.split(filepath)
     base, ext = split_ext(base_ext, auto_multi_ext=auto_multi_ext)
@@ -10938,8 +10938,8 @@ def join_path(texts):
         True
 
     See Also:
-        - flyingcircus.base.split_path()
-        - flyingcircus.base.multi_split_path()
+        - flyingcircus.split_path()
+        - flyingcircus.multi_split_path()
     """
     return ((os.path.join(*texts[:-1]) if texts[:-1] else '') +
             (add_extsep(texts[-1]) if texts[-1] else ''))
@@ -11596,11 +11596,11 @@ def prefix_to_order(
         True
 
     See Also:
-        - flyingcircus.base.order_to_prefix()
-        - flyingcircus.base.prefix_to_factor()
-        - flyingcircus.base.factor_to_prefix()
-        - flyingcircus.base.order_to_factor()
-        - flyingcircus.base.factor_to_order()
+        - flyingcircus.order_to_prefix()
+        - flyingcircus.prefix_to_factor()
+        - flyingcircus.factor_to_prefix()
+        - flyingcircus.order_to_factor()
+        - flyingcircus.factor_to_order()
     """
     prefixes = dict(prefixes)
     if prefix in prefixes:
@@ -11640,11 +11640,11 @@ def order_to_prefix(
         ValueError: Invalid order `10` for given prefixes.
 
     See Also:
-        - flyingcircus.base.prefix_to_order()
-        - flyingcircus.base.prefix_to_factor()
-        - flyingcircus.base.factor_to_prefix()
-        - flyingcircus.base.order_to_factor()
-        - flyingcircus.base.factor_to_order()
+        - flyingcircus.prefix_to_order()
+        - flyingcircus.prefix_to_factor()
+        - flyingcircus.factor_to_prefix()
+        - flyingcircus.order_to_factor()
+        - flyingcircus.factor_to_order()
     """
     reverted_prefixes = reverse_mapping(dict(prefixes))
     if order in reverted_prefixes:
@@ -11675,11 +11675,11 @@ def order_to_factor(
         [1e-05, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
 
     See Also:
-        - flyingcircus.base.prefix_to_order()
-        - flyingcircus.base.order_to_prefix()
-        - flyingcircus.base.prefix_to_factor()
-        - flyingcircus.base.factor_to_prefix()
-        - flyingcircus.base.factor_to_order()
+        - flyingcircus.prefix_to_order()
+        - flyingcircus.order_to_prefix()
+        - flyingcircus.prefix_to_factor()
+        - flyingcircus.factor_to_prefix()
+        - flyingcircus.factor_to_order()
     """
     return base ** order
 
@@ -11706,11 +11706,11 @@ def factor_to_order(
         [0, 2, 4, 2]
 
     See Also:
-        - flyingcircus.base.prefix_to_order()
-        - flyingcircus.base.order_to_prefix()
-        - flyingcircus.base.prefix_to_factor()
-        - flyingcircus.base.factor_to_prefix()
-        - flyingcircus.base.order_to_factor()
+        - flyingcircus.prefix_to_order()
+        - flyingcircus.order_to_prefix()
+        - flyingcircus.prefix_to_factor()
+        - flyingcircus.factor_to_prefix()
+        - flyingcircus.order_to_factor()
     """
     return int(round(math.log(factor, base)))
 
@@ -11748,11 +11748,11 @@ def prefix_to_factor(
         True
 
     See Also:
-        - flyingcircus.base.prefix_to_order()
-        - flyingcircus.base.order_to_prefix()
-        - flyingcircus.base.factor_to_prefix()
-        - flyingcircus.base.order_to_factor()
-        - flyingcircus.base.factor_to_order()
+        - flyingcircus.prefix_to_order()
+        - flyingcircus.order_to_prefix()
+        - flyingcircus.factor_to_prefix()
+        - flyingcircus.order_to_factor()
+        - flyingcircus.factor_to_order()
     """
     return order_to_factor(prefix_to_order(prefix, prefixes), base)
 
@@ -11784,11 +11784,11 @@ def factor_to_prefix(
         ['m', 'c', 'd', '', 'da', 'h', 'k']
 
     See Also:
-        - flyingcircus.base.prefix_to_order()
-        - flyingcircus.base.order_to_prefix()
-        - flyingcircus.base.prefix_to_factor()
-        - flyingcircus.base.order_to_factor()
-        - flyingcircus.base.factor_to_order()
+        - flyingcircus.prefix_to_order()
+        - flyingcircus.order_to_prefix()
+        - flyingcircus.prefix_to_factor()
+        - flyingcircus.order_to_factor()
+        - flyingcircus.factor_to_order()
     """
     return order_to_prefix(factor_to_order(factor, base), prefixes)
 
@@ -12961,8 +12961,8 @@ def multi_scale_to_int(
         vals (int|tuple[tuple[int]]): The scaled value(s).
 
     See Also:
-        - flyingcircus.base.stretch()
-        - flyingcircus.base.scale_to_int()
+        - flyingcircus.stretch()
+        - flyingcircus.scale_to_int()
 
     Examples:
         >>> scales = (10, 20, 30)
@@ -13022,7 +13022,7 @@ def _format_summary(
         line_limit=79,
         more=False):
     """
-    Format summary result from `flyingcircus.base.time_profile()`.
+    Format summary result from `flyingcircus.time_profile()`.
 
     Args:
         summary (dict): The input summary.
@@ -13036,8 +13036,8 @@ def _format_summary(
         result (str): The formatted summary.
 
     See Also:
-        - flyingcircus.base.time_profile()
-        - flyingcircus.base.multi_benchmark()
+        - flyingcircus.time_profile()
+        - flyingcircus.multi_benchmark()
     """
     val_order = order_of_magnitude(summary['val'], 10, SI_ORDER_STEP)
     err_order = order_of_magnitude(summary['err'], 10, SI_ORDER_STEP)
@@ -13213,8 +13213,8 @@ def time_profile(
  'sosd', 'var', 'stdev', 'min', 'max', 'median', 'medoid', 'batch']
  
     See Also:
-        - flyingcircus.base.multi_benchmark()
-        - flyingcircus.base._format_summary()
+        - flyingcircus.multi_benchmark()
+        - flyingcircus._format_summary()
     """
 
     # ----------------------------------------------------------
@@ -13345,7 +13345,7 @@ def multi_benchmark(
         equal_output (callable): The function used to compare the output.
             Must have the signature: gen_input(Any, Any) -> bool.
         time_prof_kws (Mappable|None): Keyword parameters for `time_profile`.
-            These are passed to `flyingcircus.base.time_profile()`.
+            These are passed to `flyingcircus.time_profile()`.
         store_all (bool): Store all results.
             If True, all results are stores.
         text_funcs (str): Text to use for printing output for functions.
@@ -13396,8 +13396,8 @@ def multi_benchmark(
  'is_equal']
 
     See Also:
-        - flyingcircus.base.time_profile()
-        - flyingcircus.base._format_summary()
+        - flyingcircus.time_profile()
+        - flyingcircus._format_summary()
     """
     labels = [func.__name__ for func in funcs]
     if argss is None:
