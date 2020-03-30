@@ -4538,6 +4538,38 @@ def unravel_bits(value, tokens):
 
 
 # ======================================================================
+def alternate_sign(
+        items,
+        start=1):
+    """
+    Alternate the sign of arbitrary items.
+
+    A similar result could be achieved with `itertools.cycle()` and `zip()`.
+
+    Args:
+        items (Iterable[Number]): The input items.
+        start (Number): The initial value.
+            In strict terms, this should be 1 or -1 but this is not enforced.
+
+    Yields:
+        item (Number): The item with alternating sign.
+
+    Examples:
+        >>> print(list(alternate_sign(range(16))))
+        [0, -1, 2, -3, 4, -5, 6, -7, 8, -9, 10, -11, 12, -13, 14, -15]
+        >>> print(list(alternate_sign(range(16), -1)))
+        [0, 1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12, 13, -14, 15]
+        >>> print(list(alternate_sign(range(16), 2)))
+        [0, -2, 4, -6, 8, -10, 12, -14, 16, -18, 20, -22, 24, -26, 28, -30]
+        >>> print(list(alternate_sign(itertools.repeat(1, 16))))
+        [1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1]
+    """
+    for item in items:
+        yield start * item
+        start = -start
+
+
+# ======================================================================
 def prod(
         items,
         start=1):
