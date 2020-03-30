@@ -9240,32 +9240,7 @@ def align(
     return num
 
 
-# ======================================================================
-def merge_dicts(items):
-    """
-    Merge dictionaries into a new dict (new keys overwrite the old ones).
 
-    Args:
-        items (Iterable[dict]): Dictionaries to be merged together.
-
-    Returns:
-        merged (dict): The merged dict (new keys overwrite the old ones).
-
-    Examples:
-        >>> d1 = {1: 2, 3: 4, 5: 6}
-        >>> d2 = {2: 1, 4: 3, 6: 5}
-        >>> d3 = {1: 1, 3: 3, 6: 5}
-        >>> dd = merge_dicts((d1, d2))
-        >>> print(tuple(sorted(dd.items())))
-        ((1, 2), (2, 1), (3, 4), (4, 3), (5, 6), (6, 5))
-        >>> dd = merge_dicts((d1, d3))
-        >>> print(tuple(sorted(dd.items())))
-        ((1, 1), (3, 3), (5, 6), (6, 5))
-    """
-    merged = {}
-    for item in items:
-        merged.update(item)
-    return merged
 
 
 # =====================================================================
