@@ -2478,7 +2478,7 @@ def partition_inplace(
         start=0,
         stop=-1):
     """
-    Partition a sequence into items
+    Partition a sequence according to a specified condition.
 
     Args:
         seq (Sequence): The input sequence.
@@ -2487,8 +2487,12 @@ def partition_inplace(
             If the condition is met,
         start (int): The start index.
             The index is forced within boundaries modulo len(seq).
+            If start < stop, the partitioning is performed forward,
+            otherwise the partitioning is performed backward.
         stop (int): The stop index (included).
             The index is forced within boundaries modulo len(seq).
+            If start < stop, the partitioning is performed forward,
+            otherwise the partitioning is performed backward.
 
     Returns:
         result (int): The index that delimits the partitioning.
@@ -2511,15 +2515,24 @@ def partition_inplace(
         >>> k = partition_inplace(seq, lambda x: x % 5, 2, 8)
         >>> print(seq[2:k], seq[k:9])
         [2, 3, 4, 6, 7, 8] [5]
+
+        >>> seq = list(range(10))
+        >>> k = partition_inplace(seq, lambda x: x % 2 == 0, -1, 0)
+        >>> print(seq[:k], seq[k:])
+        [5, 1, 9, 3, 7] [0, 2, 4, 6, 8]
     """
     n = len(seq)
     start %= n
     stop %= n
-    for i in range(start, stop + 1):
+    step = 1 if start < stop else -1
+    for i in range(start, stop + step, step):
         if condition(seq[i]):
             seq[start], seq[i] = seq[i], seq[start]
-            start += 1
-    return start
+            start += step
+    if step > 0:
+        return start
+    else:
+        return start + 1
 
 
 # ======================================================================
