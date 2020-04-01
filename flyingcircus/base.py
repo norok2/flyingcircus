@@ -1063,12 +1063,12 @@ def index_all(
     See Also:
         - flyingcircus.find_all()
     """
-    try:
-        n = len(seq)
-        if n > 0:
-            start %= n
-            stop %= n
-            i = start
+    n = len(seq)
+    if n > 0:
+        start %= n
+        stop %= n
+        i = start
+        try:
             while True:
                 i = seq.index(item, i)
                 if i <= stop:
@@ -1076,10 +1076,10 @@ def index_all(
                     i += 1
                 else:
                     return
-        else:
+        except ValueError:
             return
-    except ValueError:
-        pass
+    else:
+        return
 
 
 # ======================================================================
@@ -9283,9 +9283,6 @@ def align(
                 num=num, align=base))
 
     return num
-
-
-
 
 
 # =====================================================================
