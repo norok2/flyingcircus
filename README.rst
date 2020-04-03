@@ -19,15 +19,18 @@ Overview
 --------
 
 This software provides a library of miscellaneous utilities / recipes for
-generic computations with Python and NumPy.
+generic computations with Python.
 It is relatively easy to extend and users are encouraged to tweak with it.
 
 Most of the code is used in a number of projects where it is tested
 against real-life scenarios.
 
-As a result of the code maturity, some of the library components may
-undergo (eventually heavy) refactoring.
-While this is not expected, this will be documented.
+All the code is tested againt the examples in the documentation (using `doctest <https://docs.python.org/3/library/doctest.html>`__).
+
+The code has reached a reasonable maturity.
+However, until it gets a wider adoption, some of the library components may
+undergo some refactoring in the process of improving the code.
+Changes will appear in the ``CHANGELOG.rst``.
 Please file a bug report if you detect an undocumented refactoring.
 
 Releases information are available through ``NEWS.rst``.
@@ -39,12 +42,6 @@ generated from the version control system).
 Features
 --------
 
-The package contain two main sub-packages:
-
--  ``base``
--  ``extra``
-
-
 The package ``base`` contains a number of generic functions like
 
 -  ``multi_replace()``: performs multiple replacements in a string.
@@ -55,19 +52,9 @@ The package ``base`` contains a number of generic functions like
 
 etc.
 
-The package ``extra`` (which requires both ``numpy`` and ``scipy``)
-contains a number of numerical functions, typically
-working on or generating ``numpy.ndarray`` inputs, like:
-
--  ``sgngeomspace()``: generates geometrically / logarithmically spaced
-   samples between signed start and stop endpoints.
--  ``unsqueeze()``: add singletons to the shape of an array to
-   broadcast-match a given shape.
--  ``subst()``: conveniently substitute all occurrences of a value in an array.
-
+These are meant to run both in Python 3 and in PyPy.
+For this reason, dependencies to external modules are kept to a minimum.
 etc.
-
-Additional packages may be added in the future.
 
 
 Installation
@@ -81,11 +68,11 @@ The recommended way of installing the software is through
     $ pip install flyingcircus
 
 Alternatively, you can clone the source repository from
-`Bitbucket <https://bitbucket.org/norok2/flyingcircus>`__:
+`GitHub <https://github.com/norok2/flyingcircus>`__:
 
 .. code:: bash
 
-    $ git clone git@bitbucket.org:norok2/flyingcircus.git
+    $ git clone git@github.com:norok2/flyingcircus.git
     $ cd flyingcircus
     $ pip install -e .
 

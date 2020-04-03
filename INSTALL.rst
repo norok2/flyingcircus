@@ -2,20 +2,34 @@
 Installation
 ============
 
-Some of the functions within this library depends on:
+Prerequisites
+-------------
+This package requires a working Python 3 installation.
+Python 3.5+ is required.
+A large portion of the code can run without modification in Python 2, but
+this is not supported.
 
-- numpy
-- scipy
+The code is intended to be platform-agnostic.
+Hence, it should run the same way in Windows-based and
+*nix-based (Linux, BSD, MacOS X, etc.) systems
 
-These are collected in the into separate submodules:
- - `numpy`: for code depending on `numpy` only.
- - `scipy`: for code depending on both `numpy` and `scipy`.
 
-It is being developed (and hence best tested) with Python 3.6.
-While not explicitly tested for, other recent versions of Python 3 are very
-likely to be working correctly.
+Installation
+------------
+The only fully supported installation method is through
+`PyPI <https://pypi.python.org/pypi/flyingcircus>`__:
 
-Python 2 is not explicitly supported and although many parts of the library
-still work without issues, there may be features not available in Python 2.
+.. code:: bash
 
-If you experience any issues, please consider reporting it.
+    $ pip install flyingcircus
+
+To experiment out with the code, and to peek on future releases, you can
+clone the source repository from
+`GitHub <https://github.com/norok2/flyingcircus>`__:
+
+.. code:: bash
+
+    $ git clone git@github.com:norok2/flyingcircus.git
+    $ cd flyingcircus
+    $ pip install -e .
+
