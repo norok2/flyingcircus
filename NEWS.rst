@@ -2,11 +2,13 @@
 News
 ====
 
+Apr 2020
+--------
+- Multiple enhancements and improved code maturity
+- NumPy / SciPy dependency moved to FlyingCircus-Numeric
+- Extensive use of doctests
+
 Jul 2018
 --------
-- Initial porting of functionalities from:
-   - ``pymrt`` (https://pypi.org/project/pymrt/)
-   - ``dcmpi`` (https://pypi.org/project/dcmpi/)
-   - ``hdu`` (https://pypi.org/project/hdu/)
-   - ``numex`` (https://pypi.org/project/numex/)
-   - ``numeral`` (https://pypi.org/project/numex/)
+- Initial porting of functionalities from previous projects,
+  notably ``pymrt`` (https://pypi.org/project/pymrt/).
