@@ -2938,7 +2938,8 @@ def split(
     Split items into groups according to size(s).
 
     The number of elements for each group can vary.
-    Note that for integer splits, `separate()` can be faster alternative.
+    Note that if the values in `sizes` are the same, `separate()` can be a
+    faster alternative.
     All and only the elements in `items` are ever yielded.
 
     Args:
