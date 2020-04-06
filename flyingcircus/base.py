@@ -2746,7 +2746,10 @@ def slide(
 
     The number of elements for each yield is fixed.
 
-    This can be used, for example, to compute running/moving/rolling statics.
+    This can be used to compute sliding/running/moving/rolling statistics
+    for the general case, but rolling computations that can be expressed
+    in terms of the previous iteration may be computed more efficiently
+    with `flyingcircus.rolling()`.
 
     Args:
         items (Iterable): The input items.
@@ -2793,9 +2796,11 @@ def slide(
         ((1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6))
 
     See Also:
+        - flyingcircus.sliding()
         - flyingcircus.separate()
         - flyingcircus.split()
         - flyingcircus.chunks()
+        - flyingcircus.rolling()
     """
     if step > 1:
         iters = [
@@ -2866,6 +2871,13 @@ def sliding(
         Traceback (most recent call last):
             ...
         TypeError: add expected 2 arguments, got 1
+
+    See Also:
+        - flyingcircus.slide()
+        - flyingcircus.separate()
+        - flyingcircus.split()
+        - flyingcircus.chunks()
+        - flyingcircus.rolling()
     """
     if star:
         for batch in slide(items, size, step, truncate, fill):
@@ -2917,6 +2929,7 @@ def separate(
 
     See Also:
         - flyingcircus.slide()
+        - flyingcircus.sliding()
         - flyingcircus.split()
         - flyingcircus.chunks()
     """
@@ -2970,8 +2983,8 @@ def split(
 
     See Also:
         - flyingcircus.slide()
+        - flyingcircus.sliding()
         - flyingcircus.separate()
-        - flyingcircus.split()
         - flyingcircus.chunks()
     """
     if isinstance(sizes, int):
@@ -3046,6 +3059,7 @@ def chunks(
 
     See Also:
         - flyingcircus.slide()
+        - flyingcircus.sliding()
         - flyingcircus.separate()
         - flyingcircus.split()
     """
@@ -3066,6 +3080,126 @@ def chunks(
         size = (size,) * (k - q) + (size - 1,) * q
     for group in split(items, size):
         yield group
+
+
+# ======================================================================
+def rolling(
+        seq,
+        size,
+        func,
+        update=None,
+        fill=None):
+    """
+    Compute a rolling function on a sequence.
+
+    The function is expressed in terms of an initialization and an update.
+
+    The following pairs can be used for notable rolling computations:
+     - rolling mean
+       - func: mean
+       - update: lambda x, a, b, n: x + a / n - b / n
+
+    Args:
+        seq (Sequence[Any]): The input sequence.
+        size (int): The rolling window.
+        func (callable): The function to compute.
+            Must have the following signature: func(Sequence) -> Any
+            If `update` is a callable provided, this serves as initialization.
+        update (callable|None): The updating function.
+            Must have the following signature:
+            func(last_value, new_item, old_item, size) -> Any
+        fill (Any|None): The filling value.
+            If None, the rolling starts and stops at the edges of the sequence.
+            Otherwise, the fill value is used to compute partial windows
+            at the edges.
+
+    Yields:
+        value: The next rolling value.
+
+    Examples:
+        >>> print(list(rolling(range(16), 2, sum)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
+        >>> print(list(rolling(range(16), 3, sum)))
+        [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42]
+        >>> print(list(rolling(range(16), 4, sum)))
+        [6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54]
+
+        >>> print(list(rolling([1] * 16, 4, sum)))
+        [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+        >>> print(list(rolling([1] * 16, 4, sum, fill=0)))
+        [0, 1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 1, 0]
+        >>> print(list(rolling([1] * 16, 4, sum, fill=1)))
+        [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+        >>> print(list(rolling([1] * 8, 8, sum, fill=0)))
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> print(list(rolling([1] * 8, 8, sum, fill=1)))
+        [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+
+        >>> print(list(rolling([1] * 8, 8, sum)))
+        [8]
+        >>> print(list(rolling([1] * 8, 9, sum)))
+        []
+        >>> print(list(rolling([1] * 8, 9, sum, fill=0)))
+        []
+
+        >>> def sum_update(x, a, b, n): return x + a - b
+        >>> print(list(rolling(range(16), 2, sum)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
+        >>> print(list(rolling(range(16), 2, sum, sum_update)))
+        [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29]
+
+        >>> def mean_update(x, a, b, n): return x + a / n - b / n
+        >>> print(list(rolling(range(12), 2, mean)))
+        [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
+        >>> print(list(rolling(range(12), 2, mean, mean_update)))
+        [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
+
+        >>> def prod_update(x, a, b, n): return x * a / b
+        >>> print(list(rolling(range(1, 13), 3, prod)))
+        [6, 24, 60, 120, 210, 336, 504, 720, 990, 1320]
+        >>> print(list(rolling(range(1, 13), 3, prod, prod_update)))
+        [6, 24.0, 60.0, 120.0, 210.0, 336.0, 504.0, 720.0, 990.0, 1320.0]
+
+        >>> def hash_func(seq): return sum(hash(x) for x in seq)
+        >>> def hash_update(x, a, b, n): return x + hash(a) - hash(b)
+        >>> print(list(rolling(range(12), 3, hash_func)))
+        [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+        >>> print(list(rolling(range(12), 3, hash_func, hash_update)))
+        [3, 6, 9, 12, 15, 18, 21, 24, 27, 30]
+
+    See Also:
+        - flyingcircus.slide()
+        - flyingcircus.sliding()
+    """
+    n = len(seq)
+    if n < size:
+        return
+    if update is not None:
+        if fill is not None:
+            value = func([fill] * size)
+            yield value
+            for i in range(size - 1):
+                value = update(value, seq[i], fill)
+                yield value
+        value = func(seq[:size])
+        yield value
+        for i in range(1, n - size + 1):
+            value = update(value, seq[i + size - 1], seq[i - 1], size)
+            yield value
+        if fill is not None:
+            for i in range(n - size, n):
+                value = update(value, fill, seq[i - 1])
+                yield value
+    else:
+        if fill is not None:
+            buffer = type(seq)([fill] * size)
+            for i in range(size):
+                yield func(buffer[i:] + seq[:i])
+        for i in range(n - size + 1):
+            yield func(seq[i:i + size])
+        if fill is not None:
+            for i in range(1, size + 1):
+                yield func(seq[n - size + i:] + buffer[:i])
 
 
 # ======================================================================
@@ -4117,6 +4251,8 @@ def find_subseq(
         [5]
         >>> list(find_subseq(list(range(10)) * 10, list(range(3, 8))))
         [3, 13, 23, 33, 43, 53, 63, 73, 83, 93]
+        >>> list(find_subseq(list(range(10)) * 10, list(range(3, 8)), 10, 90))
+        [13, 23, 33, 43, 53, 63, 73, 83]
 
         >>> seq = '12431243123431212'
         >>> list(find_subseq(seq, '1234'))
@@ -4140,17 +4276,17 @@ def find_subseq(
         #     if seq[i + m - 1] == subseq[m - 1] and seq[i:i + m] == subseq:
         #         yield i
 
-        # : naive with looping
+        # # : naive with looping
         # for i in range(start, stop - m + 1):
         #     if all(seq[i + j] == subseq[j] for j in range(m)):
         #         yield i
 
-        # : naive with slicing
+        # # : naive with slicing
         # for i in range(start, stop - m + 1):
         #     if seq[i:i + m] == subseq:
         #         yield i
 
-        # : naive with slicing and short-circuit
+        # # : naive with slicing and short-circuit
         # for i in range(start, stop - m + 1):
         #     if seq[i] == subseq[0] and seq[i:i + m] == subseq:
         #         yield i
@@ -4184,6 +4320,16 @@ def find_subseq(
                     j = offsets[j - 1]
                 else:
                     i += 1
+
+        # # : Rabin–Karp (RK) algorithm
+        # if seq[start:start + m] == subseq:
+        #     yield 0
+        # hash_subseq = sum(hash(x) for x in subseq)
+        # curr_hash = sum(hash(x) for x in seq[start:start + m])
+        # for i in range(start + 1, stop - m + 2):
+        #     curr_hash += hash(seq[i + m - 1]) - hash(seq[i - 1])
+        #     if hash_subseq == curr_hash and seq[i:i + m] == subseq:
+        #         yield i
     else:
         return
 
