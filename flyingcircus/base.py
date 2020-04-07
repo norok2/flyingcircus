@@ -2101,8 +2101,7 @@ def complement(
                 yield item
     else:
         num_items = len(items)
-        items = reversed(items)
-        for i, item in enumerate(items):
+        for i, item in enumerate(reversed(items)):
             if (num_items - i - 1) not in to_exclude:
                 yield item
 
@@ -2813,7 +2812,7 @@ def slide(
 
         iters = [consumed(iter(items), i) for i in range(size)]
     if reverse:
-        iters = iters[::-1]
+        iters = reversed(iters)
     if truncate:
         return zip(*iters)
     else:
@@ -3279,7 +3278,7 @@ def combinations(
     indices = list(range(k))
     yield container(items[i] for i in indices)
     while True:
-        for i in reversed(range(k)):
+        for i in range(k - 1, -1, -1):
             if indices[i] != i + num - k:
                 break
         else:
@@ -3361,7 +3360,7 @@ def multi_combinations(
     indices = [0] * k
     yield container(items[i] for i in indices)
     while True:
-        for i in reversed(range(k)):
+        for i in range(k - 1, -1, -1):
             if indices[i] != num - 1:
                 break
         else:
@@ -3445,7 +3444,7 @@ def permutations(
     cycles = list(range(num, num - k, -1))
     yield container(items[i] for i in indices[:k])
     while num:
-        for i in reversed(range(k)):
+        for i in range(k - 1, -1, -1):
             cycles[i] -= 1
             if cycles[i] == 0:
                 indices[i:] = indices[i + 1:] + indices[i:i + 1]
@@ -3532,7 +3531,7 @@ def multi_permutations(
     indices = [0] * k
     yield container(items[i] for i in indices)
     while True:
-        for i in reversed(range(k)):
+        for i in range(k - 1, -1, -1):
             if indices[i] != num - 1:
                 break
             else:
@@ -3760,7 +3759,8 @@ def cartesian_product(
 
     # : iterative method with modulo arithmetics
     n = len(seqs)
-    seqs = list(zip(seqs[::-1], list(map(len, seqs[::-1]))))
+    r_seqs = list(reversed(seqs))
+    seqs = list(zip(r_seqs, list(map(len, r_seqs))))
     i = 0
     result = [None] * n
     while True:
@@ -4043,7 +4043,7 @@ def latin_square(
         result = []
         # note: reversed(permutations(items)) == permutations(reversed(items))
         if not forward:
-            items = items[::-1]
+            items = list(reversed(items))
         for elems in permutations(items):
             valid = True
             for i, elem in enumerate(elems):
@@ -6735,14 +6735,14 @@ def cont_frac(b, a=1, limit=None):
         r_iter_b = reversed(b)
     except TypeError:
         try:
-            r_iter_b = [x for x, _ in zip(b, range(limit))][::-1]
+            r_iter_b = reversed([x for x, _ in zip(b, range(limit))])
         except TypeError:
             r_iter_b = itertools.cycle([b])
     try:
         r_iter_a = reversed(a)
     except TypeError:
         try:
-            r_iter_a = [x for x, _ in zip(a, range(limit))][::-1]
+            r_iter_a = reversed([x for x, _ in zip(a, range(limit))])
         except TypeError:
             r_iter_a = itertools.cycle([a])
     a_i = 1
