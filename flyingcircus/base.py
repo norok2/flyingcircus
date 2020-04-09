@@ -1949,47 +1949,6 @@ def transpose(
 
 
 # ======================================================================
-def combine_slice(
-        slice1,
-        slice2,
-        size):
-    """
-
-
-    Args:
-        slice1:
-        slice2:
-        size:
-
-    Returns:
-
-    Examples:
-        >>> n = 100
-        >>> seq = list(range(n))
-
-        >>> sl1, sl2 = slice(5, 20, 2), slice(10, 30, 3)
-        >>> print(seq[combine_slice(sl1, sl2, n)] == seq[sl1][sl2])
-        True
-        >>> sl1, sl2 = slice(0, 20, 2), slice(10, 30, -3)
-        >>> print(seq[combine_slice(sl1, sl2, n)] == seq[sl1][sl2])
-        True
-    """
-    start1, stop1, step1 = slice1.indices(size)
-    if (stop1 - start1) * step1 <= 0:
-        return slice(0, 0, 1)
-    m = (abs(stop1 - start1) - 1) // abs(step1) + 1
-    start2, stop2, step2 = slice2.indices(m)
-    if (stop2 - start2) * step2 <= 0:
-        return slice(0, 0, 1)
-    start = start1 + start2 * step1
-    stop = start1 + stop2 * step1
-    step = step1 * step2
-    if start > stop and stop < 0:
-        stop = None
-    return slice(start, stop, step), m
-
-
-# ======================================================================
 def flip_slice(
         obj,
         force_step=False):
