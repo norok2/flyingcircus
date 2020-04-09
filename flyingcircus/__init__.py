@@ -118,6 +118,42 @@ else:
 
 
 # ======================================================================
+def valid_index(
+        idx,
+        size,
+        circular=False):
+    """
+    Return a valid index for an object of given size.
+
+    Args:
+        idx (int): The input index.
+        size (int): The size of the object to index.
+        circular (bool): Use circular normalization.
+            If True, just use a modulo operation.
+            Otherwise, indices beyond the edges are set to the edges.
+
+    Returns:
+        idx (int): The valid index.
+
+    Examples:
+        >>> print([(i, valid_index(i, 3)) for i in range(-4, 4)])
+        [(-4, 0), (-3, 0), (-2, 1), (-1, 2), (0, 0), (1, 1), (2, 2), (3, 2)]
+        >>> print([(i, valid_index(i, 3, True)) for i in range(-4, 4)])
+        [(-4, 2), (-3, 0), (-2, 1), (-1, 2), (0, 0), (1, 1), (2, 2), (3, 0)]
+    """
+    if circular:
+        return idx % size
+    elif idx < 0 and idx < -size:
+        return 0
+    elif idx < 0:
+        return idx + size
+    elif idx >= size:
+        return size - 1
+    else:
+        return idx
+
+
+# ======================================================================
 def find_all(
         text,
         pattern,
@@ -172,8 +208,8 @@ def find_all(
     """
     n = len(text)
     if n > 0:
-        start %= n
-        stop %= n
+        start = valid_index(start, n)
+        stop = valid_index(stop, n)
         offset = 1 if overlap else (len(pattern) or 1)
         i = start
         while True:

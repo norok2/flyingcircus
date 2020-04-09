@@ -54,10 +54,10 @@ import gc  # Garbage Collector interface
 from flyingcircus import INFO, PATH
 from flyingcircus import VERB_LVL, D_VERB_LVL, VERB_LVL_NAMES
 from flyingcircus import elapsed, report, run_doctests
-from flyingcircus import msg, dbg, fmt, fmtm
+from flyingcircus import msg, dbg, fmt, fmtm, safe_format_map
 from flyingcircus import do_nothing_decorator
 from flyingcircus import HAS_JIT, jit
-from flyingcircus import find_all, nested_delimiters, safe_format_map
+from flyingcircus import valid_index, find_all, nested_delimiters
 
 # ======================================================================
 # :: Custom defined constants
@@ -1065,8 +1065,8 @@ def index_all(
     """
     n = len(seq)
     if n > 0:
-        start %= n
-        stop %= n
+        start = valid_index(start, n)
+        stop = valid_index(stop, n)
         i = start
         try:
             while True:
@@ -1949,16 +1949,57 @@ def transpose(
 
 
 # ======================================================================
-def flip(
+def combine_slice(
+        slice1,
+        slice2,
+        size):
+    """
+
+
+    Args:
+        slice1:
+        slice2:
+        size:
+
+    Returns:
+
+    Examples:
+        >>> n = 100
+        >>> seq = list(range(n))
+
+        >>> sl1, sl2 = slice(5, 20, 2), slice(10, 30, 3)
+        >>> print(seq[combine_slice(sl1, sl2, n)] == seq[sl1][sl2])
+        True
+        >>> sl1, sl2 = slice(0, 20, 2), slice(10, 30, -3)
+        >>> print(seq[combine_slice(sl1, sl2, n)] == seq[sl1][sl2])
+        True
+    """
+    start1, stop1, step1 = slice1.indices(size)
+    if (stop1 - start1) * step1 <= 0:
+        return slice(0, 0, 1)
+    m = (abs(stop1 - start1) - 1) // abs(step1) + 1
+    start2, stop2, step2 = slice2.indices(m)
+    if (stop2 - start2) * step2 <= 0:
+        return slice(0, 0, 1)
+    start = start1 + start2 * step1
+    stop = start1 + stop2 * step1
+    step = step1 * step2
+    if start > stop and stop < 0:
+        stop = None
+    return slice(start, stop, step), m
+
+
+# ======================================================================
+def flip_slice(
         obj,
         force_step=False):
     """
-    Reverse a slice or range.
+    Flip a slice or range.
 
     This is achieved by swapping its `start` and `stop` attributes.
     It works for any object implementing `start` and `stop` attributes.
 
-    If `step` is specified, `-step` is used as new `step`.
+    If `step` is specified and not None, `-step` is used as new `step`.
 
     Args:
         obj (slice|range): The input slice/range.
@@ -1969,34 +2010,54 @@ def flip(
         obj (slice|range): The output slice/range.
 
     Examples:
-        >>> flip(slice(10, 20))
+        >>> flip_slice(slice(10, 20))
         slice(20, 10, None)
-        >>> flip(slice(10, 20, 2))
+        >>> flip_slice(slice(10, 20, 2))
         slice(20, 10, -2)
-        >>> flip(slice(20, 10, -2))
+        >>> flip_slice(slice(20, 10, -2))
         slice(10, 20, 2)
-        >>> flip(slice(10, 20), True)
+        >>> flip_slice(slice(10, 20), True)
         slice(20, 10, -1)
-        >>> flip(slice(20, 10))
+        >>> flip_slice(slice(20, 10))
         slice(10, 20, None)
-        >>> flip(slice(20, 10), True)
-        slice(10, 20, -1)
-        >>> flip(range(10, 20))
+        >>> flip_slice(slice(20, 10), True)
+        slice(10, 20, 1)
+        >>> flip_slice(slice(None, 10))
+        slice(10, None, None)
+        >>> flip_slice(slice(None, 10), True)
+        slice(10, None, 1)
+        >>> flip_slice(slice(20, None))
+        slice(None, 20, None)
+        >>> flip_slice(slice(20, None), True)
+        slice(None, 20, 1)
+        >>> flip_slice(slice(None, None))
+        slice(None, None, None)
+        >>> flip_slice(slice(None, None), True)
+        slice(None, None, 1)
+
+        >>> flip_slice(range(10, 20))
         range(20, 10, -1)
-        >>> flip(range(10, 20, 2))
+        >>> flip_slice(range(10, 20, 2))
         range(20, 10, -2)
-        >>> flip(range(20, 10, -2))
+        >>> flip_slice(range(20, 10, -2))
         range(10, 20, 2)
-        >>> flip(range(10, 20), True)
+        >>> flip_slice(range(10, 20), True)
         range(20, 10, -1)
-        >>> flip(range(20, 10))
+        >>> flip_slice(range(20, 10))
         range(10, 20, -1)
-        >>> flip(range(20, 10), True)
+        >>> flip_slice(range(20, 10), True)
         range(10, 20, -1)
     """
     if hasattr(obj, 'step'):
-        step = 1 if obj.step is None and force_step else obj.step
-        if step is not None:
+        if obj.step is None and force_step:
+            if all(x is not None for x in (obj.start, obj.stop)) \
+                    and obj.start > obj.stop:
+                step = -1
+            else:
+                step = 1
+        else:
+            step = obj.step
+        if all(x is not None for x in (obj.start, obj.stop, step)):
             step = -step
         return type(obj)(obj.stop, obj.start, step)
     else:
@@ -2288,6 +2349,7 @@ def deep_convert(
     Args:
         container (callable|None): The container to apply.
             Must have the following signature:
+            Must have the following signature:
             container(Iterable) -> container.
             If None, no conversion is performed.
         items (Iterable): The input items.
@@ -2521,8 +2583,8 @@ def partition_inplace(
         [5, 1, 9, 3, 7] [0, 2, 4, 6, 8]
     """
     n = len(seq)
-    start %= n
-    stop %= n
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
     step = 1 if start < stop else -1
     for i in range(start, stop + step, step):
         if condition(seq[i]):
@@ -4268,8 +4330,8 @@ def find_subseq(
     n = len(seq)
     m = len(subseq)
     if n > 0 and m > 0:
-        start %= n
-        stop %= n
+        start = valid_index(start, n)
+        stop = valid_index(stop, n)
 
         # # : naive with fast looping, slicing and short-circuit
         # for i in index_all(seq, subseq[0], start, stop - m + 1):

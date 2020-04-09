@@ -948,11 +948,11 @@ class BitMask(object, metaclass=BitMaskMeta):
             >>> flags = BitMask(7)
             >>> print(flags[0])
             True
-            >>> print(flags.flip(0))
+            >>> print(flags.flip_slice(0))
             False
             >>> print(flags[0])
             False
-            >>> print(flags.flip(0))
+            >>> print(flags.flip_slice(0))
             True
             >>> print(flags[0])
             True
