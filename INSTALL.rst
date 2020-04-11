@@ -5,9 +5,9 @@ Installation
 Prerequisites
 -------------
 This package requires a working Python 3 installation.
-Python 3.5+ is required.
-A large portion of the code can run without modification in Python 2, but
-this is not supported.
+Python 3.6+ is required.
+A large portion of the code can run without modification in
+Python 2.7 and Python 3.4+, but this is not supported.
 
 The code is intended to be platform-agnostic.
 Hence, it should run the same way in Windows-based and
@@ -32,4 +32,3 @@ clone the source repository from
     $ git clone git@github.com:norok2/flyingcircus.git
     $ cd flyingcircus
     $ pip install -e .
-

@@ -25,9 +25,10 @@ It is relatively easy to extend and users are encouraged to tweak with it.
 Most of the code is used in a number of projects where it is tested
 against real-life scenarios.
 
-All the code is tested againt the examples in the documentation (using `doctest <https://docs.python.org/3/library/doctest.html>`__).
+All the code is tested against the examples in the documentation
+(using `doctest <https://docs.python.org/3/library/doctest.html>`__).
 
-The code has reached a reasonable maturity.
+The code has reached a reasonable level of maturity.
 However, until it gets a wider adoption, some of the library components may
 undergo some refactoring in the process of improving the code.
 Changes will appear in the ``CHANGELOG.rst``.
@@ -42,7 +43,7 @@ generated from the version control system).
 Features
 --------
 
-The package ``base`` contains a number of generic functions like
+The package contains a number of generic functions like
 
 -  ``multi_replace()``: performs multiple replacements in a string.
 -  ``flatten()``: recursively flattens nested iterables, e.g.
