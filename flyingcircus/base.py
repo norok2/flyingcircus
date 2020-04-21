@@ -2492,25 +2492,74 @@ def deep_filter_map(
 
 
 # ======================================================================
+def reverse_inplace(
+        seq,
+        start=0,
+        stop=-1):
+    """
+    Reverse in-place a sequence.
+
+    Note that this approach is more memory efficient than:
+
+     - `list(reversed(seq))`
+     - `seq[::-1]`
+
+    and similar approaches, but it is not generally faster.
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        result (int): The reversed sequence.
+
+    Examples:
+        >>> seq = list(range(10))
+        >>> print(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        >>> print(reverse_inplace(seq))
+        [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> print(seq)
+        [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+
+        >>> print(reverse_inplace(seq, 3, 7))
+        [9, 8, 7, 2, 3, 4, 5, 6, 1, 0]
+        >>> print(reverse_inplace(seq, 3, 7))
+        [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    offset = stop + start
+    for i in range(start, start + (stop - start + 1) // 2):
+        j = offset - i
+        seq[i], seq[j] = seq[j], seq[i]
+    return seq
+
+
+# ======================================================================
 def partition_inplace(
         seq,
         condition,
         start=0,
         stop=-1):
     """
-    Partition a sequence according to a specified condition.
+    Partition in-place a sequence according to a specified condition.
 
     Args:
-        seq (Sequence): The input sequence.
+        seq (MutableSequence): The input sequence.
         condition (callable): The partitioning condition.
             Must have the following signature: condition(Any) -> bool.
             If the condition is met,
         start (int): The start index.
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
             If start < stop, the partitioning is performed forward,
             otherwise the partitioning is performed backward.
         stop (int): The stop index (included).
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
             If start < stop, the partitioning is performed forward,
             otherwise the partitioning is performed backward.
 
@@ -2556,14 +2605,82 @@ def partition_inplace(
 
 
 # ======================================================================
+def selection_inplace(
+        seq,
+        k):
+    """
+    Rearrange in-place a sequence so that the k-th element is at position k.
+
+    Essentially, this ensures that `seq[k]` is the k-th largest element.
+    The order of the elements below or above `k` is ignored.
+    The problem is also known as selection or k-th statistics.
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        k (int): The input index.
+            This is 0-based and supports negative indexing.
+            The index is forced within boundaries.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The partially sorted sequence.
+
+    Examples:
+        >>> seq = [2 * x for x in range(10)]
+        >>> print(seq)
+        [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+
+        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
+        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> print(selection_inplace(seq, 2))
+        [0, 2, 4, 8, 6, 10, 12, 16, 18, 14]
+
+        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
+        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> print(selection_inplace(seq, 5))
+        [0, 2, 6, 8, 4, 10, 12, 16, 18, 14]
+
+        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
+        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> print(selection_inplace(seq, -1))
+        [2, 10, 6, 8, 4, 0, 12, 14, 16, 18]
+    """
+    n = len(seq)
+    k = valid_index(k, n)
+    start, stop = 0, n - 1
+    while start <= stop:
+        # compute a partition
+        x = seq[stop]
+        p = start
+        for i in range(start, stop):
+            if seq[i] <= x:
+                seq[p], seq[i] = seq[i], seq[p]
+                p += 1
+        seq[p], seq[stop] = seq[stop], seq[p]
+        # determine if p corresponds to k
+        if p == k:
+            return seq
+        elif p > k:
+            stop = p - 1
+        else:
+            start = p + 1
+    return seq
+
+
+# ======================================================================
 def select_ordinal(
         seq,
         k):
     """
     Find the smallest k-th element in a sequence.
 
-    This is equivalent to `sorted(seq)[k]` but it can be asymptotically
-    more efficient.
+    This is roughly equivalent to, but asymptotically more efficient than:
+    `sorted(seq)[k]`.
+    The problem is also known as selection or k-th statistics.
+    This is the not-in-place version of `flyingcircus.select_ordinal_inplace()`
 
     Args:
         seq (Sequence): The input sequence.
@@ -2575,7 +2692,7 @@ def select_ordinal(
         result: The smallest k-th element.
 
     Examples:
-        >>> seq = [2 * x for x in range(10)]
+        >>> seq = tuple(2 * x for x in range(10))
         >>> print(select_ordinal(seq, 0))
         0
         >>> print(select_ordinal(seq, 9))
@@ -2593,27 +2710,8 @@ def select_ordinal(
         >>> print(select_ordinal(seq, -11))
         None
     """
-    seq = list(seq)
-    if k < 0:
-        k += len(seq)
-    start, stop = 0, len(seq) - 1
-    while start <= stop:
-        # compute a partition
-        x = seq[stop]
-        p = start
-        for i in range(start, stop):
-            if seq[i] <= x:
-                seq[p], seq[i] = seq[i], seq[p]
-                p += 1
-        seq[p], seq[stop] = seq[stop], seq[p]
-        # determine if p corresponds to k
-        if p == k:
-            return seq[p]
-        elif p > k:
-            stop = p - 1
-        else:
-            start = p + 1
-    return None
+    n = len(seq)
+    return selection_inplace(list(seq), k)[k] if -n <= k < n else None
 
 
 # ======================================================================
