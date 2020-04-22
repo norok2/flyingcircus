@@ -1495,7 +1495,12 @@ def all_equal(items):
             first = next(iter_items)
         except StopIteration:
             return True
-        return all(first == item for item in iter_items)
+        # : slower alternative
+        # return all(first == item for item in iter_items)
+        for item in iter_items:
+            if first != item:
+                return False
+        return True
 
 
 # ======================================================================
@@ -13113,13 +13118,18 @@ def is_same_sign(items):
         >>> is_same_sign([])
         True
     """
-    if items:
-        iter_items = iter(items)
-        comp = next(iter_items) >= 0
-        for item in iter_items:
-            new_comp = item >= 0
-            if comp != new_comp:
-                return False
+    # : slower one-line alternative using `all_equal`
+    # return all_equal(item >= 0 for item in items)
+    iter_items = iter(items)
+    try:
+        first = next(iter_items) >= 0
+    except StopIteration:
+        return True
+    # : slower alternative for the loop below
+    # return all(first == (item >= 0) for item in items)
+    for item in iter_items:
+        if first != (item >= 0):
+            return False
     return True
 
 
