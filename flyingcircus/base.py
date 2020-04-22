@@ -2499,12 +2499,10 @@ def reverse_inplace(
     """
     Reverse in-place a sequence.
 
-    Note that this approach is more memory efficient than:
+    This supports also partial reversing.
 
-     - `list(reversed(seq))`
-     - `seq[::-1]`
-
-    and similar approaches, but it is not generally faster.
+    Note that this is roughly equivalent to:
+    seq[start:stop + 1] = reversed(seq[start:stop + 1])
 
     Args:
         seq (MutableSequence): The input sequence.
@@ -2533,10 +2531,15 @@ def reverse_inplace(
     n = len(seq)
     start = valid_index(start, n)
     stop = valid_index(stop, n)
-    offset = stop + start
-    for i in range(start, start + (stop - start + 1) // 2):
-        j = offset - i
-        seq[i], seq[j] = seq[j], seq[i]
+    if start == 0 and stop == n - 1 and hasattr(seq, 'reverse'):
+        seq.reverse()
+    else:
+        seq[start:stop + 1] = seq[stop:start - 1:-1]
+    # : slower alternative (explicit looping)
+    # offset = stop + start
+    # for i in range(start, start + (stop - start + 1) // 2):
+    #     j = offset - i
+    #     seq[i], seq[j] = seq[j], seq[i]
     return seq
 
 
@@ -13107,8 +13110,17 @@ def is_same_sign(items):
         True
         >>> is_same_sign((-1, 1))
         False
+        >>> is_same_sign([])
+        True
     """
-    return all(item >= 0 for item in items) or all(item < 0 for item in items)
+    if items:
+        iter_items = iter(items)
+        comp = next(iter_items) >= 0
+        for item in iter_items:
+            new_comp = item >= 0
+            if comp != new_comp:
+                return False
+    return True
 
 
 # ======================================================================
