@@ -416,7 +416,7 @@ def iterize(
     """
     Decorator for iterize a function in its positional arguments.
 
-    Additionally, it adds support for an additional `fill` parameter
+    Furthermore, it adds support for an additional `fill` parameter
     (the exact parameter name can be changed).
     This parameter controls how shorter iterables are extented.
     If `fill` is None, the iterable is extended using an infinite loop.
@@ -2720,6 +2720,46 @@ def select_ordinal(
     """
     n = len(seq)
     return selection_inplace(list(seq), k)[k] if -n <= k < n else None
+
+
+# ======================================================================
+def argsort(seq):
+    """
+    Sort the indexes of a sequence.
+
+    This is useful to sort a sequence using the ordering from another sequence.
+
+    Args:
+        seq (Sequence): The input sequence.
+
+    Returns:
+        indexes (list): The sorted indexes.
+
+    Examples:
+        >>> x = 'flyingcircus'
+        >>> i = argsort(x)
+        >>> print(list(iter_at(x, i)))
+        ['c', 'c', 'f', 'g', 'i', 'i', 'l', 'n', 'r', 's', 'u', 'y']
+        >>> j = argsort(i)
+        >>> print(list(iter_at(list(iter_at(x, i)), j)))
+        ['f', 'l', 'y', 'i', 'n', 'g', 'c', 'i', 'r', 'c', 'u', 's']
+
+        >>> y = 'abracadabras'
+        >>> print(list(iter_at(y, i)))
+        ['d', 'r', 'a', 'a', 'a', 'a', 'b', 'c', 'b', 's', 'a', 'r']
+        >>> print(list(iter_at(list(iter_at(y, i)), j)))
+        ['a', 'b', 'r', 'a', 'c', 'a', 'd', 'a', 'b', 'r', 'a', 's']
+
+        >>> print(sorted(x) == list(iter_at(x, i)))
+        True
+        >>> print(list(x) == list(iter_at(list(iter_at(x, i)), j)))
+        True
+        >>> print(list(y) == list(iter_at(list(iter_at(y, i)), j)))
+        True
+    """
+    indexes = list(range(len(seq)))
+    indexes.sort(key=seq.__getitem__)
+    return indexes
 
 
 # ======================================================================
