@@ -4951,6 +4951,8 @@ def round_up(x):
     """
     Round to the largest close integer.
 
+    To round down, just use `int()`
+
     Args:
         x (Number): The input number.
 
@@ -4981,26 +4983,382 @@ def div_ceil(a, b):
     """
     Compute integer ceil division.
 
+    This is such that:
+
+    q = div_ceil(a, b)
+    r = mod_ceil(a, b)
+    q * b + r == a
+
     Args:
         a (int): The dividend.
         b (int): The divisor.
 
     Returns:
-        qc (int): The ceiled quotient.
-            This is the quotient if `a` is divisible by `b`, otherwise
-            it gived the quotient plus one.
+        q (int): The quotient.
 
     Examples:
         >>> div_ceil(6, 3)
         2
+        >>> div_ceil(6, -3)
+        -2
+        >>> div_ceil(-6, 3)
+        -2
+        >>> div_ceil(-6, -3)
+        2
         >>> div_ceil(7, 3)
         3
-        >>> div_ceil(6, 3) == 6 // 3
-        True
-        >>> div_ceil(7, 3) == (7 // 3) + 1
-        True
+        >>> div_ceil(7, -3)
+        -2
+        >>> div_ceil(-7, 3)
+        -2
+        >>> div_ceil(-7, -3)
+        3
+        >>> div_ceil(3, 7)
+        1
+        >>> div_ceil(3, -7)
+        0
+        >>> div_ceil(-3, 7)
+        0
+        >>> div_ceil(-3, -7)
+        1
+        >>> div_ceil(1, 1)
+        1
+        >>> div_ceil(1, -1)
+        -1
+        >>> div_ceil(-1, 1)
+        -1
+        >>> div_ceil(-1, -1)
+        1
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.mod_ceil()
+        - flyingcircus.divmod_ceil()
+        - flyingcircus.div_round()
+        - flyingcircus.mod_round()
+        - flyingcircus.divmod_round()
     """
-    return a // b + (1 if a % b else 0)
+    q, r = divmod(a, b)
+    if r:
+        q += 1
+    return q
+
+
+# ======================================================================
+def mod_ceil(a, b):
+    """
+    Compute integer ceil modulus.
+
+    This is such that:
+
+    q = div_ceil(a, b)
+    r = mod_ceil(a, b)
+    q * b + r == a
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        r (int): The remainder.
+
+    Examples:
+        >>> mod_ceil(6, 3)
+        0
+        >>> mod_ceil(6, -3)
+        0
+        >>> mod_ceil(-6, 3)
+        0
+        >>> mod_ceil(-6, -3)
+        0
+        >>> mod_ceil(7, 3)
+        -2
+        >>> mod_ceil(7, -3)
+        1
+        >>> mod_ceil(-7, 3)
+        -1
+        >>> mod_ceil(-7, -3)
+        2
+        >>> mod_ceil(3, 7)
+        -4
+        >>> mod_ceil(3, -7)
+        3
+        >>> mod_ceil(-3, 7)
+        -3
+        >>> mod_ceil(-3, -7)
+        4
+        >>> mod_ceil(1, 1)
+        0
+        >>> mod_ceil(1, -1)
+        0
+        >>> mod_ceil(-1, 1)
+        0
+        >>> mod_ceil(-1, -1)
+        0
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.div_ceil()
+        - flyingcircus.divmod_ceil()
+        - flyingcircus.div_round()
+        - flyingcircus.mod_round()
+        - flyingcircus.divmod_round()
+    """
+    q, r = divmod(a, b)
+    if r:
+        q += 1
+    return a - q * b
+
+
+# ======================================================================
+def divmod_ceil(a, b):
+    """
+    Compute integer ceil division and modulus.
+
+    This is such that:
+
+    q, r = divmod_ceil(a, b)
+    q * b + r == a
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        r (int): The remainder.
+
+    Examples:
+        >>> n = 100
+        >>> l = list(range(-n, n + 1))
+        >>> ll = [(a, b) for a, b in itertools.product(l, repeat=2) if b]
+        >>> result = True
+        >>> for a, b in ll:
+        ...     q, r = divmod_ceil(a, b)
+        ...     result = result and (q == div_ceil(a, b))
+        ...     result = result and (r == mod_ceil(a, b))
+        ...     result = result and (q * b + r == a)
+        >>> print(result)
+        True
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.div_ceil()
+        - flyingcircus.mod_ceil()
+        - flyingcircus.div_round()
+        - flyingcircus.mod_round()
+        - flyingcircus.divmod_round()
+    """
+    q, r = divmod(a, b)
+    if r:
+        q += 1
+    return q, a - q * b
+
+
+# ======================================================================
+def div_round(a, b):
+    """
+    Compute integer round division.
+
+    This behaves the same as C `/` operator on integers.
+
+    This is such that:
+
+    q = div_round(a, b)
+    r = mod_round(a, b)
+    q * b + r == a
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        q (int): The quotient.
+
+    Examples:
+        >>> div_round(6, 3)
+        2
+        >>> div_round(6, -3)
+        -2
+        >>> div_round(-6, 3)
+        -2
+        >>> div_round(-6, -3)
+        2
+        >>> div_round(7, 3)
+        2
+        >>> div_round(7, -3)
+        -2
+        >>> div_round(-7, 3)
+        -2
+        >>> div_round(-7, -3)
+        2
+        >>> div_round(3, 7)
+        0
+        >>> div_round(3, -7)
+        0
+        >>> div_round(-3, 7)
+        0
+        >>> div_round(-3, -7)
+        0
+        >>> div_round(1, 1)
+        1
+        >>> div_round(1, -1)
+        -1
+        >>> div_round(-1, 1)
+        -1
+        >>> div_round(-1, -1)
+        1
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.div_ceil()
+        - flyingcircus.mod_ceil()
+        - flyingcircus.divmod_ceil()
+        - flyingcircus.mod_round()
+        - flyingcircus.divmod_round()
+    """
+    if (a >= 0) != (b >= 0) and a % b:
+        return a // b + 1
+    else:
+        return a // b
+
+
+# ======================================================================
+def mod_round(a, b):
+    """
+    Compute integer round modulus.
+
+    This behaves the same as C `%` operator on integers.
+
+    This is such that:
+
+    q = div_round(a, b)
+    r = mod_round(a, b)
+    q * b + r == a
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        r (int): The remainder.
+
+    Examples:
+        >>> mod_round(6, 3)
+        0
+        >>> mod_round(6, -3)
+        0
+        >>> mod_round(-6, 3)
+        0
+        >>> mod_round(-6, -3)
+        0
+        >>> mod_round(7, 3)
+        1
+        >>> mod_round(7, -3)
+        1
+        >>> mod_round(-7, 3)
+        -1
+        >>> mod_round(-7, -3)
+        -1
+        >>> mod_round(3, 7)
+        3
+        >>> mod_round(3, -7)
+        3
+        >>> mod_round(-3, 7)
+        -3
+        >>> mod_round(-3, -7)
+        -3
+        >>> mod_round(1, 1)
+        0
+        >>> mod_round(1, -1)
+        0
+        >>> mod_round(-1, 1)
+        0
+        >>> mod_round(-1, -1)
+        0
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.div_ceil()
+        - flyingcircus.mod_ceil()
+        - flyingcircus.divmod_ceil()
+        - flyingcircus.div_round()
+        - flyingcircus.divmod_round()
+    """
+    if a >= 0:
+        if b >= 0:
+            return a % b
+        else:
+            return a % -b
+    else:
+        if b >= 0:
+            return -(-a % b)
+        else:
+            return a % b
+
+
+# ======================================================================
+def divmod_round(a, b):
+    """
+    Compute integer round division and modulus.
+
+    This behaves the same as C `/` and `%` operators on integers.
+
+    This is such that:
+
+    q, r = divmod_round(a, b)
+    q * b + r == a
+
+    Args:
+        a (int): The dividend.
+        b (int): The divisor.
+
+    Returns:
+        r (int): The remainder.
+
+    Examples:
+        >>> n = 100
+        >>> l = list(range(-n, n + 1))
+        >>> ll = [(a, b) for a, b in itertools.product(l, repeat=2) if b]
+        >>> result = True
+        >>> for a, b in ll:
+        ...     q, r = divmod_round(a, b)
+        ...     result = result and (q == div_round(a, b))
+        ...     result = result and (r == mod_round(a, b))
+        ...     result = result and (q * b + r == a)
+        >>> print(result)
+        True
+
+    See Also:
+        - operator.div()
+        - operator.mod()
+        - divmod()
+        - flyingcircus.div_ceil()
+        - flyingcircus.mod_ceil()
+        - flyingcircus.divmod_ceil()
+        - flyingcircus.div_round()
+        - flyingcircus.mod_round()
+    """
+    if a >= 0:
+        if b >= 0:
+            r = a % b
+        else:
+            r = a % -b
+    else:
+        if b >= 0:
+            r = -(-a % b)
+        else:
+            r = a % b
+    return (a - r) // b, r
 
 
 # ======================================================================
