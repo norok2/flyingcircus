@@ -2628,10 +2628,6 @@ def selection_inplace(
         k (int): The input index.
             This is 0-based and supports negative indexing.
             The index is forced within boundaries.
-        start (int): The start index.
-            The index is forced within boundaries.
-        stop (int): The stop index (included).
-            The index is forced within boundaries.
 
     Returns:
         seq (MutableSequence): The partially sorted sequence.
@@ -2758,6 +2754,45 @@ def argsort(seq):
         True
     """
     return sorted(range(len(seq)), key=seq.__getitem__)
+
+
+# ======================================================================
+def insertion_sort_inplace(seq, start=0, stop=-1):
+    """
+    Sort a mutable sequence in-place using insertion sort.
+
+    This algorithm has: O(n) best-case, O(n²) average- and worst-case
+    performances but requires O(1) memory.
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> insertion_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> insertion_sort_inplace(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    for i in range(start + 1, stop + 1):
+        j = i
+        while j > start and seq[j - 1] > seq[j]:
+            seq[j], seq[j - 1] = seq[j - 1], seq[j]
+            j -= 1
+    return seq
+
 
 
 # ======================================================================
