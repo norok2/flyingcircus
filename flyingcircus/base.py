@@ -2757,9 +2757,7 @@ def argsort(seq):
         >>> print(list(y) == list(iter_at(list(iter_at(y, i)), j)))
         True
     """
-    indexes = list(range(len(seq)))
-    indexes.sort(key=seq.__getitem__)
-    return indexes
+    return sorted(range(len(seq)), key=seq.__getitem__)
 
 
 # ======================================================================
