@@ -5489,6 +5489,9 @@ def perm(n, k):
     Returns:
         result (int): The number of k-permutation of n items.
 
+    Raises:
+        ValueError: if the inputs are invalid.
+
     Examples:
         >>> perm(10, 5)
         30240
