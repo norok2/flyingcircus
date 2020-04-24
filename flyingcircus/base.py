@@ -5550,14 +5550,37 @@ def comb(n, k):
         [1, 10, 45, 120, 210, 252, 210, 120, 45, 10, 1]
         >>> [comb(11, i) for i in range(11 + 1)]
         [1, 11, 55, 165, 330, 462, 462, 330, 165, 55, 11, 1]
+
+        >>> N = 10
+        >>> for n in range(N):
+        ...     print([comb(n, k) for k in range(n + 1)])
+        [1]
+        [1, 1]
+        [1, 2, 1]
+        [1, 3, 3, 1]
+        [1, 4, 6, 4, 1]
+        [1, 5, 10, 10, 5, 1]
+        [1, 6, 15, 20, 15, 6, 1]
+        [1, 7, 21, 35, 35, 21, 7, 1]
+        [1, 8, 28, 56, 70, 56, 28, 8, 1]
+        [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
         >>> comb(0, 0)
         1
+        >>> comb(1, 1)
+        1
+
         >>> comb(1, 0)
         1
         >>> comb(0, 1)
         Traceback (most recent call last):
             ...
-        ValueError: Values must be non-negative and n >= k in comb(n, k)
+        ValueError: Values must be non-negative and n=0 >= k=1
+        >>> comb(1, 2)
+        Traceback (most recent call last):
+            ...
+        ValueError: Values must be non-negative and n=1 >= k=2
+        >>> comb(2, 1)
+        2
         >>> all(comb(n, k) * math.factorial(k) == perm(n, k)
         ...     for n in range(20) for k in range(n))
         True
@@ -5571,9 +5594,16 @@ def comb(n, k):
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Binomial_triangle
     """
-    if k > n or k < 0 or n < 0:
+    # : iterative (slower) implementation
+    # value = 1
+    # for i in range(n + 1):
+    #     if i in {k, n - k}:
+    #         break
+    #     value = value * (n - i) // (i + 1)
+    # return value
+    if not 0 <= k <= n:
         raise ValueError(
-            'Values must be non-negative and n >= k in comb(n, k)')
+            fmtm('Values must be non-negative and n={n} >= k={k}'))
     elif k > n - k:
         # return perm(n, k) // math.factorial(n - k)
         return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
