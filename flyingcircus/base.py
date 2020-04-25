@@ -2759,10 +2759,17 @@ def argsort(seq):
 # ======================================================================
 def insertion_sort_inplace(seq, start=0, stop=-1):
     """
-    Sort a mutable sequence in-place using insertion sort.
+    Sort in-place a sequence using insertion sort.
 
-    This algorithm has: O(n) best-case, O(n²) average- and worst-case
-    performances but requires O(1) memory.
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    The algorithm is:
+
+     - best-case: O(n)
+     - average-case: O(n²)
+     - worst-case: O(n²)
+     - memory: O(1)
+     - stable
 
     Args:
         seq (MutableSequence): The input sequence.
@@ -2782,6 +2789,18 @@ def insertion_sort_inplace(seq, start=0, stop=-1):
         >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
         >>> insertion_sort_inplace(seq, 3, 7)
         [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> insertion_sort_inplace(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> insertion_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> insertion_sort_inplace(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     """
     n = len(seq)
     start = valid_index(start, n)
@@ -2793,6 +2812,261 @@ def insertion_sort_inplace(seq, start=0, stop=-1):
             j -= 1
     return seq
 
+
+# ======================================================================
+def step_sort_inplace(
+        seq,
+        start=0,
+        stop=-1,
+        steps=None):
+    """
+    Sort in-place a sequence using step insertion (Shell) sort.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    The algorithm is:
+
+     - best-case: O(n log n)
+     - average-case: O(n log n) to O(n √n) -- depending on the steps
+     - worst-case: O(n log² n) to O(n²) -- depending on the steps
+     - memory: O(1)
+     - unstable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+        steps (Iterable[int]|None): The steps to use.
+            If None, uses pseudo-optimal values.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> step_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> step_sort_inplace(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> step_sort_inplace(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> step_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> step_sort_inplace(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    if steps is None:
+        steps = [1]
+        x = 4
+        while x < n:
+            steps.append(x)
+            x = x * 9 // 4
+        steps.reverse()
+    elif callable(steps):
+        steps = sorted(steps(n))
+        steps.reverse()
+    for step in steps:
+        for i in range(start + step, stop + 1):
+            temp = seq[i]
+            j = i
+            while j >= start + step and seq[j - step] > temp:
+                seq[j] = seq[j - step]
+                j -= step
+            seq[j] = temp
+    return seq
+
+
+# ======================================================================
+def quick_sort_inplace(
+        seq,
+        start=0,
+        stop=-1):
+    """
+    Sort in-place a sequence using quick (partition-exchange) sort.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    Uses an iterative approach, Hoare partitioning scheme
+    and pivoting using at middle and first third position (alternating).
+
+    The algorithm is:
+     - best-case: O(n log n)
+     - average-case: O(n log n)
+     - worst-case: O(n²)
+     - memory: O(log n) to O(n)
+     - unstable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort_inplace(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> quick_sort_inplace(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> quick_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> quick_sort_inplace(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    if (stop - start) < 2:
+        return seq
+    indices = [(start, stop)]
+    # : Lomuto partitioning and last item pivoting
+    # while indices:
+    #     # compute a partition
+    #     start, stop = indices.pop()
+    #     x = seq[stop]
+    #     p = start
+    #     for i in range(start, stop):
+    #         if seq[i] <= x:
+    #             seq[p], seq[i] = seq[i], seq[p]
+    #             p += 1
+    #     seq[p], seq[stop] = seq[stop], seq[p]
+    #     # update indices
+    #     if p - 1 > start:
+    #         indices.append((start, p - 1))
+    #     if stop > p + 1:
+    #         indices.append((p + 1, stop))
+    # return seq
+    k = 1
+    while indices:
+        start, stop = indices.pop()
+        # compute a partition
+        x = seq[start + (stop - start) // (2 + k)]
+        i = start
+        j = stop
+        while True:
+            while seq[i] < x:
+                i += 1
+            while seq[j] > x:
+                j -= 1
+            if i >= j:
+                break
+            else:
+                seq[i], seq[j] = seq[j], seq[i]
+                i += 1
+                j -= 1
+        # j contains the pivotal index
+        if j > start:
+            indices.append([start, j])
+        if stop > j + 1:
+            indices.append([j + 1, stop])
+        k = 0 if k else 1
+    return seq
+
+
+# ======================================================================
+def merge_sort_inplace(
+        seq,
+        start=0,
+        stop=-1):
+    """
+    Sort in-place a sequence using merge sort.
+
+    This is slower than `sorted()` or `list.sort()`.
+
+    Uses a bottom-up approach.
+    Note that the merge step is not in-place in the sense that it still
+    requires a memory buffer the size of the sequence.
+
+    The algorithm is:
+     - best-case: O(n log n)
+     - average-case: O(n log n)
+     - worst-case: O(n log n)
+     - memory: O(n)
+     - stable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort_inplace(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> quick_sort_inplace(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> quick_sort_inplace(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> quick_sort_inplace(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    temp = [None] * n
+    width = 1
+    while width <= n:
+        for l in range(start, stop + 1, 2 * width):
+            m = l + width
+            if m > n:
+                m = n
+            h = l + 2 * width
+            if h > n:
+                h = n
+            # merge
+            i, j = l, m
+            for k in range(l, h):
+                if i < m and (j >= h or seq[i] <= seq[j]):
+                    temp[k] = seq[i]
+                    i += 1
+                else:
+                    temp[k] = seq[j]
+                    j += 1
+        seq[:] = temp
+        width *= 2
+    return seq
 
 
 # ======================================================================
@@ -5446,7 +5720,8 @@ def ilog2(num):
         num (int): The input number.
 
     Returns:
-        result (int): The integer base-2 logarithm of num.
+        result (int): The integer base-2 logarithm of the abs(num).
+            If the input is zero, returns -1.
 
     Examples:
         >>> ilog2(1024)
@@ -5457,9 +5732,27 @@ def ilog2(num):
         10
         >>> ilog2(2 ** 400)
         400
+        >>> ilog2(-1024)
+        10
+        >>> ilog2(-1023)
+        9
+        >>> ilog2(-1025)
+        10
+        >>> ilog2(0)
+        -1
         >>> all(ilog2(2 ** i) == i for i in range(1000))
         True
+        >>> all(ilog2(-(2 ** i)) == i for i in range(1000))
+        True
     """
+    # : alternate (slower) method
+    # result = -1
+    # if n < 0:
+    #     n = -n
+    # while n > 0:
+    #     n >>= 1
+    #     result += 1
+    # return result
     return num.bit_length() - 1
 
 
