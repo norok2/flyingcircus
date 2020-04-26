@@ -158,8 +158,8 @@ def find_all(
         text,
         pattern,
         overlap=False,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Find all occurrences of the pattern in the text.
 
@@ -170,10 +170,10 @@ def find_all(
         text (str|bytes|bytearray): The input text.
         pattern (str|bytes|bytearray): The pattern to find.
         overlap (bool): Detect overlapping patterns.
-        start (int): The start index.
-            The index is forced within boundaries modulo len(seq).
-        stop (int): The stop index.
-            The index is forced within boundaries modulo len(seq).
+        first (int): The first index.
+            The index is forced within boundaries.
+        last (int): The last index (included).
+            The index is forced within boundaries.
 
     Yields:
         position (int): The position of the next finding.
@@ -208,13 +208,13 @@ def find_all(
     """
     n = len(text)
     if n > 0:
-        start = valid_index(start, n)
-        stop = valid_index(stop, n)
+        first = valid_index(first, n)
+        last = valid_index(last, n)
         offset = 1 if overlap else (len(pattern) or 1)
-        i = start
+        i = first
         while True:
             i = text.find(pattern, i)
-            if 0 <= i <= stop:
+            if 0 <= i <= last:
                 yield i
                 i += offset
             else:

@@ -1006,8 +1006,8 @@ def iter_at(
 def index_all(
         seq,
         item,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Find all occurrences of an item in an sequence.
 
@@ -1020,9 +1020,9 @@ def index_all(
     Args:
         seq (Sequence): The input sequence.
         item (Any): The item to find.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Yields:
@@ -1067,13 +1067,13 @@ def index_all(
     """
     n = len(seq)
     if n > 0:
-        start = valid_index(start, n)
-        stop = valid_index(stop, n)
-        i = start
+        first = valid_index(first, n)
+        last = valid_index(last, n)
+        i = first
         try:
             while True:
                 i = seq.index(item, i)
-                if i <= stop:
+                if i <= last:
                     yield i
                     i += 1
                 else:
@@ -1161,7 +1161,7 @@ def span(
     """
     Span consecutive numbers in a range.
 
-    This is useful to produce 1-based ranges, which start from 1 (if `start`
+    This is useful to produce 1-based ranges, which first from 1 (if `start`
     is not specified) and include the `stop` element (if the `step` parameter
     allows).
 
@@ -2501,8 +2501,8 @@ def deep_filter_map(
 # ======================================================================
 def reverse(
         seq,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Reverse in-place a sequence.
 
@@ -2512,15 +2512,15 @@ def reverse(
 
     Note that this is roughly equivalent to:
 
-    seq[start:stop + 1] = reversed(seq[start:stop + 1])
+    seq[first:last + 1] = reversed(seq[first:last + 1])
 
     but it does not require additional memory.
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -2546,16 +2546,16 @@ def reverse(
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    if start == 0 and stop == n - 1 and hasattr(seq, 'reverse'):
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    if first == 0 and last == n - 1 and hasattr(seq, 'reverse'):
         seq.reverse()
     else:
         # : faster, but not purely in-place, alternative
-        # seq[start:stop + 1] = seq[stop:start - 1:-1]
+        # seq[first:last + 1] = seq[last:first - 1:-1]
 
-        size = stop + start
-        for i in range(start, (size + 1) // 2):
+        size = last + first
+        for i in range(first, (size + 1) // 2):
             j = size - i
             seq[i], seq[j] = seq[j], seq[i]
     return seq
@@ -2564,8 +2564,8 @@ def reverse(
 # ======================================================================
 def shuffle(
         seq,
-        start=0,
-        stop=-1,
+        first=0,
+        last=-1,
         k=2):
     """
     Shuffle in-place a sequence.
@@ -2574,9 +2574,9 @@ def shuffle(
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
         k (int): Swap reduction factor.
             Larger values result in more speed and less randomness.
@@ -2587,15 +2587,15 @@ def shuffle(
 
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
+    first = valid_index(first, n)
+    last = valid_index(last, n)
     if k < 1:
         k = 1
-    if start > 0 and stop < n - 1 or k > 1:
-        stop_plus_1 = stop + 1
+    if first > 0 and last < n - 1 or k > 1:
+        stop = last + 1
         randrange = random.randrange
-        for i in range(start, stop_plus_1, k):
-            j = randrange(start, stop_plus_1)
+        for i in range(first, stop, k):
+            j = randrange(first, stop)
             seq[i], seq[j] = seq[j], seq[i]
     else:
         random.shuffle(seq)
@@ -2606,8 +2606,8 @@ def shuffle(
 def partition(
         seq,
         condition,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Partition in-place a sequence according to a specified condition.
 
@@ -2618,13 +2618,13 @@ def partition(
         condition (callable): The partitioning condition.
             Must have the following signature: condition(Any) -> bool.
             If the condition is met,
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-            If start < stop, the partitioning is performed forward,
+            If first < last, the partitioning is performed forward,
             otherwise the partitioning is performed backward.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
-            If start < stop, the partitioning is performed forward,
+            If first < last, the partitioning is performed forward,
             otherwise the partitioning is performed backward.
 
     Returns:
@@ -2659,25 +2659,25 @@ def partition(
         - flyingcircus.quick_sort()
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    step = 1 if start < stop else -1
-    for i in range(start, stop + step, step):
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    step = 1 if first < last else -1
+    for i in range(first, last + step, step):
         if condition(seq[i]):
-            seq[start], seq[i] = seq[i], seq[start]
-            start += step
+            seq[first], seq[i] = seq[i], seq[first]
+            first += step
     if step > 0:
-        return start
+        return first
     else:
-        return start + 1
+        return first + 1
 
 
 # ======================================================================
 def selection(
         seq,
         k,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Rearrange in-place a sequence so that the k-th element is at position k.
 
@@ -2694,10 +2694,10 @@ def selection(
         k (int): The input index.
             This is 0-based and supports negative indexing.
             The index is forced within boundaries.
-            If k is outside the (start, stop) range, the result is undefined.
-        start (int): The start index.
+            If k is not in the (first, last) interval, the result is undefined.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -2738,23 +2738,23 @@ def selection(
     """
     n = len(seq)
     k = valid_index(k, n)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    while start < stop:
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    while first < last:
         # : compute a partition (Lomuto), alternate (slower) method
-        # p = (start + stop) // 2
-        # seq[p], seq[stop] = seq[stop], seq[p]
-        # x = seq[stop]
-        # p = start
-        # for i in range(start, stop):
+        # p = (first + last) // 2
+        # seq[p], seq[last] = seq[last], seq[p]
+        # x = seq[last]
+        # p = first
+        # for i in range(first, last):
         #     if seq[i] < x:
         #         seq[p], seq[i] = seq[i], seq[p]
         #         p += 1
-        # seq[p], seq[stop] = seq[stop], seq[p]
+        # seq[p], seq[last] = seq[last], seq[p]
         # : compute a partition (Hoare)
-        x = seq[(stop + start) // 2]
-        i = start
-        j = stop
+        x = seq[(last + first) // 2]
+        i = first
+        j = last
         while True:
             while seq[i] < x:
                 i += 1
@@ -2771,9 +2771,9 @@ def selection(
         if p == k:
             return seq
         elif p > k:
-            stop = p - 1
+            last = p - 1
         else:
-            start = p + 1
+            first = p + 1
     return seq
 
 
@@ -2781,8 +2781,8 @@ def selection(
 def select_ordinal(
         seq,
         k,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Find the smallest k-th element in a sequence.
 
@@ -2796,10 +2796,10 @@ def select_ordinal(
         k (int): The input index.
             This is 0-based and supports negative indexing.
             If k > len(seq) or k < -len(seq), None is returned.
-            If k is outside the (start, stop) range, the result is undefined.
-        start (int): The start index.
+            If k is not in the (first, last) interval, the result is undefined.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -2837,7 +2837,7 @@ def select_ordinal(
     """
     n = len(seq)
     if -n <= k < n:
-        return selection(list(seq), k, start, stop)[k]
+        return selection(list(seq), k, first, last)[k]
     else:
         return None
 
@@ -2845,8 +2845,8 @@ def select_ordinal(
 # ======================================================================
 def insertion_sort(
         seq,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Sort in-place a sequence using insertion sort.
 
@@ -2864,9 +2864,9 @@ def insertion_sort(
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -2899,11 +2899,11 @@ def insertion_sort(
         - flyingcircus.merge_sort()
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    for i in range(start + 1, stop + 1):
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    for i in range(first + 1, last + 1):
         j = i
-        while j > start and seq[j - 1] > seq[j]:
+        while j > first and seq[j - 1] > seq[j]:
             seq[j], seq[j - 1] = seq[j - 1], seq[j]
             j -= 1
     return seq
@@ -2912,8 +2912,8 @@ def insertion_sort(
 # ======================================================================
 def step_sort(
         seq,
-        start=0,
-        stop=-1,
+        first=0,
+        last=-1,
         steps=None):
     """
     Sort in-place a sequence using step insertion (Shell) sort.
@@ -2932,9 +2932,9 @@ def step_sort(
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
         steps (Iterable[int]|None): The steps to use.
             If None, uses pseudo-optimal values.
@@ -2969,8 +2969,8 @@ def step_sort(
         - flyingcircus.merge_sort()
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
+    first = valid_index(first, n)
+    last = valid_index(last, n)
     if steps is None:
         steps = [1]
         x = 4
@@ -2981,12 +2981,12 @@ def step_sort(
     elif callable(steps):
         steps = sorted(steps(n))
         steps.reverse()
-    stop_plus_1 = stop + 1
+    stop = last + 1
     for step in steps:
-        for i in range(start + step, stop_plus_1):
+        for i in range(first + step, stop):
             temp = seq[i]
             j = i
-            while j >= start + step and seq[j - step] > temp:
+            while j >= first + step and seq[j - step] > temp:
                 seq[j] = seq[j - step]
                 j -= step
             seq[j] = temp
@@ -2996,8 +2996,8 @@ def step_sort(
 # ======================================================================
 def quick_sort(
         seq,
-        start=0,
-        stop=-1,
+        first=0,
+        last=-1,
         randomize=True):
     """
     Sort in-place a sequence using quick (partition-exchange) sort.
@@ -3018,9 +3018,9 @@ def quick_sort(
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
         randomize (bool): Shuffle the input before sorting.
             This render the worst case **very** unlikely.
@@ -3057,38 +3057,38 @@ def quick_sort(
         - flyingcircus.merge_sort()
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
+    first = valid_index(first, n)
+    last = valid_index(last, n)
     if randomize:
-        random.shuffle(seq[start:stop + 1])
-    indices = [(start, stop)]
+        random.shuffle(seq[first:last + 1])
+    indices = [(first, last)]
     # : Lomuto partitioning with mid pivoting
     # while indices:
     #     # compute a partition
-    #     start, stop = indices.pop()
-    #     p = (start + stop) // 2
-    #     seq[p], seq[stop] = seq[stop], seq[p]
-    #     x = seq[stop]
-    #     p = start
-    #     for i in range(start, stop):
+    #     first, last = indices.pop()
+    #     p = (first + last) // 2
+    #     seq[p], seq[last] = seq[last], seq[p]
+    #     x = seq[last]
+    #     p = first
+    #     for i in range(first, last):
     #         if seq[i] <= x:
     #             seq[p], seq[i] = seq[i], seq[p]
     #             p += 1
-    #     seq[p], seq[stop] = seq[stop], seq[p]
+    #     seq[p], seq[last] = seq[last], seq[p]
     #     # update indices
-    #     if p - 1 > start:
-    #         indices.append((start, p - 1))
-    #     if stop > p + 1:
-    #         indices.append((p + 1, stop))
+    #     if p - 1 > first:
+    #         indices.append((first, p - 1))
+    #     if last > p + 1:
+    #         indices.append((p + 1, last))
     # return seq
     # : Hoare partitioning with alternating first third and mid pivoting
     u = 1
     while indices:
-        start, stop = indices.pop()
+        first, last = indices.pop()
         # compute a partition
-        x = seq[start + (stop - start) // (2 + u)]
-        i = start
-        j = stop
+        x = seq[first + (last - first) // (2 + u)]
+        i = first
+        j = last
         while True:
             while seq[i] < x:
                 i += 1
@@ -3101,10 +3101,10 @@ def quick_sort(
                 i += 1
                 j -= 1
         # j contains the pivotal index
-        if j > start and j - start > 0:
-            indices.append([start, j])
-        if stop > j + 1 and stop - j > 1:
-            indices.append([j + 1, stop])
+        if j > first and j - first > 0:
+            indices.append([first, j])
+        if last > j + 1 and last - j > 1:
+            indices.append([j + 1, last])
         u = 0 if u else 1
     return seq
 
@@ -3112,8 +3112,8 @@ def quick_sort(
 # ======================================================================
 def merge_sort(
         seq,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Sort in-place a sequence using merge sort.
 
@@ -3134,9 +3134,9 @@ def merge_sort(
 
     Args:
         seq (MutableSequence): The input sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -3169,30 +3169,30 @@ def merge_sort(
         - flyingcircus.quick_sort()
     """
     n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    m = stop - start + 1
-    stop_plus_1 = stop + 1
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    m = last - first + 1
+    stop = last + 1
     temp = [None] * m
     width = 1
     while width <= n:
-        for l in range(start, stop_plus_1, 2 * width):
+        for l in range(first, stop, 2 * width):
             m = l + width
-            if m > stop_plus_1:
-                m = stop_plus_1
+            if m > stop:
+                m = stop
             h = l + 2 * width
-            if h > stop_plus_1:
-                h = stop_plus_1
+            if h > stop:
+                h = stop
             # merge
             i, j = l, m
-            for k in range(l - start, h - start):
+            for k in range(l - first, h - first):
                 if i < m and (j >= h or seq[i] <= seq[j]):
                     temp[k] = seq[i]
                     i += 1
                 else:
                     temp[k] = seq[j]
                     j += 1
-        seq[start:stop_plus_1] = temp
+        seq[first:stop] = temp
         width *= 2
     return seq
 
@@ -4850,17 +4850,17 @@ def search_sorted(
 def find_subseq(
         seq,
         subseq,
-        start=0,
-        stop=-1):
+        first=0,
+        last=-1):
     """
     Find occurrences of a sub-sequence in a sequence.
 
     Args:
         seq (Sequence): The input sequence.
         subseq (Sequence): The input sub-sequence.
-        start (int): The start index.
+        first (int): The first index.
             The index is forced within boundaries.
-        stop (int): The stop index (included).
+        last (int): The last index (included).
             The index is forced within boundaries.
 
     Yields:
@@ -4908,26 +4908,26 @@ def find_subseq(
     n = len(seq)
     m = len(subseq)
     if n > 0 and m > 0:
-        start = valid_index(start, n)
-        stop = valid_index(stop, n)
+        first = valid_index(first, n)
+        last = valid_index(last, n)
 
         # # : naive with fast looping, slicing and short-circuit
-        # for i in index_all(seq, subseq[0], start, stop - m + 1):
+        # for i in index_all(seq, subseq[0], first, last - m + 1):
         #     if seq[i + m - 1] == subseq[m - 1] and seq[i:i + m] == subseq:
         #         yield i
 
         # # : naive with looping
-        # for i in range(start, stop - m + 1):
+        # for i in range(first, last - m + 1):
         #     if all(seq[i + j] == subseq[j] for j in range(m)):
         #         yield i
 
         # # : naive with slicing
-        # for i in range(start, stop - m + 1):
+        # for i in range(first, last - m + 1):
         #     if seq[i:i + m] == subseq:
         #         yield i
 
         # # : naive with slicing and short-circuit
-        # for i in range(start, stop - m + 1):
+        # for i in range(first, last - m + 1):
         #     if seq[i] == subseq[0] and seq[i:i + m] == subseq:
         #         yield i
 
@@ -4946,27 +4946,27 @@ def find_subseq(
                 else:
                     offsets[j] = 0
                     j += 1
-        i = start
+        i = first
         j = 0
-        while i <= stop:
+        while i <= last:
             if seq[i] == subseq[j]:
                 i += 1
                 j += 1
             if j == m:
                 yield i - j
                 j = offsets[j - 1]
-            elif i <= stop and seq[i] != subseq[j]:
+            elif i <= last and seq[i] != subseq[j]:
                 if j != 0:
                     j = offsets[j - 1]
                 else:
                     i += 1
 
         # # : Rabin–Karp (RK) algorithm
-        # if seq[start:start + m] == subseq:
+        # if seq[first:first + m] == subseq:
         #     yield 0
         # hash_subseq = sum(hash(x) for x in subseq)
-        # curr_hash = sum(hash(x) for x in seq[start:start + m])
-        # for i in range(start + 1, stop - m + 2):
+        # curr_hash = sum(hash(x) for x in seq[first:first + m])
+        # for i in range(first + 1, last - m + 2):
         #     curr_hash += hash(seq[i + m - 1]) - hash(seq[i - 1])
         #     if hash_subseq == curr_hash and seq[i:i + m] == subseq:
         #         yield i
