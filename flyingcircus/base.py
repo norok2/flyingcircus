@@ -40,6 +40,7 @@ import struct  # Interpret strings as packed binary data
 import re  # Regular expression operations
 import fnmatch  # Unix filename pattern matching
 import bisect  # Array bisection algorithm
+# import heapq  # Heap queue algorithm
 import hashlib  # Secure hashes and message digests
 import base64  # Base16, Base32, Base64, Base85 Data Encodings
 import pickle  # Python object serialization
@@ -950,7 +951,8 @@ def multi_at(
             container = type(items)
         if not callable(container):
             container = tuple
-        return container(operator.itemgetter(*indexes)(items))
+        result = operator.itemgetter(*indexes)(items)
+        return result if container == tuple else container(result)
 
 
 # ======================================================================
@@ -1019,9 +1021,9 @@ def index_all(
         seq (Sequence): The input sequence.
         item (Any): The item to find.
         start (int): The start index.
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
         stop (int): The stop index (included).
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
 
     Yields:
         position (int): The position of the next finding.
@@ -2497,17 +2499,22 @@ def deep_filter_map(
 
 
 # ======================================================================
-def reverse_inplace(
+def reverse(
         seq,
         start=0,
         stop=-1):
     """
     Reverse in-place a sequence.
 
+    Warning! This function modifies its `seq` parameter.
+
     This supports also partial reversing.
 
     Note that this is roughly equivalent to:
+
     seq[start:stop + 1] = reversed(seq[start:stop + 1])
+
+    but it does not require additional memory.
 
     Args:
         seq (MutableSequence): The input sequence.
@@ -2523,14 +2530,19 @@ def reverse_inplace(
         >>> seq = list(range(10))
         >>> print(seq)
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        >>> print(reverse_inplace(seq))
+        >>> print(reverse(seq))
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
         >>> print(seq)
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
 
-        >>> print(reverse_inplace(seq, 3, 7))
+        >>> print(reverse(seq, 3, 7))
         [9, 8, 7, 2, 3, 4, 5, 6, 1, 0]
-        >>> print(reverse_inplace(seq, 3, 7))
+        >>> print(reverse(seq, 3, 7))
+        [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+
+        >>> print(reverse(seq, 3, 6))
+        [9, 8, 7, 3, 4, 5, 6, 2, 1, 0]
+        >>> print(reverse(seq, 3, 6))
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
     """
     n = len(seq)
@@ -2539,23 +2551,67 @@ def reverse_inplace(
     if start == 0 and stop == n - 1 and hasattr(seq, 'reverse'):
         seq.reverse()
     else:
-        seq[start:stop + 1] = seq[stop:start - 1:-1]
-    # : slower alternative (explicit looping)
-    # offset = stop + start
-    # for i in range(start, start + (stop - start + 1) // 2):
-    #     j = offset - i
-    #     seq[i], seq[j] = seq[j], seq[i]
+        # : faster, but not purely in-place, alternative
+        # seq[start:stop + 1] = seq[stop:start - 1:-1]
+
+        size = stop + start
+        for i in range(start, (size + 1) // 2):
+            j = size - i
+            seq[i], seq[j] = seq[j], seq[i]
     return seq
 
 
 # ======================================================================
-def partition_inplace(
+def shuffle(
+        seq,
+        start=0,
+        stop=-1,
+        k=2):
+    """
+    Shuffle in-place a sequence.
+
+    Warning! This function modifies its `seq` parameter.
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+        k (int): Swap reduction factor.
+            Larger values result in more speed and less randomness.
+            Must be 1 or more, otherwise it is ignored
+
+    Returns:
+        result (int): The shuffled sequence.
+
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    if k < 1:
+        k = 1
+    if start > 0 and stop < n - 1 or k > 1:
+        stop_plus_1 = stop + 1
+        randrange = random.randrange
+        for i in range(start, stop_plus_1, k):
+            j = randrange(start, stop_plus_1)
+            seq[i], seq[j] = seq[j], seq[i]
+    else:
+        random.shuffle(seq)
+    return seq
+
+
+# ======================================================================
+def partition(
         seq,
         condition,
         start=0,
         stop=-1):
     """
     Partition in-place a sequence according to a specified condition.
+
+    Warning! This function modifies its `seq` parameter.
 
     Args:
         seq (MutableSequence): The input sequence.
@@ -2576,27 +2632,31 @@ def partition_inplace(
 
     Examples:
         >>> seq = list(range(10))
-        >>> k = partition_inplace(seq, lambda x: x % 2 == 0)
+        >>> k = partition(seq, lambda x: x % 2 == 0)
         >>> print(seq[:k], seq[k:])
         [0, 2, 4, 6, 8] [5, 3, 7, 1, 9]
 
-        >>> k = partition_inplace(seq, lambda x: x >= 5)
+        >>> k = partition(seq, lambda x: x >= 5)
         >>> print(seq[:k], seq[k:])
         [6, 8, 5, 7, 9] [4, 3, 0, 1, 2]
 
-        >>> k = partition_inplace(seq, lambda x: x < 5)
+        >>> k = partition(seq, lambda x: x < 5)
         >>> print(seq[:k], seq[k:])
         [4, 3, 0, 1, 2] [6, 8, 5, 7, 9]
 
         >>> seq = list(range(10))
-        >>> k = partition_inplace(seq, lambda x: x % 5, 2, 8)
+        >>> k = partition(seq, lambda x: x % 5, 2, 8)
         >>> print(seq[2:k], seq[k:9])
         [2, 3, 4, 6, 7, 8] [5]
 
         >>> seq = list(range(10))
-        >>> k = partition_inplace(seq, lambda x: x % 2 == 0, -1, 0)
+        >>> k = partition(seq, lambda x: x % 2 == 0, -1, 0)
         >>> print(seq[:k], seq[k:])
         [5, 1, 9, 3, 7] [0, 2, 4, 6, 8]
+
+    See Also:
+        - flyingcircus.selection()
+        - flyingcircus.quick_sort()
     """
     n = len(seq)
     start = valid_index(start, n)
@@ -2613,11 +2673,17 @@ def partition_inplace(
 
 
 # ======================================================================
-def selection_inplace(
+def selection(
         seq,
-        k):
+        k,
+        start=0,
+        stop=-1):
     """
     Rearrange in-place a sequence so that the k-th element is at position k.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This uses quickselect with Hoare partitioning and mid pivoting.
 
     Essentially, this ensures that `seq[k]` is the k-th largest element.
     The order of the elements below or above `k` is ignored.
@@ -2627,6 +2693,11 @@ def selection_inplace(
         seq (MutableSequence): The input sequence.
         k (int): The input index.
             This is 0-based and supports negative indexing.
+            The index is forced within boundaries.
+            If k is outside the (start, stop) range, the result is undefined.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
             The index is forced within boundaries.
 
     Returns:
@@ -2639,32 +2710,64 @@ def selection_inplace(
 
         >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
         [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
-        >>> print(selection_inplace(seq, 2))
-        [0, 2, 4, 8, 6, 10, 12, 16, 18, 14]
+        >>> k = 2
+        >>> print(selection(seq, k)[k])
+        4
 
         >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
         [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
-        >>> print(selection_inplace(seq, 5))
-        [0, 2, 6, 8, 4, 10, 12, 16, 18, 14]
+        >>> k = 5
+        >>> print(selection(seq, k)[k])
+        10
 
         >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
         [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
-        >>> print(selection_inplace(seq, -1))
-        [2, 10, 6, 8, 4, 0, 12, 14, 16, 18]
+        >>> k = -1
+        >>> print(selection(seq, k)[k])
+        18
+
+        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
+        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> k = 7
+        >>> print(selection(seq, k, 1, 7)[k])
+        16
+
+    See Also:
+        - flyingcircus.partition()
+        - flyingcircus.quick_sort()
     """
     n = len(seq)
     k = valid_index(k, n)
-    start, stop = 0, n - 1
-    while start <= stop:
-        # compute a partition
-        x = seq[stop]
-        p = start
-        for i in range(start, stop):
-            if seq[i] <= x:
-                seq[p], seq[i] = seq[i], seq[p]
-                p += 1
-        seq[p], seq[stop] = seq[stop], seq[p]
-        # determine if p corresponds to k
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    while start < stop:
+        # : compute a partition (Lomuto), alternate (slower) method
+        # p = (start + stop) // 2
+        # seq[p], seq[stop] = seq[stop], seq[p]
+        # x = seq[stop]
+        # p = start
+        # for i in range(start, stop):
+        #     if seq[i] < x:
+        #         seq[p], seq[i] = seq[i], seq[p]
+        #         p += 1
+        # seq[p], seq[stop] = seq[stop], seq[p]
+        # : compute a partition (Hoare)
+        x = seq[(stop + start) // 2]
+        i = start
+        j = stop
+        while True:
+            while seq[i] < x:
+                i += 1
+            while seq[j] > x:
+                j -= 1
+            if i >= j:
+                break
+            else:
+                seq[i], seq[j] = seq[j], seq[i]
+                i += 1
+                j -= 1
+        p = j
+        # : determine if p corresponds to k
         if p == k:
             return seq
         elif p > k:
@@ -2677,26 +2780,39 @@ def selection_inplace(
 # ======================================================================
 def select_ordinal(
         seq,
-        k):
+        k,
+        start=0,
+        stop=-1):
     """
     Find the smallest k-th element in a sequence.
 
     This is roughly equivalent to, but asymptotically more efficient than:
     `sorted(seq)[k]`.
     The problem is also known as selection or k-th statistics.
-    This is the not-in-place version of `flyingcircus.select_ordinal_inplace()`
+    This is the not-in-place version of `flyingcircus.selection()`
 
     Args:
         seq (Sequence): The input sequence.
         k (int): The input index.
             This is 0-based and supports negative indexing.
             If k > len(seq) or k < -len(seq), None is returned.
+            If k is outside the (start, stop) range, the result is undefined.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
 
     Returns:
         result: The smallest k-th element.
 
     Examples:
-        >>> seq = tuple(2 * x for x in range(10))
+        >>> seq = [2 * x for x in range(10)]
+        >>> print(seq)
+        [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+        >>> random.seed(0); random.shuffle(seq)
+        >>> print(seq)
+        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> seq = tuple(seq)  # seq is now immutable
         >>> print(select_ordinal(seq, 0))
         0
         >>> print(select_ordinal(seq, 9))
@@ -2713,9 +2829,372 @@ def select_ordinal(
         None
         >>> print(select_ordinal(seq, -11))
         None
+        >>> print(select_ordinal(seq, 7, 1, 7))
+        16
+
+    See Also:
+        - flyingcircus.partition()
     """
     n = len(seq)
-    return selection_inplace(list(seq), k)[k] if -n <= k < n else None
+    if -n <= k < n:
+        return selection(list(seq), k, start, stop)[k]
+    else:
+        return None
+
+
+# ======================================================================
+def insertion_sort(
+        seq,
+        start=0,
+        stop=-1):
+    """
+    Sort in-place a sequence using insertion sort.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    The algorithm is:
+
+     - best-case: O(n)
+     - average-case: O(n²)
+     - worst-case: O(n²)
+     - memory: O(1)
+     - stable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> insertion_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> insertion_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> insertion_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> insertion_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> insertion_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.step_sort()
+        - flyingcircus.quick_sort()
+        - flyingcircus.merge_sort()
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    for i in range(start + 1, stop + 1):
+        j = i
+        while j > start and seq[j - 1] > seq[j]:
+            seq[j], seq[j - 1] = seq[j - 1], seq[j]
+            j -= 1
+    return seq
+
+
+# ======================================================================
+def step_sort(
+        seq,
+        start=0,
+        stop=-1,
+        steps=None):
+    """
+    Sort in-place a sequence using step insertion (Shell) sort.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    The algorithm is:
+
+     - best-case: O(n log n)
+     - average-case: O(n log n) to O(n √n) -- depending on the steps
+     - worst-case: O(n log² n) to O(n²) -- depending on the steps
+     - memory: O(1)
+     - unstable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+        steps (Iterable[int]|None): The steps to use.
+            If None, uses pseudo-optimal values.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> step_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> step_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> step_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> step_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> step_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.insertion_sort()
+        - flyingcircus.quick_sort()
+        - flyingcircus.merge_sort()
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    if steps is None:
+        steps = [1]
+        x = 4
+        while x < n:
+            steps.append(x)
+            x = x * 9 // 4
+        steps.reverse()
+    elif callable(steps):
+        steps = sorted(steps(n))
+        steps.reverse()
+    stop_plus_1 = stop + 1
+    for step in steps:
+        for i in range(start + step, stop_plus_1):
+            temp = seq[i]
+            j = i
+            while j >= start + step and seq[j - step] > temp:
+                seq[j] = seq[j - step]
+                j -= step
+            seq[j] = temp
+    return seq
+
+
+# ======================================================================
+def quick_sort(
+        seq,
+        start=0,
+        stop=-1,
+        randomize=True):
+    """
+    Sort in-place a sequence using quick (partition-exchange) sort.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    Uses an iterative approach, Hoare partitioning scheme
+    and pivoting using at middle and first third position (alternating).
+
+    The algorithm is:
+     - best-case: O(n log n)
+     - average-case: O(n log n)
+     - worst-case: O(n²)
+     - memory: O(log n) to O(n)
+     - unstable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+        randomize (bool): Shuffle the input before sorting.
+            This render the worst case **very** unlikely.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> quick_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> quick_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> quick_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> quick_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.partition()
+        - flyingcircus.selection()
+        - flyingcircus.insertion_sort()
+        - flyingcircus.step_sort())
+        - flyingcircus.merge_sort()
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    if randomize:
+        random.shuffle(seq[start:stop + 1])
+    indices = [(start, stop)]
+    # : Lomuto partitioning with mid pivoting
+    # while indices:
+    #     # compute a partition
+    #     start, stop = indices.pop()
+    #     p = (start + stop) // 2
+    #     seq[p], seq[stop] = seq[stop], seq[p]
+    #     x = seq[stop]
+    #     p = start
+    #     for i in range(start, stop):
+    #         if seq[i] <= x:
+    #             seq[p], seq[i] = seq[i], seq[p]
+    #             p += 1
+    #     seq[p], seq[stop] = seq[stop], seq[p]
+    #     # update indices
+    #     if p - 1 > start:
+    #         indices.append((start, p - 1))
+    #     if stop > p + 1:
+    #         indices.append((p + 1, stop))
+    # return seq
+    # : Hoare partitioning with alternating first third and mid pivoting
+    u = 1
+    while indices:
+        start, stop = indices.pop()
+        # compute a partition
+        x = seq[start + (stop - start) // (2 + u)]
+        i = start
+        j = stop
+        while True:
+            while seq[i] < x:
+                i += 1
+            while seq[j] > x:
+                j -= 1
+            if i >= j:
+                break
+            else:
+                seq[i], seq[j] = seq[j], seq[i]
+                i += 1
+                j -= 1
+        # j contains the pivotal index
+        if j > start and j - start > 0:
+            indices.append([start, j])
+        if stop > j + 1 and stop - j > 1:
+            indices.append([j + 1, stop])
+        u = 0 if u else 1
+    return seq
+
+
+# ======================================================================
+def merge_sort(
+        seq,
+        start=0,
+        stop=-1):
+    """
+    Sort in-place a sequence using merge sort.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`.
+
+    Uses a bottom-up approach.
+    Note that the merge step is not in-place in the sense that it still
+    requires a memory buffer the size of the sequence.
+
+    The algorithm is:
+     - best-case: O(n log n)
+     - average-case: O(n log n)
+     - worst-case: O(n log n)
+     - memory: O(n)
+     - stable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        start (int): The start index.
+            The index is forced within boundaries.
+        stop (int): The stop index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> merge_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> merge_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> merge_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> merge_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> merge_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.insertion_sort()
+        - flyingcircus.step_sort()
+        - flyingcircus.quick_sort()
+    """
+    n = len(seq)
+    start = valid_index(start, n)
+    stop = valid_index(stop, n)
+    m = stop - start + 1
+    stop_plus_1 = stop + 1
+    temp = [None] * m
+    width = 1
+    while width <= n:
+        for l in range(start, stop_plus_1, 2 * width):
+            m = l + width
+            if m > stop_plus_1:
+                m = stop_plus_1
+            h = l + 2 * width
+            if h > stop_plus_1:
+                h = stop_plus_1
+            # merge
+            i, j = l, m
+            for k in range(l - start, h - start):
+                if i < m and (j >= h or seq[i] <= seq[j]):
+                    temp[k] = seq[i]
+                    i += 1
+                else:
+                    temp[k] = seq[j]
+                    j += 1
+        seq[start:stop_plus_1] = temp
+        width *= 2
+    return seq
 
 
 # ======================================================================
@@ -2754,319 +3233,6 @@ def argsort(seq):
         True
     """
     return sorted(range(len(seq)), key=seq.__getitem__)
-
-
-# ======================================================================
-def insertion_sort_inplace(seq, start=0, stop=-1):
-    """
-    Sort in-place a sequence using insertion sort.
-
-    This is slower than `sorted()` or `list.sort()`, but uses less memory.
-
-    The algorithm is:
-
-     - best-case: O(n)
-     - average-case: O(n²)
-     - worst-case: O(n²)
-     - memory: O(1)
-     - stable
-
-    Args:
-        seq (MutableSequence): The input sequence.
-        start (int): The start index.
-            The index is forced within boundaries.
-        stop (int): The stop index (included).
-            The index is forced within boundaries.
-
-    Returns:
-        seq (MutableSequence): The sorted sequence.
-
-    Examples:
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> insertion_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> insertion_sort_inplace(seq, 3, 7)
-        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-
-        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-        >>> insertion_sort_inplace(seq)
-        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
-
-        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-        >>> insertion_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        >>> insertion_sort_inplace(seq)
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    """
-    n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    for i in range(start + 1, stop + 1):
-        j = i
-        while j > start and seq[j - 1] > seq[j]:
-            seq[j], seq[j - 1] = seq[j - 1], seq[j]
-            j -= 1
-    return seq
-
-
-# ======================================================================
-def step_sort_inplace(
-        seq,
-        start=0,
-        stop=-1,
-        steps=None):
-    """
-    Sort in-place a sequence using step insertion (Shell) sort.
-
-    This is slower than `sorted()` or `list.sort()`, but uses less memory.
-
-    The algorithm is:
-
-     - best-case: O(n log n)
-     - average-case: O(n log n) to O(n √n) -- depending on the steps
-     - worst-case: O(n log² n) to O(n²) -- depending on the steps
-     - memory: O(1)
-     - unstable
-
-    Args:
-        seq (MutableSequence): The input sequence.
-        start (int): The start index.
-            The index is forced within boundaries.
-        stop (int): The stop index (included).
-            The index is forced within boundaries.
-        steps (Iterable[int]|None): The steps to use.
-            If None, uses pseudo-optimal values.
-
-    Returns:
-        seq (MutableSequence): The sorted sequence.
-
-    Examples:
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> step_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> step_sort_inplace(seq, 3, 7)
-        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-
-        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-        >>> step_sort_inplace(seq)
-        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
-
-        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-        >>> step_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        >>> step_sort_inplace(seq)
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    """
-    n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    if steps is None:
-        steps = [1]
-        x = 4
-        while x < n:
-            steps.append(x)
-            x = x * 9 // 4
-        steps.reverse()
-    elif callable(steps):
-        steps = sorted(steps(n))
-        steps.reverse()
-    for step in steps:
-        for i in range(start + step, stop + 1):
-            temp = seq[i]
-            j = i
-            while j >= start + step and seq[j - step] > temp:
-                seq[j] = seq[j - step]
-                j -= step
-            seq[j] = temp
-    return seq
-
-
-# ======================================================================
-def quick_sort_inplace(
-        seq,
-        start=0,
-        stop=-1):
-    """
-    Sort in-place a sequence using quick (partition-exchange) sort.
-
-    This is slower than `sorted()` or `list.sort()`, but uses less memory.
-
-    Uses an iterative approach, Hoare partitioning scheme
-    and pivoting using at middle and first third position (alternating).
-
-    The algorithm is:
-     - best-case: O(n log n)
-     - average-case: O(n log n)
-     - worst-case: O(n²)
-     - memory: O(log n) to O(n)
-     - unstable
-
-    Args:
-        seq (MutableSequence): The input sequence.
-        start (int): The start index.
-            The index is forced within boundaries.
-        stop (int): The stop index (included).
-            The index is forced within boundaries.
-
-    Returns:
-        seq (MutableSequence): The sorted sequence.
-
-    Examples:
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> quick_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> quick_sort_inplace(seq, 3, 7)
-        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-
-        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-        >>> quick_sort_inplace(seq)
-        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
-
-        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-        >>> quick_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        >>> quick_sort_inplace(seq)
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    """
-    n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    if (stop - start) < 2:
-        return seq
-    indices = [(start, stop)]
-    # : Lomuto partitioning and last item pivoting
-    # while indices:
-    #     # compute a partition
-    #     start, stop = indices.pop()
-    #     x = seq[stop]
-    #     p = start
-    #     for i in range(start, stop):
-    #         if seq[i] <= x:
-    #             seq[p], seq[i] = seq[i], seq[p]
-    #             p += 1
-    #     seq[p], seq[stop] = seq[stop], seq[p]
-    #     # update indices
-    #     if p - 1 > start:
-    #         indices.append((start, p - 1))
-    #     if stop > p + 1:
-    #         indices.append((p + 1, stop))
-    # return seq
-    k = 1
-    while indices:
-        start, stop = indices.pop()
-        # compute a partition
-        x = seq[start + (stop - start) // (2 + k)]
-        i = start
-        j = stop
-        while True:
-            while seq[i] < x:
-                i += 1
-            while seq[j] > x:
-                j -= 1
-            if i >= j:
-                break
-            else:
-                seq[i], seq[j] = seq[j], seq[i]
-                i += 1
-                j -= 1
-        # j contains the pivotal index
-        if j > start:
-            indices.append([start, j])
-        if stop > j + 1:
-            indices.append([j + 1, stop])
-        k = 0 if k else 1
-    return seq
-
-
-# ======================================================================
-def merge_sort_inplace(
-        seq,
-        start=0,
-        stop=-1):
-    """
-    Sort in-place a sequence using merge sort.
-
-    This is slower than `sorted()` or `list.sort()`.
-
-    Uses a bottom-up approach.
-    Note that the merge step is not in-place in the sense that it still
-    requires a memory buffer the size of the sequence.
-
-    The algorithm is:
-     - best-case: O(n log n)
-     - average-case: O(n log n)
-     - worst-case: O(n log n)
-     - memory: O(n)
-     - stable
-
-    Args:
-        seq (MutableSequence): The input sequence.
-        start (int): The start index.
-            The index is forced within boundaries.
-        stop (int): The stop index (included).
-            The index is forced within boundaries.
-
-    Returns:
-        seq (MutableSequence): The sorted sequence.
-
-    Examples:
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> quick_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
-        >>> quick_sort_inplace(seq, 3, 7)
-        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-
-        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
-        >>> quick_sort_inplace(seq)
-        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
-
-        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-        >>> quick_sort_inplace(seq)
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        >>> quick_sort_inplace(seq)
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    """
-    n = len(seq)
-    start = valid_index(start, n)
-    stop = valid_index(stop, n)
-    temp = [None] * n
-    width = 1
-    while width <= n:
-        for l in range(start, stop + 1, 2 * width):
-            m = l + width
-            if m > n:
-                m = n
-            h = l + 2 * width
-            if h > n:
-                h = n
-            # merge
-            i, j = l, m
-            for k in range(l, h):
-                if i < m and (j >= h or seq[i] <= seq[j]):
-                    temp[k] = seq[i]
-                    i += 1
-                else:
-                    temp[k] = seq[j]
-                    j += 1
-        seq[:] = temp
-        width *= 2
-    return seq
 
 
 # ======================================================================
@@ -4693,9 +4859,9 @@ def find_subseq(
         seq (Sequence): The input sequence.
         subseq (Sequence): The input sub-sequence.
         start (int): The start index.
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
         stop (int): The stop index (included).
-            The index is forced within boundaries modulo len(seq).
+            The index is forced within boundaries.
 
     Yields:
         result (int): The index of the next match.
@@ -8464,9 +8630,9 @@ def median(
         - flyingcircus.sym_interquantilic_range()
         - flyingcircus.median_abs_dev()
     """
-    sorted_items = sorted(items) if force_sort else items
     n = len(items)
     i = n // 2
+    sorted_items = sorted(items) if force_sort else items
     if not (n % 2) and sorted_items[i - 1] != sorted_items[i]:
         median_ = (sorted_items[i - 1] + sorted_items[i]) / 2
     else:
@@ -8694,9 +8860,11 @@ def medoid(
     """
     Compute the medoid of an arbitrary sequence.
 
+    For larger inputs `select_ordinal()` may be faster.
+
     If more than one among median, medoid, quantile, quantiloid is needed,
     it is more efficient to sort the items prior to calling and then
-    perform the multiple required calle with `force_sort` set to False.
+    perform the multiple required calls with `force_sort` set to False.
 
     For iterative computation see:
      - `flyingcircus.next_medoid()`
@@ -8736,6 +8904,7 @@ def medoid(
         'n'
 
     See Also:
+        - flyingcirucs.select_ordinal()
         - flyingcircus.next_medoid()
         - flyingcircus.next_medoid_and_median()
         - flyingcircus.i_medoid()
@@ -8745,8 +8914,9 @@ def medoid(
         - flyingcircus.interquantilic_range()
         - flyingcircus.sym_interquantilic_range()
     """
+    n = len(items)
+    i = int(round((n - 1) / 2)) if lower else n // 2
     sorted_items = sorted(items) if force_sort else items
-    i = int(round((len(items) - 1) / 2)) if lower else len(items) // 2
     medoid_ = sorted_items[i]
     return medoid_
 
@@ -8812,15 +8982,14 @@ def quantiloid(
         - flyingcircus.interquantilic_range()
         - flyingcircus.sym_interquantilic_range()
     """
-    use_tuple = is_deep(factor)
     kk = auto_repeat(factor, 1, False, False)
     n = len(items)
-    sorted_items = sorted(items) if force_sort else items
-    result = tuple(
-        sorted_items[int(rounding(
-            (k if isinstance(k, float) else k / int_base) * (n - 1)))]
+    kk = tuple(
+        int(rounding((k if isinstance(k, float) else k / int_base) * (n - 1)))
         for k in kk)
-    return result if use_tuple else result[0]
+    sorted_items = sorted(items) if force_sort else items
+    result = operator.itemgetter(*kk)(sorted_items)
+    return result
 
 
 # ======================================================================
