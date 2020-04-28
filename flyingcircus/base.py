@@ -1167,13 +1167,13 @@ def span(
 
     Args:
         first (int): The first value of the span.
-            If `second == None` this is the `stop` value (the `start` value
-            being `1`) and it is included if `step` is a multiple of the
-            length of the sequence.
+            If `second` is None, the `start` value is 1 and this is the `stop`
+            value.
+            It is included if `step` is a multiple of the sequence length.
             Otherwise, this is the `start` value and it is always included.
-        second (int|None): The second value of the range.
+        second (int|None): The second value of the span.
             If None, the start value is 1.
-            Otherwise, this is the stop value and is included
+            Otherwise, this is the stop value and is included.
             if `step` is a multiple of the length of the sequence.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
@@ -2499,6 +2499,70 @@ def deep_filter_map(
 
 
 # ======================================================================
+def randint(
+        first,
+        second=None):
+    """
+    Pick a random integer in the specified range.
+
+    Note that this is roughly equivalent to (but faster than)
+    `random.randrange()` or `random.randint()`.
+
+    Args:
+        first (int): The first value of the range.
+            If `second` is None, the `start` value is 0 and this is the `stop`
+            value (not included in the range).
+            Otherwise, this is the `start` value and it is always included.
+        second (int|None): The second value of the range.
+            If None, the start value is 1 and the stop value is `first`.
+            Otherwise, this is the stop value and it is not included.
+
+    Returns:
+        result (int): The random value within the specified range.
+
+    Raises:
+        ValueError: if `first` and `second` would produce an empty range.
+            This happens if `second` is None and `first` is not positive, or
+            if `second <= first`.
+
+    Examples:
+        >>> random.seed(0); n = 16; [randint(n) for _ in range(n)]
+        [11, 12, 8, 12, 13, 1, 8, 14, 0, 15, 12, 13, 9, 10, 9, 14]
+
+        >>> random.seed(0); n = 16; [randint(10, 20) for _ in range(n)]
+        [13, 16, 12, 14, 16, 10, 14, 15, 18, 17, 16, 14, 12, 13, 14, 15]
+
+        >>> random.seed(0); n = 16; [randint(-10, 10) for _ in range(n)]
+        [-3, 2, -6, -2, 3, -9, -2, 0, 6, 5, 2, -1, -5, -4, -1, 0]
+
+        >>> random.seed(0); n = 16; [randint(-10, -5) for _ in range(n)]
+        [-9, -7, -9, -8, -7, -10, -8, -8, -6, -7, -7, -8, -9, -9, -8, -8]
+
+        >>> randint(10, 10)
+        Traceback (most recent call last):
+            ...
+        ValueError: The range size must be greater than 0
+        >>> randint(10, 5)
+        Traceback (most recent call last):
+            ...
+        ValueError: The range size must be greater than 0
+
+
+    """
+    if second is None:
+        size, offset = first, 0
+    else:
+        size, offset = second - first, first
+    if size > 0:
+        if offset:
+            return random.getrandbits(size.bit_length()) % size + offset
+        else:
+            return random.getrandbits(size.bit_length()) % size
+    else:
+        raise ValueError('The range size must be greater than 0')
+
+
+# ======================================================================
 def reverse(
         seq,
         first=0,
@@ -2566,7 +2630,8 @@ def shuffle(
         seq,
         first=0,
         last=-1,
-        k=2):
+        k=1,
+        rand_int_gen=None):
     """
     Shuffle in-place a sequence.
 
@@ -2581,24 +2646,62 @@ def shuffle(
         k (int): Swap reduction factor.
             Larger values result in more speed and less randomness.
             Must be 1 or more, otherwise it is ignored
+        rand_int_gen (callable|None): The random integer generator.
+            If None, uses `random.getrandbits()`.
 
     Returns:
         result (int): The shuffled sequence.
 
+    Examples:
+        >>> seq = list(range(16))
+        >>> print(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+        >>> seq = list(range(16)); random.seed(0)
+        >>> print(shuffle(seq))
+        [9, 5, 0, 14, 10, 7, 3, 13, 6, 8, 1, 2, 4, 11, 15, 12]
+
+        >>> seq = list(range(16)); random.seed(0)
+        >>> print(shuffle(seq, k=2))
+        [5, 0, 3, 11, 4, 9, 7, 6, 8, 1, 10, 2, 13, 15, 14, 12]
+
+        >>> seq = list(range(16)); random.seed(0)
+        >>> print(shuffle(seq, 6))
+        [0, 1, 2, 3, 4, 5, 9, 13, 12, 6, 7, 11, 14, 10, 8, 15]
+
+        >>> seq = list(range(16)); random.seed(0)
+        >>> print(shuffle(seq, 3, 13))
+        [0, 1, 2, 5, 10, 8, 12, 4, 3, 11, 13, 7, 9, 6, 14, 15]
+
+        >>> seq = list(range(16)); random.seed(0)
+        >>> print(shuffle(seq, 0, 13))
+        [11, 9, 5, 6, 3, 7, 12, 10, 13, 4, 8, 2, 0, 1, 14, 15]
+
+    See Also:
+        - random.shuffle()
+        - https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
     """
     n = len(seq)
     first = valid_index(first, n)
     last = valid_index(last, n)
     if k < 1:
         k = 1
-    if first > 0 and last < n - 1 or k > 1:
-        stop = last + 1
-        randrange = random.randrange
-        for i in range(first, stop, k):
-            j = randrange(first, stop)
+    # use Fisher-Yates shuffle (Durstenfeld method)
+    if callable(rand_int_gen):
+        for i in range(first, last, k):
+            j = rand_int_gen(i, last)
+            seq[i], seq[j] = seq[j], seq[i]
+    elif first > 0:
+        getrandbits = random.getrandbits
+        for i in range(first, last + k, k):
+            size = last - i + 1
+            j = getrandbits(size.bit_length()) % size + i
             seq[i], seq[j] = seq[j], seq[i]
     else:
-        random.shuffle(seq)
+        getrandbits = random.getrandbits
+        for i in range(last, first, -k):
+            j = getrandbits(n.bit_length()) % i
+            seq[i], seq[j] = seq[j], seq[i]
     return seq
 
 
@@ -2708,29 +2811,29 @@ def selection(
         >>> print(seq)
         [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 
-        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
-        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> random.seed(0); seq.sort(); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
         >>> k = 2
         >>> print(selection(seq, k)[k])
         4
 
-        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
-        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> random.seed(0); seq.sort(); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
         >>> k = 5
         >>> print(selection(seq, k)[k])
         10
 
-        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
-        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> random.seed(0); seq.sort(); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
         >>> k = -1
         >>> print(selection(seq, k)[k])
         18
 
-        >>> random.seed(0); seq.sort(); random.shuffle(seq); print(seq)
-        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> random.seed(0); seq.sort(); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
         >>> k = 7
         >>> print(selection(seq, k, 1, 7)[k])
-        16
+        18
 
     See Also:
         - flyingcircus.partition()
@@ -2741,8 +2844,8 @@ def selection(
     first = valid_index(first, n)
     last = valid_index(last, n)
     while first < last:
-        # : compute a partition (Lomuto), alternate (slower) method
-        # p = (first + last) // 2
+        # : compute a partition (Lomuto) and shrink extrema, alternate method
+        # p = (last + first) // 2
         # seq[p], seq[last] = seq[last], seq[p]
         # x = seq[last]
         # p = first
@@ -2751,8 +2854,16 @@ def selection(
         #         seq[p], seq[i] = seq[i], seq[p]
         #         p += 1
         # seq[p], seq[last] = seq[last], seq[p]
-        # : compute a partition (Hoare)
-        x = seq[(last + first) // 2]
+        # if p == k:
+        #     break
+        # elif p > k:
+        #     last = p - 1
+        # else:
+        #     first = p + 1
+
+        # : compute a partition (Hoare) and shrink extrema
+        p = (last + first) // 2
+        x = seq[p]
         i = first
         j = last
         while True:
@@ -2766,14 +2877,12 @@ def selection(
                 seq[i], seq[j] = seq[j], seq[i]
                 i += 1
                 j -= 1
-        p = j
-        # : determine if p corresponds to k
-        if p == k:
-            return seq
-        elif p > k:
-            last = p - 1
+        if k <= j:
+            last = j
         else:
-            first = p + 1
+            first = j + 1
+        if first == last:
+            break
     return seq
 
 
@@ -2809,9 +2918,8 @@ def select_ordinal(
         >>> seq = [2 * x for x in range(10)]
         >>> print(seq)
         [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
-        >>> random.seed(0); random.shuffle(seq)
-        >>> print(seq)
-        [14, 16, 2, 10, 6, 8, 4, 0, 18, 12]
+        >>> random.seed(0); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
         >>> seq = tuple(seq)  # seq is now immutable
         >>> print(select_ordinal(seq, 0))
         0
@@ -2830,7 +2938,7 @@ def select_ordinal(
         >>> print(select_ordinal(seq, -11))
         None
         >>> print(select_ordinal(seq, 7, 1, 7))
-        16
+        18
 
     See Also:
         - flyingcircus.partition()
@@ -3060,7 +3168,7 @@ def quick_sort(
     first = valid_index(first, n)
     last = valid_index(last, n)
     if randomize:
-        random.shuffle(seq[first:last + 1])
+        shuffle(seq, first, last)
     indices = [(first, last)]
     # : Lomuto partitioning with mid pivoting
     # while indices:
@@ -4539,10 +4647,10 @@ def random_unique_combinations_k(
         # randomize generators
         comb_gens = list(items)
         for num, comb_gen in enumerate(comb_gens):
-            random.shuffle(list(comb_gens[num]))
+            shuffle(list(comb_gens[num]))
         # get the first `k` combinations
         combs = list(itertools.islice(itertools.product(*comb_gens), k))
-        random.shuffle(combs)
+        shuffle(combs)
         for combination in itertools.islice(combs, k):
             yield container(combination)
     else:
@@ -4562,12 +4670,12 @@ def random_unique_combinations_k(
             # WARNING: if `k` is too close to the total number of combinations,
             # it may take a while until the next valid combination is found
             while len(index_combs) < min(k, max_k):
-                index_combs.add(tuple(
-                    random.randint(0, max_len - 1) for max_len in max_lens))
+                index_combs.add(
+                    tuple(randint(max_len) for max_len in max_lens))
             # make sure their order is shuffled
             # (`set` seems to sort its content)
             index_combs = list(index_combs)
-            random.shuffle(index_combs)
+            shuffle(index_combs)
             for index_comb in itertools.islice(index_combs, k):
                 yield container(item[i] for i, item in zip(index_comb, items))
 
@@ -4610,7 +4718,7 @@ def unique_partitions(
 # ======================================================================
 def latin_square(
         items,
-        shuffle=True,
+        randomize=True,
         cyclic=True,
         forward=True):
     """
@@ -4618,7 +4726,7 @@ def latin_square(
 
     Args:
         items (Sequence): The input items.
-        shuffle (bool): Shuffle the output "rows".
+        randomize (bool): Shuffle the output "rows".
         cyclic (bool): Generate cyclic permutations only.
         forward (bool): Determine how to advance through permutations.
             Note that for cyclic permutations (`cyclic == True`), this means
@@ -4634,7 +4742,7 @@ def latin_square(
     Examples:
         >>> random.seed(0)
         >>> latin_square(list(range(4)))
-        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
+        [[2, 3, 0, 1], [3, 0, 1, 2], [1, 2, 3, 0], [0, 1, 2, 3]]
 
         >>> latin_square(list(range(4)), False, False, False)
         [[3, 2, 1, 0], [2, 3, 0, 1], [1, 0, 3, 2], [0, 1, 2, 3]]
@@ -4647,35 +4755,35 @@ def latin_square(
 
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, False, False)
-        [[1, 0, 3, 2], [3, 2, 1, 0], [2, 3, 0, 1], [0, 1, 2, 3]]
+        [[1, 0, 3, 2], [0, 1, 2, 3], [2, 3, 0, 1], [3, 2, 1, 0]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, True, False)
-        [[2, 3, 0, 1], [0, 1, 2, 3], [3, 0, 1, 2], [1, 2, 3, 0]]
+        [[2, 3, 0, 1], [1, 2, 3, 0], [3, 0, 1, 2], [0, 1, 2, 3]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, False, True)
-        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 0, 3, 2], [3, 2, 1, 0]]
+        [[2, 3, 0, 1], [3, 2, 1, 0], [1, 0, 3, 2], [0, 1, 2, 3]]
         >>> random.seed(0)
         >>> latin_square(list(range(4)), True, True, True)
-        [[2, 3, 0, 1], [0, 1, 2, 3], [1, 2, 3, 0], [3, 0, 1, 2]]
+        [[2, 3, 0, 1], [3, 0, 1, 2], [1, 2, 3, 0], [0, 1, 2, 3]]
 
         >>> random.seed(0)
         >>> latin_square(tuple(range(4)))
-        [(2, 3, 0, 1), (0, 1, 2, 3), (1, 2, 3, 0), (3, 0, 1, 2)]
+        [(2, 3, 0, 1), (3, 0, 1, 2), (1, 2, 3, 0), (0, 1, 2, 3)]
 
         >>> random.seed(0)
         >>> latin_square('abcde')
-        ['cdeab', 'bcdea', 'abcde', 'eabcd', 'deabc']
+        ['bcdea', 'eabcd', 'deabc', 'abcde', 'cdeab']
         >>> print('\\n'.join(latin_square('0123456789')))
         1234567890
-        0123456789
-        4567890123
-        5678901234
-        3456789012
         2345678901
-        9012345678
-        6789012345
         7890123456
         8901234567
+        5678901234
+        9012345678
+        3456789012
+        4567890123
+        0123456789
+        6789012345
     """
     if cyclic:
         result = list(cyclic_permutations(items, forward))
@@ -4693,8 +4801,8 @@ def latin_square(
                     break
             if valid:
                 result.append(elems)
-    if shuffle:
-        random.shuffle(result)
+    if randomize:
+        shuffle(result)
     return result
 
 
@@ -6359,11 +6467,11 @@ def binomial_triangle(
         first (int): The first value of the range.
             Must be non-negative.
             If `second == None` this is the `stop` value, and is not included.
-            Otherwise, this is the start value and is included.
+            Otherwise, this is the `start` value and is included.
             If `first < second` the sequence is yielded backwards.
         second (int|None): The second value of the range.
             If None, the start value is 0.
-            Otherwise, this is the stop value and is not included.
+            Otherwise, this is the `stop` value and is not included.
             Must be non-negative.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
@@ -7373,7 +7481,7 @@ def get_k_factors(
         >>> get_k_factors(720, 3, mode='-')
         (45, 4, 4)
         >>> get_k_factors(720, 3, mode='seed0')
-        (12, 6, 10)
+        (45, 4, 4)
         >>> get_k_factors(720, 3, 'alt')
         (30, 4, 6)
         >>> get_k_factors(720, 3, 'alt1')
@@ -7391,11 +7499,11 @@ def get_k_factors(
         elif mode in ('decreasing', 'descending', '-'):
             factors = sorted(factors, reverse=True)
         elif mode == 'random':
-            random.shuffle(factors)
+            shuffle(factors)
         elif mode.startswith('seed'):
             seed = auto_convert(mode[len('seed'):])
             random.seed(seed)
-            random.shuffle(factors)
+            shuffle(factors)
         elif mode.startswith('alt'):
             try:
                 i = int(mode[len('alt'):]) % (len(factors) - 1)
@@ -9484,12 +9592,12 @@ def next_median(
 
         >>> items = list(items)
         >>> random.seed(0)
-        >>> random.shuffle(items)
+        >>> items = shuffle(items)
         >>> buffer = []
         >>> for i in items:
         ...     median_ = next_median(i, buffer, max_buffer=4)
         >>> print(median_)
-        26
+        12
 
     See Also:
         - flyingcircus.median()
@@ -9562,12 +9670,12 @@ def next_medoid(
 
         >>> items = list(items)
         >>> random.seed(0)
-        >>> random.shuffle(items)
+        >>> items = shuffle(items)
         >>> buffer = []
         >>> for i in items:
         ...     medoid_ = next_medoid(i, buffer, max_buffer=4)
         >>> print(medoid_)
-        26
+        12
 
     See Also:
         - flyingcircus.medoid()
@@ -9652,13 +9760,19 @@ def next_medoid_and_median(
 
         >>> items = list(items)
         >>> random.seed(0)
-        >>> random.shuffle(items)
+        >>> items = shuffle(items)
         >>> buffer = []
         >>> for i in items:
         ...     medoid_, median_ = next_medoid_and_median(
         ...         i, buffer, max_buffer=4)
         >>> print((medoid_, median_))
-        (26, 26)
+        (12, 12)
+        >>> buffer = []
+        >>> for i in items:
+        ...     medoid_, median_ = next_medoid_and_median(
+        ...         i, buffer, max_buffer=8)
+        >>> print((medoid_, median_))
+        (24, 24)
 
     See Also:
         - flyingcircus.median()
