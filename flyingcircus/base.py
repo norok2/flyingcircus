@@ -2794,7 +2794,8 @@ def selection(
 
     Warning! This function modifies its `seq` parameter.
 
-    This uses quickselect with Hoare partitioning and mid pivoting.
+    This implements quick-select using an iterative approach with
+    Hoare partitioning scheme.
 
     Essentially, this ensures that `seq[k]` is the k-th largest element.
     The order of the elements below or above `k` is ignored.
@@ -2814,7 +2815,11 @@ def selection(
             If int, this is passed as `k` parameter
             (shuffling reduction factor) to `flyingcircus.shuffle()`.
             This render the worst case **very** unlikely.
-        pivot (callable):
+        pivot (callable): The function for choosing the pivot index.
+            Must accept the following signature:
+            pivot(first: int, last: int): int
+            The arguments are the first and last indices of the subsequence
+            to be partitioned.
 
     Returns:
         seq (MutableSequence): The partially sorted sequence.
@@ -3083,7 +3088,11 @@ def quick_sort(
             If int, this is passed as `k` parameter
             (shuffling reduction factor) to `flyingcircus.shuffle()`.
             This render the worst case **very** unlikely.
-        pivot (callable):
+        pivot (callable): The function for choosing the pivot index.
+            Must accept the following signature:
+            pivot(first: int, last: int): int
+            The arguments are the first and last indices of the subsequence
+            to be partitioned.
 
     Returns:
         seq (MutableSequence): The sorted sequence.
