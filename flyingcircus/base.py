@@ -1429,13 +1429,13 @@ def multi_compare(
     Args:
         grouper (callable): Determine how to group multiple comparisons.
             Must accept the following signature:
-            multi_comparison(*Iterable[bool]) -> bool
+            multi_comparison(*Iterable[bool]): bool
             Can be either `all` or `any`, or any callable with the supported
             signature.
         items (Iterable): The input items.
         comparison (callable): Compute pair-wise comparison.
             Must accept the following signature:
-            comparison(Any, Any) -> bool
+            comparison(Any, Any): bool
         symmetric (bool): Assume that the comparison is symmetric.
             A comparison is symmetric if:
             comparison(a, b) == comparison(b, a).
@@ -2142,11 +2142,11 @@ def conditional_apply(
 
     Args:
         func (callable): A function to apply to an object.
-            Must have the following signature: func(Any) -> Any
+            Must have the following signature: func(Any): Any
         condition (callable|None): The condition function.
             If not None, the function `func` is applied to an object only
             if the condition on the object evaluates to True.
-            Must have the following signature: condition(Any) -> bool
+            Must have the following signature: condition(Any): bool
 
     Returns:
         result (callable): The conditional function.
@@ -2183,7 +2183,7 @@ def deep_map(
 
     Args:
         func (callable): The function to apply to the individual item.
-            Must have the following signature: func(Any) -> Any.
+            Must have the following signature: func(Any): Any.
         items (Iterable): The input items.
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
@@ -2249,7 +2249,7 @@ def deep_filter(
 
     Args:
         func (callable): The condition function to include the individual item.
-            Must have the following signature: func(Any) -> bool
+            Must have the following signature: func(Any): bool
         items (Iterable): The input items.
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
@@ -2316,7 +2316,7 @@ def deep_convert(
         container (callable|None): The container to apply.
             Must have the following signature:
             Must have the following signature:
-            container(Iterable) -> container.
+            container(Iterable): container.
             If None, no conversion is performed.
         items (Iterable): The input items.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
@@ -2401,16 +2401,16 @@ def deep_filter_map(
     Args:
         items (Iterable): The input items.
         func (callable): The function to apply to the individual item.
-            Must have the following signature: func(Any) -> Any.
+            Must have the following signature: func(Any): Any.
         map_condition (callable|None): The map condition function.
             Only items matching the condition are mapped.
-            Must have the following signature: map_condition(Any) -> bool.
+            Must have the following signature: map_condition(Any): bool.
         filter_condition (callable|None): The filter condition function.
             Only items matching the condition are included.
-            Must have the following signature: filter_condition(Any) -> bool.
+            Must have the following signature: filter_condition(Any): bool.
                 container (callable|None): The container to apply.
             Must have the following signature:
-            container(Iterable) -> container.
+            container(Iterable): container.
             If None, the original container is retained.
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
@@ -2499,9 +2499,10 @@ def deep_filter_map(
 
 
 # ======================================================================
-def randint(
+def random_int(
         first,
-        second=None):
+        second=None,
+        rand_bits=random.getrandbits):
     """
     Pick a random integer in the specified range.
 
@@ -2516,6 +2517,9 @@ def randint(
         second (int|None): The second value of the range.
             If None, the start value is 1 and the stop value is `first`.
             Otherwise, this is the stop value and it is not included.
+        rand_bits (callable): Function to generate random bits as int.
+            Must accept the following signature: rand_bits(n: int): int
+            The `n` parameter is the number of `bits`.
 
     Returns:
         result (int): The random value within the specified range.
@@ -2526,28 +2530,26 @@ def randint(
             if `second <= first`.
 
     Examples:
-        >>> random.seed(0); n = 16; [randint(n) for _ in range(n)]
+        >>> random.seed(0); n = 16; [random_int(n) for _ in range(n)]
         [11, 12, 8, 12, 13, 1, 8, 14, 0, 15, 12, 13, 9, 10, 9, 14]
 
-        >>> random.seed(0); n = 16; [randint(10, 20) for _ in range(n)]
+        >>> random.seed(0); n = 16; [random_int(10, 20) for _ in range(n)]
         [13, 16, 12, 14, 16, 10, 14, 15, 18, 17, 16, 14, 12, 13, 14, 15]
 
-        >>> random.seed(0); n = 16; [randint(-10, 10) for _ in range(n)]
+        >>> random.seed(0); n = 16; [random_int(-10, 10) for _ in range(n)]
         [-3, 2, -6, -2, 3, -9, -2, 0, 6, 5, 2, -1, -5, -4, -1, 0]
 
-        >>> random.seed(0); n = 16; [randint(-10, -5) for _ in range(n)]
+        >>> random.seed(0); n = 16; [random_int(-10, -5) for _ in range(n)]
         [-9, -7, -9, -8, -7, -10, -8, -8, -6, -7, -7, -8, -9, -9, -8, -8]
 
-        >>> randint(10, 10)
+        >>> random_int(10, 10)
         Traceback (most recent call last):
             ...
         ValueError: The range size must be greater than 0
-        >>> randint(10, 5)
+        >>> random_int(10, 5)
         Traceback (most recent call last):
             ...
         ValueError: The range size must be greater than 0
-
-
     """
     if second is None:
         size, offset = first, 0
@@ -2555,9 +2557,11 @@ def randint(
         size, offset = second - first, first
     if size > 0:
         if offset:
-            return random.getrandbits(size.bit_length()) % size + offset
+            return rand_bits(size.bit_length()) % size + offset
         else:
-            return random.getrandbits(size.bit_length()) % size
+            return rand_bits(size.bit_length()) % size
+    elif size == 0:
+        return offset
     else:
         raise ValueError('The range size must be greater than 0')
 
@@ -2616,11 +2620,17 @@ def reverse(
         seq.reverse()
     else:
         # : faster, but not purely in-place, alternative
+        # subseq = seq[first:last + 1]
+        # subseq.reverse()
+        # seq[first:last + 1] = subseq
+        # del subseq
+
+        # : faster, but not purely in-place, alternative
         # seq[first:last + 1] = seq[last:first - 1:-1]
 
-        size = last + first
-        for i in range(first, (size + 1) // 2):
-            j = size - i
+        m = last + first
+        for i in range(first, (m + 1) // 2):
+            j = m - i
             seq[i], seq[j] = seq[j], seq[i]
     return seq
 
@@ -2631,11 +2641,13 @@ def shuffle(
         first=0,
         last=-1,
         k=1,
-        rand_int_gen=None):
+        rand_int=random_int):
     """
     Shuffle in-place a sequence.
 
     Warning! This function modifies its `seq` parameter.
+
+    This use Fisher-Yates shuffle (Durstenfeld method).
 
     Args:
         seq (MutableSequence): The input sequence.
@@ -2646,8 +2658,11 @@ def shuffle(
         k (int): Swap reduction factor.
             Larger values result in more speed and less randomness.
             Must be 1 or more, otherwise it is ignored
-        rand_int_gen (callable|None): The random integer generator.
-            If None, uses `random.getrandbits()`.
+        rand_int (callable): The random integer generator.
+            Must accept the signature: rand_int(a: int, b: int|None): int
+            If `b` is None, must produce a random value in the [0, a) range
+            (0 is included, `a` is excluded), otherwise must produce a random
+            value in the [a, b) range (`a` is included, `b` is excluded)
 
     Returns:
         result (int): The shuffled sequence.
@@ -2679,6 +2694,8 @@ def shuffle(
 
     See Also:
         - random.shuffle()
+        - random.randrange()
+        - flyingcircus.random_int()
         - https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
     """
     n = len(seq)
@@ -2687,20 +2704,13 @@ def shuffle(
     if k < 1:
         k = 1
     # use Fisher-Yates shuffle (Durstenfeld method)
-    if callable(rand_int_gen):
+    if first > 0:
         for i in range(first, last, k):
-            j = rand_int_gen(i, last)
-            seq[i], seq[j] = seq[j], seq[i]
-    elif first > 0:
-        getrandbits = random.getrandbits
-        for i in range(first, last + k, k):
-            size = last - i + 1
-            j = getrandbits(size.bit_length()) % size + i
+            j = rand_int(i, last)
             seq[i], seq[j] = seq[j], seq[i]
     else:
-        getrandbits = random.getrandbits
         for i in range(last, first, -k):
-            j = getrandbits(n.bit_length()) % i
+            j = rand_int(i)
             seq[i], seq[j] = seq[j], seq[i]
     return seq
 
@@ -2719,7 +2729,7 @@ def partition(
     Args:
         seq (MutableSequence): The input sequence.
         condition (callable): The partitioning condition.
-            Must have the following signature: condition(Any) -> bool.
+            Must have the following signature: condition(Any): bool.
             If the condition is met,
         first (int): The first index.
             The index is forced within boundaries.
@@ -2780,7 +2790,8 @@ def selection(
         seq,
         k,
         first=0,
-        last=-1):
+        last=-1,
+        randomize=31):
     """
     Rearrange in-place a sequence so that the k-th element is at position k.
 
@@ -2802,6 +2813,10 @@ def selection(
             The index is forced within boundaries.
         last (int): The last index (included).
             The index is forced within boundaries.
+        randomize (bool|int): Pre-shuffle the input.
+            If int, this is passed as `k` parameter
+            (shuffling reduction factor) to `flyingcircus.shuffle()`.
+            This render the worst case **very** unlikely.
 
     Returns:
         seq (MutableSequence): The partially sorted sequence.
@@ -2843,6 +2858,8 @@ def selection(
     k = valid_index(k, n)
     first = valid_index(first, n)
     last = valid_index(last, n)
+    if randomize:
+        shuffle(seq, first, last, 2)
     while first < last:
         # : compute a partition (Lomuto) and shrink extrema, alternate method
         # p = (last + first) // 2
@@ -2881,73 +2898,7 @@ def selection(
             last = j
         else:
             first = j + 1
-        if first == last:
-            break
     return seq
-
-
-# ======================================================================
-def select_ordinal(
-        seq,
-        k,
-        first=0,
-        last=-1):
-    """
-    Find the smallest k-th element in a sequence.
-
-    This is roughly equivalent to, but asymptotically more efficient than:
-    `sorted(seq)[k]`.
-    The problem is also known as selection or k-th statistics.
-    This is the not-in-place version of `flyingcircus.selection()`
-
-    Args:
-        seq (Sequence): The input sequence.
-        k (int): The input index.
-            This is 0-based and supports negative indexing.
-            If k > len(seq) or k < -len(seq), None is returned.
-            If k is not in the (first, last) interval, the result is undefined.
-        first (int): The first index.
-            The index is forced within boundaries.
-        last (int): The last index (included).
-            The index is forced within boundaries.
-
-    Returns:
-        result: The smallest k-th element.
-
-    Examples:
-        >>> seq = [2 * x for x in range(10)]
-        >>> print(seq)
-        [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
-        >>> random.seed(0); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
-        >>> seq = tuple(seq)  # seq is now immutable
-        >>> print(select_ordinal(seq, 0))
-        0
-        >>> print(select_ordinal(seq, 9))
-        18
-        >>> print(select_ordinal(seq, 4))
-        8
-        >>> print(select_ordinal(seq, -10))
-        0
-        >>> print(select_ordinal(seq, -1))
-        18
-        >>> print(select_ordinal(seq, -6))
-        8
-        >>> print(select_ordinal(seq, 10))
-        None
-        >>> print(select_ordinal(seq, -11))
-        None
-        >>> print(select_ordinal(seq, 7, 1, 7))
-        18
-
-    See Also:
-        - flyingcircus.partition()
-    """
-    n = len(seq)
-    if -n <= k < n:
-        return selection(list(seq), k, first, last)[k]
-    else:
-        return None
 
 
 # ======================================================================
@@ -3130,7 +3081,9 @@ def quick_sort(
             The index is forced within boundaries.
         last (int): The last index (included).
             The index is forced within boundaries.
-        randomize (bool): Shuffle the input before sorting.
+        randomize (bool): Pre-shuffle the input.
+            If int, this is passed as `k` parameter
+            (shuffling reduction factor) to `flyingcircus.shuffle()`.
             This render the worst case **very** unlikely.
 
     Returns:
@@ -3168,7 +3121,7 @@ def quick_sort(
     first = valid_index(first, n)
     last = valid_index(last, n)
     if randomize:
-        shuffle(seq, first, last)
+        shuffle(seq, first, last, 2)
     indices = [(first, last)]
     # : Lomuto partitioning with mid pivoting
     # while indices:
@@ -3344,6 +3297,74 @@ def argsort(seq):
 
 
 # ======================================================================
+def select_ordinal(
+        seq,
+        k,
+        first=0,
+        last=-1):
+    """
+    Find the smallest k-th element in a sequence.
+
+    This is roughly equivalent to, but asymptotically more efficient than:
+    `sorted(seq)[k]`.
+    The problem is also known as selection or k-th statistics.
+    This is the not-in-place version of `flyingcircus.selection()`.
+    This is similar to `flyingcircus.medoid()` and `flyingcircus.quantiloid()`,
+    except that the arguments are different and they are potentially faster.
+
+    Args:
+        seq (Sequence): The input sequence.
+        k (int): The input index.
+            This is 0-based and supports negative indexing.
+            If k > len(seq) or k < -len(seq), None is returned.
+            If k is not in the (first, last) interval, the result is undefined.
+        first (int): The first index.
+            The index is forced within boundaries.
+        last (int): The last index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        result: The smallest k-th element.
+
+    Examples:
+        >>> seq = [2 * x for x in range(10)]
+        >>> print(seq)
+        [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
+        >>> random.seed(0); print(shuffle(seq))
+        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        >>> seq = tuple(seq)  # seq is now immutable
+        >>> print(select_ordinal(seq, 0))
+        0
+        >>> print(select_ordinal(seq, 9))
+        18
+        >>> print(select_ordinal(seq, 4))
+        8
+        >>> print(select_ordinal(seq, -10))
+        0
+        >>> print(select_ordinal(seq, -1))
+        18
+        >>> print(select_ordinal(seq, -6))
+        8
+        >>> print(select_ordinal(seq, 10))
+        None
+        >>> print(select_ordinal(seq, -11))
+        None
+        >>> print(select_ordinal(seq, 7, 1, 7))
+        18
+
+    See Also:
+        - flyingcircus.partition()
+        - flyingcircus.medoid()
+        - flyingcircus.quantiloid()
+    """
+    n = len(seq)
+    if -n <= k < n:
+        return selection(list(seq), k, first, last)[k]
+    else:
+        return None
+
+
+# ======================================================================
 def uniques(items):
     """
     Get unique items (keeping order of appearance).
@@ -3390,7 +3411,7 @@ def combine_iter_len(
     Args:
         items (Iterable): The collection of items to inspect.
         combine (callable): The combination method.
-            Must have the following signature: combine(int, int) -> int.
+            Must have the following signature: combine(int, int): int.
             The lengths are combined incrementally.
         non_seq_len (int): The length of non-sequence items.
             Typical choices are `0` or `1` depending on the application.
@@ -3850,11 +3871,11 @@ def rolling(
         seq (Sequence[Any]): The input sequence.
         size (int): The rolling window.
         func (callable): The function to compute.
-            Must have the following signature: func(Sequence) -> Any
+            Must have the following signature: func(Sequence): Any
             If `update` is a callable provided, this serves as initialization.
         update (callable|None): The updating function.
             Must have the following signature:
-            func(last_value, new_item, old_item, size) -> Any
+            func(last_value, new_item, old_item, size): Any
         fill (Any|None): The filling value.
             If None, the rolling starts and stops at the edges of the sequence.
             Otherwise, the fill value is used to compute partial windows
@@ -4671,7 +4692,7 @@ def random_unique_combinations_k(
             # it may take a while until the next valid combination is found
             while len(index_combs) < min(k, max_k):
                 index_combs.add(
-                    tuple(randint(max_len) for max_len in max_lens))
+                    tuple(random_int(max_len) for max_len in max_lens))
             # make sure their order is shuffled
             # (`set` seems to sort its content)
             index_combs = list(index_combs)
@@ -4817,7 +4838,7 @@ def is_sorted(
     Args:
         items (Iterable): The input items.
         compare (callable): The comparison function.
-            Must have the signature: compare(Any, Any) -> bool.
+            Must have the signature: compare(Any, Any): bool.
         both (bool): Compare the items both forward and backward.
 
     Returns:
@@ -8968,7 +8989,7 @@ def medoid(
     """
     Compute the medoid of an arbitrary sequence.
 
-    For larger inputs `select_ordinal()` may be faster.
+    For some inputs `select_ordinal()` may be faster.
 
     If more than one among median, medoid, quantile, quantiloid is needed,
     it is more efficient to sort the items prior to calling and then
@@ -9040,6 +9061,7 @@ def quantiloid(
     Compute the quantiloid of an arbitrary sequence.
 
     There is no efficient iterative version for any arbitrary factor.
+    For some inputs `select_ordinal()` may be faster.
 
     If more than one among median, medoid, quantile, quantiloid is needed,
     it is more efficient to sort the items prior to calling and then
@@ -9051,7 +9073,8 @@ def quantiloid(
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` to get to the [0, 1] range.
-        int_base (int|float): The denominator used to scale integer factors.
+        int_base (int|None): The denominator for scaling integer factors.
+            If None (or zero), uses `len(items)`.
         rounding (callable): The rounding to use for determining the index.
             Use `round` to pick the closest index.
             Use `math.floor` to pick the lower index.
@@ -9090,8 +9113,10 @@ def quantiloid(
         - flyingcircus.interquantilic_range()
         - flyingcircus.sym_interquantilic_range()
     """
-    kk = auto_repeat(factor, 1, False, False)
     n = len(items)
+    if not int_base:
+        int_base = n
+    kk = auto_repeat(factor, 1, False, False)
     kk = tuple(
         int(rounding((k if isinstance(k, float) else k / int_base) * (n - 1)))
         for k in kk)
@@ -10979,7 +11004,7 @@ def same_file(
         files (Iterable[file]): The input file objects.
         grouper (callable): Determine how to group multiple comparisons.
             Must accept the following signature:
-            grouper(*Iterable[bool]) -> bool
+            grouper(*Iterable[bool]): bool
             Can be either `all` or `any`, or any callable with the supported
             signature.
         on_error (bool): Determine what to do if `fileno` is unsupported.
@@ -11298,7 +11323,7 @@ def process_stream(
             See `flyingcircus.auto_open()` for more details.
         func (callable): The conversion function.
             Must accept a string or bytes (depending on `as_binary`) as first
-            argument: func(str|bytes, *args, **kws) -> str|bytes
+            argument: func(str|bytes, *args, **kws): str|bytes
         args (Iterable|None): Positional arguments for `func()`.
         kws (Mappable|None): Keyword arguments for `func()`.
         block_size (int): The block size to use.
@@ -11388,7 +11413,7 @@ def hash_file(
             `md5`, `sha1`, `sha256`, `sha512`.
         filtering (callable|None): The filtering function.
             If callable, must have the following signature:
-            filtering(bytes) -> bytes|str.
+            filtering(bytes): bytes|str.
             If None, no additional filering is performed.
         coding (str): The coding for converting the returning object to str.
             If str, must be a valid coding.
@@ -11427,13 +11452,13 @@ def hash_object(
         obj: The input object.
         serializer (callable): The function used to convert the object.
             Must have the following signature:
-            serializer(Any) -> bytes
+            serializer(Any): bytes
         hash_algorithm (callable): The hashing algorithm.
             This must support the methods provided by `hashlib` module, like
             `md5`, `sha1`, `sha256`, `sha512`.
         filtering (callable|None): The filtering function.
             If callable, must have the following signature:
-            filtering(bytes) -> bytes.
+            filtering(bytes): bytes.
             If None, no additional filering is performed.
         coding (str): The coding for converting the returning object to str.
             If str, must be a valid coding.
@@ -11471,11 +11496,11 @@ def from_cached(
             This is processed by `format` with `locals()`.
         save_func (callable): The function used to save caching file.
             Must have the following signature:
-            save_func(file_obj, Any) -> None
+            save_func(file_obj, Any): None
             The value returned from `save_func` is not used.
         load_func (callable): The function used to load caching file.
             Must have the following signature:
-            load_func(file_obj) -> Any
+            load_func(file_obj): Any
         force (bool): Force the calculation, regardless of caching state.
 
     Returns:
@@ -14308,7 +14333,7 @@ def multi_scale_to_int(
             It must be a 2-tuple of int or None.
             None entries are replaced by `len(scales)`.
         combine (callable|None): The function for combining pad width scales.
-            Must accept: combine(Sequence[int]) -> int|float
+            Must accept: combine(Sequence[int]): int|float
             This is used to compute a reference scaling value for the
             float to int conversion, using `combine(scales)`.
             For the int values of `width`, this parameter has no effect.
@@ -14528,11 +14553,11 @@ def time_profile(
             Must be at least 1.
         val_func (callable|None): Compute timing value from batch times.
             If callable, must have the signature:
-            func(Sequence[int|float]) -> int|float
+            func(Sequence[int|float]): int|float
             If None, uses the mean of the runtimes.
         err_func (callable|None): Compute timing error from batch times.
             If callable, must have the signature:
-            func(Sequence[int|float]) -> int|float
+            func(Sequence[int|float]): int|float
             If None, uses the standard deviation of the mean of the runtimes.
         timer (callable): The function used to measure the timings.
         use_gc (bool): Use the garbage collection during the timing.
@@ -14698,9 +14723,9 @@ def multi_benchmark(
             Each item correspond to an element of `funcs`.
         input_sizes (Iterable[int]): The input sizes.
         gen_input (callable): The function used to generate the input.
-            Must have the signature: gen_input(int) -> Any.
+            Must have the signature: gen_input(int): Any.
         equal_output (callable): The function used to compare the output.
-            Must have the signature: gen_input(Any, Any) -> bool.
+            Must have the signature: gen_input(Any, Any): bool.
         time_prof_kws (Mappable|None): Keyword parameters for `time_profile`.
             These are passed to `flyingcircus.time_profile()`.
         store_all (bool): Store all results.
