@@ -2532,20 +2532,16 @@ def random_int(
     Examples:
         >>> random.seed(0); n = 16; [random_int(n) for _ in range(n)]
         [11, 12, 8, 12, 13, 1, 8, 14, 0, 15, 12, 13, 9, 10, 9, 14]
-
         >>> random.seed(0); n = 16; [random_int(10, 20) for _ in range(n)]
         [13, 16, 12, 14, 16, 10, 14, 15, 18, 17, 16, 14, 12, 13, 14, 15]
-
         >>> random.seed(0); n = 16; [random_int(-10, 10) for _ in range(n)]
         [-3, 2, -6, -2, 3, -9, -2, 0, 6, 5, 2, -1, -5, -4, -1, 0]
-
         >>> random.seed(0); n = 16; [random_int(-10, -5) for _ in range(n)]
         [-9, -7, -9, -8, -7, -10, -8, -8, -6, -7, -7, -8, -9, -9, -8, -8]
-
+        >>> random_int(0)
+        0
         >>> random_int(10, 10)
-        Traceback (most recent call last):
-            ...
-        ValueError: The range size must be greater than 0
+        10
         >>> random_int(10, 5)
         Traceback (most recent call last):
             ...
@@ -2674,11 +2670,11 @@ def shuffle(
 
         >>> seq = list(range(16)); random.seed(0)
         >>> print(shuffle(seq))
-        [9, 5, 0, 14, 10, 7, 3, 13, 6, 8, 1, 2, 4, 11, 15, 12]
+        [15, 8, 1, 10, 5, 11, 3, 9, 7, 4, 0, 14, 2, 12, 6, 13]
 
         >>> seq = list(range(16)); random.seed(0)
         >>> print(shuffle(seq, k=2))
-        [5, 0, 3, 11, 4, 9, 7, 6, 8, 1, 10, 2, 13, 15, 14, 12]
+        [7, 9, 2, 11, 4, 0, 15, 3, 8, 5, 10, 1, 12, 6, 14, 13]
 
         >>> seq = list(range(16)); random.seed(0)
         >>> print(shuffle(seq, 6))
@@ -2690,7 +2686,7 @@ def shuffle(
 
         >>> seq = list(range(16)); random.seed(0)
         >>> print(shuffle(seq, 0, 13))
-        [11, 9, 5, 6, 3, 7, 12, 10, 13, 4, 8, 2, 0, 1, 14, 15]
+        [7, 8, 5, 9, 3, 10, 11, 2, 13, 12, 4, 1, 6, 0, 14, 15]
 
     See Also:
         - random.shuffle()
@@ -2706,7 +2702,7 @@ def shuffle(
     # use Fisher-Yates shuffle (Durstenfeld method)
     if first > 0:
         for i in range(first, last, k):
-            j = rand_int(i, last)
+            j = rand_int(i, last + 1)
             seq[i], seq[j] = seq[j], seq[i]
     else:
         for i in range(last, first, -k):
@@ -2791,7 +2787,8 @@ def selection(
         k,
         first=0,
         last=-1,
-        randomize=31):
+        randomize=False,
+        pivot=random_int):
     """
     Rearrange in-place a sequence so that the k-th element is at position k.
 
@@ -2817,6 +2814,7 @@ def selection(
             If int, this is passed as `k` parameter
             (shuffling reduction factor) to `flyingcircus.shuffle()`.
             This render the worst case **very** unlikely.
+        pivot (callable):
 
     Returns:
         seq (MutableSequence): The partially sorted sequence.
@@ -2827,25 +2825,25 @@ def selection(
         [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
 
         >>> random.seed(0); seq.sort(); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        [4, 18, 10, 14, 0, 6, 2, 16, 12, 8]
         >>> k = 2
         >>> print(selection(seq, k)[k])
         4
 
         >>> random.seed(0); seq.sort(); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        [4, 18, 10, 14, 0, 6, 2, 16, 12, 8]
         >>> k = 5
         >>> print(selection(seq, k)[k])
         10
 
         >>> random.seed(0); seq.sort(); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        [4, 18, 10, 14, 0, 6, 2, 16, 12, 8]
         >>> k = -1
         >>> print(selection(seq, k)[k])
         18
 
         >>> random.seed(0); seq.sort(); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        [4, 18, 10, 14, 0, 6, 2, 16, 12, 8]
         >>> k = 7
         >>> print(selection(seq, k, 1, 7)[k])
         18
@@ -2859,10 +2857,10 @@ def selection(
     first = valid_index(first, n)
     last = valid_index(last, n)
     if randomize:
-        shuffle(seq, first, last, 2)
+        shuffle(seq, first, last, k=randomize)
     while first < last:
         # : compute a partition (Lomuto) and shrink extrema, alternate method
-        # p = (last + first) // 2
+        # p = pivot(first, last + 1)
         # seq[p], seq[last] = seq[last], seq[p]
         # x = seq[last]
         # p = first
@@ -2879,7 +2877,7 @@ def selection(
         #     first = p + 1
 
         # : compute a partition (Hoare) and shrink extrema
-        p = (last + first) // 2
+        p = pivot(first, last + 1)
         x = seq[p]
         i = first
         j = last
@@ -3057,7 +3055,8 @@ def quick_sort(
         seq,
         first=0,
         last=-1,
-        randomize=True):
+        randomize=False,
+        pivot=random_int):
     """
     Sort in-place a sequence using quick (partition-exchange) sort.
 
@@ -3065,8 +3064,7 @@ def quick_sort(
 
     This is slower than `sorted()` or `list.sort()`, but uses less memory.
 
-    Uses an iterative approach, Hoare partitioning scheme
-    and pivoting using at middle and first third position (alternating).
+    Uses an iterative approach with Hoare partitioning scheme.
 
     The algorithm is:
      - best-case: O(n log n)
@@ -3085,6 +3083,7 @@ def quick_sort(
             If int, this is passed as `k` parameter
             (shuffling reduction factor) to `flyingcircus.shuffle()`.
             This render the worst case **very** unlikely.
+        pivot (callable):
 
     Returns:
         seq (MutableSequence): The sorted sequence.
@@ -3121,13 +3120,13 @@ def quick_sort(
     first = valid_index(first, n)
     last = valid_index(last, n)
     if randomize:
-        shuffle(seq, first, last, 2)
+        shuffle(seq, first, last, randomize)
     indices = [(first, last)]
     # : Lomuto partitioning with mid pivoting
     # while indices:
     #     # compute a partition
     #     first, last = indices.pop()
-    #     p = (first + last) // 2
+    #     p = pivot(first, last + 1)
     #     seq[p], seq[last] = seq[last], seq[p]
     #     x = seq[last]
     #     p = first
@@ -3143,11 +3142,11 @@ def quick_sort(
     #         indices.append((p + 1, last))
     # return seq
     # : Hoare partitioning with alternating first third and mid pivoting
-    u = 1
     while indices:
         first, last = indices.pop()
         # compute a partition
-        x = seq[first + (last - first) // (2 + u)]
+        p = pivot(first, last + 1)
+        x = seq[p]
         i = first
         j = last
         while True:
@@ -3166,7 +3165,6 @@ def quick_sort(
             indices.append([first, j])
         if last > j + 1 and last - j > 1:
             indices.append([j + 1, last])
-        u = 0 if u else 1
     return seq
 
 
@@ -3331,7 +3329,7 @@ def select_ordinal(
         >>> print(seq)
         [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
         >>> random.seed(0); print(shuffle(seq))
-        [16, 18, 6, 14, 0, 2, 4, 10, 12, 8]
+        [4, 18, 10, 14, 0, 6, 2, 16, 12, 8]
         >>> seq = tuple(seq)  # seq is now immutable
         >>> print(select_ordinal(seq, 0))
         0
@@ -4793,16 +4791,16 @@ def latin_square(
 
         >>> random.seed(0)
         >>> latin_square('abcde')
-        ['bcdea', 'eabcd', 'deabc', 'abcde', 'cdeab']
+        ['eabcd', 'abcde', 'deabc', 'bcdea', 'cdeab']
         >>> print('\\n'.join(latin_square('0123456789')))
-        1234567890
-        2345678901
         7890123456
         8901234567
         5678901234
         9012345678
         3456789012
         4567890123
+        1234567890
+        2345678901
         0123456789
         6789012345
     """
@@ -7502,7 +7500,7 @@ def get_k_factors(
         >>> get_k_factors(720, 3, mode='-')
         (45, 4, 4)
         >>> get_k_factors(720, 3, mode='seed0')
-        (45, 4, 4)
+        (18, 10, 4)
         >>> get_k_factors(720, 3, 'alt')
         (30, 4, 6)
         >>> get_k_factors(720, 3, 'alt1')
@@ -9795,7 +9793,7 @@ def next_medoid_and_median(
         >>> buffer = []
         >>> for i in items:
         ...     medoid_, median_ = next_medoid_and_median(
-        ...         i, buffer, max_buffer=8)
+        ...         i, buffer, max_buffer=12)
         >>> print((medoid_, median_))
         (24, 24)
 
