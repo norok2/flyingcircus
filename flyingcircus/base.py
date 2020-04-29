@@ -2787,8 +2787,8 @@ def selection(
         k,
         first=0,
         last=-1,
-        randomize=False,
-        pivot=random_int):
+        pivot=random_int,
+        randomize=False):
     """
     Rearrange in-place a sequence so that the k-th element is at position k.
 
@@ -2811,15 +2811,16 @@ def selection(
             The index is forced within boundaries.
         last (int): The last index (included).
             The index is forced within boundaries.
-        randomize (bool|int): Pre-shuffle the input.
-            If int, this is passed as `k` parameter
-            (shuffling reduction factor) to `flyingcircus.shuffle()`.
-            This render the worst case **very** unlikely.
         pivot (callable): The function for choosing the pivot index.
             Must accept the following signature:
             pivot(first: int, last: int): int
             The arguments are the first and last indices of the subsequence
             to be partitioned.
+        randomize (bool|int): Pre-shuffle the input.
+            If int, this is passed as `k` parameter
+            (shuffling reduction factor) to `flyingcircus.shuffle()`.
+            This render the worst case **very** unlikely.
+            This is useful for deterministic pivoting.
 
     Returns:
         seq (MutableSequence): The partially sorted sequence.
@@ -3060,8 +3061,8 @@ def quick_sort(
         seq,
         first=0,
         last=-1,
-        randomize=False,
-        pivot=random_int):
+        pivot=random_int,
+        randomize=False):
     """
     Sort in-place a sequence using quick (partition-exchange) sort.
 
@@ -3084,15 +3085,16 @@ def quick_sort(
             The index is forced within boundaries.
         last (int): The last index (included).
             The index is forced within boundaries.
-        randomize (bool): Pre-shuffle the input.
-            If int, this is passed as `k` parameter
-            (shuffling reduction factor) to `flyingcircus.shuffle()`.
-            This render the worst case **very** unlikely.
         pivot (callable): The function for choosing the pivot index.
             Must accept the following signature:
             pivot(first: int, last: int): int
             The arguments are the first and last indices of the subsequence
             to be partitioned.
+        randomize (bool): Pre-shuffle the input.
+            If int, this is passed as `k` parameter
+            (shuffling reduction factor) to `flyingcircus.shuffle()`.
+            This render the worst case **very** unlikely.
+            This is useful for deterministic pivoting.
 
     Returns:
         seq (MutableSequence): The sorted sequence.
