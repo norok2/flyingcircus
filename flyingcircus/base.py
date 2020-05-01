@@ -3000,7 +3000,10 @@ def step_sort(
         last (int): The last index (included).
             The index is forced within boundaries.
         steps (Iterable[int]|None): The steps to use.
-            If None, uses pseudo-optimal values.
+            If None, uses pseudo-optimal values following the sequence:
+            x(k) = 9 * x(k-1) // 4; with x(0) = 1, x(1) = 4
+            in decreasing order not exceeding the sequence length.
+            This is empirically fast, but theoretical performance is unknown.
 
     Returns:
         seq (MutableSequence): The sorted sequence.
@@ -3036,14 +3039,13 @@ def step_sort(
     last = valid_index(last, n)
     if steps is None:
         steps = [1]
-        x = 4
+        x, m, d = 4, 9, 4
         while x < n:
             steps.append(x)
-            x = x * 9 // 4
+            x = x * m // d
         steps.reverse()
     elif callable(steps):
-        steps = sorted(steps(n))
-        steps.reverse()
+        steps = sorted(steps(n), reverse=True)
     stop = last + 1
     for step in steps:
         for i in range(first + step, stop):
