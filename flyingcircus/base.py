@@ -2957,9 +2957,11 @@ def insertion_sort(
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     See Also:
+        - flyingcircus.selection_sort()
         - flyingcircus.step_sort()
         - flyingcircus.quick_sort()
         - flyingcircus.merge_sort()
+        - flyingcirucs.nat_merge_sort()
     """
     n = len(seq)
     first = valid_index(first, n)
@@ -2969,6 +2971,97 @@ def insertion_sort(
         while j > first and seq[j - 1] > seq[j]:
             seq[j], seq[j - 1] = seq[j - 1], seq[j]
             j -= 1
+    return seq
+
+
+# ======================================================================
+def selection_sort(
+        seq,
+        first=0,
+        last=-1):
+    """
+    Sort in-place using (double-edged) selection sort.
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`, but uses less memory.
+
+    The algorithm is:
+
+     - best-case: O(n²)
+     - average-case: O(n²)
+     - worst-case: O(n²)
+     - memory: O(1)
+     - stable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        first (int): The first index.
+            The index is forced within boundaries.
+        last (int): The last index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> selection_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> selection_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> selection_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> selection_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> selection_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.insertion_sort()
+        - flyingcircus.step_sort()
+        - flyingcircus.quick_sort()
+        - flyingcircus.merge_sort()
+        - flyingcirucs.nat_merge_sort()
+    """
+    n = len(seq)
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    while first < last:
+        # : alternate (faster?) method for finding argmin / argmax
+        # subseq = seq[first:last + 1]
+        # min_val = min(subseq)
+        # i = subseq.index(min_val) + first
+        # max_val = max(subseq)
+        # j = subseq.index(max_val) + first
+
+        min_val = seq[first]
+        i = first
+        max_val = seq[last]
+        j = last
+        for k in range(first, last + 1):
+            x = seq[k]
+            if x < min_val:
+                min_val = x
+                i = k
+            elif x > max_val:
+                max_val = x
+                j = k
+        if first != i:
+            seq[first], seq[i] = seq[i], seq[first]
+        if first == j:
+            j = i
+        if last != j:
+            seq[last], seq[j] = seq[j], seq[last]
+        first += 1
+        last -= 1
     return seq
 
 
@@ -3031,8 +3124,10 @@ def step_sort(
 
     See Also:
         - flyingcircus.insertion_sort()
+        - flyingcircus.selection_sort()
         - flyingcircus.quick_sort()
         - flyingcircus.merge_sort()
+        - flyingcirucs.nat_merge_sort()
     """
     n = len(seq)
     first = valid_index(first, n)
@@ -3126,8 +3221,10 @@ def quick_sort(
         - flyingcircus.partition()
         - flyingcircus.selection()
         - flyingcircus.insertion_sort()
-        - flyingcircus.step_sort())
+        - flyingcircus.selection_sort()
+        - flyingcircus.step_sort()
         - flyingcircus.merge_sort()
+        - flyingcirucs.nat_merge_sort()
     """
     n = len(seq)
     first = valid_index(first, n)
@@ -3237,15 +3334,17 @@ def merge_sort(
 
     See Also:
         - flyingcircus.insertion_sort()
+        - flyingcircus.selection_sort()
         - flyingcircus.step_sort()
         - flyingcircus.quick_sort()
+        - flyingcirucs.nat_merge_sort()
     """
     n = len(seq)
     first = valid_index(first, n)
     last = valid_index(last, n)
-    m = last - first + 1
+    size = last - first + 1
     stop = last + 1
-    temp = [None] * m
+    temp = [None] * size
     width = 1
     while width <= n:
         for l in range(first, stop, 2 * width):
@@ -3268,6 +3367,124 @@ def merge_sort(
         width *= 2
     return seq
 
+
+# ======================================================================
+def nat_merge_sort(
+        seq,
+        first=0,
+        last=-1):
+    """
+    Sort in-place a sequence using natural merge sort.
+
+    Warning! This function modifies its `seq` parameter.
+
+    This is slower than `sorted()` or `list.sort()`.
+
+    Uses a natural approach (exploiting partially sorted sub-sequences).
+    The best-case is for sorted or reversed inputs.
+    Note that the merge step is not in-place in the sense that it still
+    requires a memory buffer the size of the sequence.
+
+    The algorithm is:
+     - best-case: O(n)
+     - average-case: O(n log n)
+     - worst-case: O(n log n)
+     - memory: O(n)
+     - stable
+
+    Args:
+        seq (MutableSequence): The input sequence.
+        first (int): The first index.
+            The index is forced within boundaries.
+        last (int): The last index (included).
+            The index is forced within boundaries.
+
+    Returns:
+        seq (MutableSequence): The sorted sequence.
+
+    Examples:
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> nat_merge_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [1, 0, 3, 5, 7, 9, 2, 4, 6, 8]
+        >>> nat_merge_sort(seq, 3, 7)
+        [1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+
+        >>> seq = [9, 0, 2, 6, 3, 5, 1, 7, 8, 4, 1, 0, 3, 2, 4, 5, 7, 9, 6, 8]
+        >>> nat_merge_sort(seq)
+        [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+
+        >>> seq = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+        >>> nat_merge_sort(seq)
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+        >>> seq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        >>> nat_merge_sort(seq)
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    See Also:
+        - flyingcircus.insertion_sort()
+        - flyingcircus.selection_sort()
+        - flyingcircus.step_sort()
+        - flyingcircus.quick_sort()
+        - flyingcirucs.merge_sort()
+    """
+    n = len(seq)
+    first = valid_index(first, n)
+    last = valid_index(last, n)
+    size = last - first + 1
+    temp = [None] * size
+    # reverse decreasing sequences
+    l = first
+    while True:
+        h = l
+        while h + 1 <= last and seq[h + 1] >= seq[h]:
+            h += 1
+        l = h
+        if h < last:
+            h += 1
+            while h + 1 <= last and seq[h + 1] < seq[h]:
+                h += 1
+            if l < h:
+                reverse(seq, l, h)
+        if h < last:
+            l = h + 1
+        else:
+            break
+    # sorting
+    l = first
+    while True:
+        # find first increasing sequence
+        m = l
+        while m + 1 <= last and seq[m + 1] >= seq[m]:
+            m += 1
+        m += 1
+        # find second increasing sequence
+        h = m
+        while h + 1 <= last and seq[h + 1] >= seq[h]:
+            h += 1
+        if l == first and h > last:
+            break
+        if m > last:
+            m = last
+        if h > last:
+            h = last
+        i, j = l, m
+        for k in range(l - first, h - first + 1):
+            if i < m and (j > h or seq[i] <= seq[j]):
+                temp[k] = seq[i]
+                i += 1
+            else:
+                temp[k] = seq[j]
+                j += 1
+        # reset lower index
+        if h < last:
+            l = h + 1
+        else:
+            seq[first:last + 1] = temp
+            l = first
+    return seq
 
 # ======================================================================
 def argsort(seq):
