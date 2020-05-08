@@ -2563,16 +2563,16 @@ def random_int(
 
 
 # ======================================================================
-def reverse(
+def flip(
         seq,
         first=0,
         last=-1):
     """
-    Reverse in-place a sequence.
+    Reverse or flip in-place a sequence.
 
     Warning! This function modifies its `seq` parameter.
 
-    This supports also partial reversing.
+    This supports also partial reversing / flipping.
 
     Note that this is roughly equivalent to:
 
@@ -2594,19 +2594,19 @@ def reverse(
         >>> seq = list(range(10))
         >>> print(seq)
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        >>> print(reverse(seq))
+        >>> print(flip(seq))
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
         >>> print(seq)
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
 
-        >>> print(reverse(seq, 3, 7))
+        >>> print(flip(seq, 3, 7))
         [9, 8, 7, 2, 3, 4, 5, 6, 1, 0]
-        >>> print(reverse(seq, 3, 7))
+        >>> print(flip(seq, 3, 7))
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
 
-        >>> print(reverse(seq, 3, 6))
+        >>> print(flip(seq, 3, 6))
         [9, 8, 7, 3, 4, 5, 6, 2, 1, 0]
-        >>> print(reverse(seq, 3, 6))
+        >>> print(flip(seq, 3, 6))
         [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
     """
     n = len(seq)
@@ -3447,7 +3447,7 @@ def nat_merge_sort(
             while h + 1 <= last and seq[h + 1] < seq[h]:
                 h += 1
             if l < h:
-                reverse(seq, l, h)
+                flip(seq, l, h)
         if h < last:
             l = h + 1
         else:
