@@ -444,6 +444,369 @@ def is_prime_wheel(
 
 
 # ======================================================================
+def steps_alt(
+        n,
+        a=2,
+        b=3):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form a ** n * b ** m with n == m or n == m + 1
+
+    Args:
+        n (int): The length of the sequence.
+        a (int): The first number.
+        b (int): The second number.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_alt(100000))
+        [1, 6, 18, 36, 108, 216, 648, 1296, 3888, 7776, 23328, 46656]
+        >>> list(steps_alt(100000, 3, 2))
+        [1, 6, 12, 36, 72, 216, 432, 1296, 2592, 7776, 15552, 46656, 93312]
+    """
+    yield 1
+    x = a * b
+    p = 0
+    while x < n:
+        yield x
+        if p:
+            x *= a
+            p = 0
+        else:
+            x *= b
+            p = 1
+
+
+# ======================================================================
+def steps_m_d(
+        n,
+        init=(1, 4, 10, 23, 57, 132, 301, 701),
+        m=9,
+        d=4):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = m * x(k - 1) // d
+    with some initial predefined values.
+
+    Must be that `m > d`.
+
+    If `init=(1, 4, 10, 23, 57, 132, 301, 701), m=9, d=4` this has been
+    empirically suggested as yielding optimum empirical performances in the
+    average case [Ciura2001], but unknown worst-case.
+    If `init=(1, 4,), m=9, d=4` this is very close to yielding near-optimal
+    empirical performances in the average case [Tokuda1992], but unknown
+    worst-case.
+
+    Args:
+        n (int): The length of the sequence.
+        init (Iterable[int]): The initial sequence.
+        m (int): The multiplier for subsequent values.
+        d (int): The divider for subsequent values.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_m_d(50000))
+        [1, 4, 10, 23, 57, 132, 301, 701, 1577, 3548, 7983, 17961, 40412]
+        >>> list(steps_m_d(50000, (1, 4)))
+        [1, 4, 9, 20, 45, 101, 227, 510, 1147, 2580, 5805, 13061, 29387]
+
+    See Also:
+        - Ciura, Marcin (2001). "Best Increments for the Average Case of
+          Shellsort" (PDF). In Freiwalds, Rusins (ed.). Proceedings of the
+          13th International Symposium on Fundamentals of Computation Theory.
+          London: Springer-Verlag. pp. 106–117. ISBN 978-3-540-42487-1
+        - Tokuda, Naoyuki (1992). "An Improved Shellsort". In van Leeuven,
+          Jan (ed.). Proceedings of the IFIP 12th World Computer Congress on
+          Algorithms, Software, Architecture. Amsterdam: North-Holland
+          Publishing Co. pp. 449–457. ISBN 978-0-444-89747-3.
+    """
+    try:
+        for x in init:
+            yield x
+    except ValueError:
+        x = 1
+        yield x
+    x = x * m // d
+    while x < n:
+        yield x
+        x = x * m // d
+
+
+# ======================================================================
+def steps_d_m(
+        n,
+        d=11,
+        m=5,
+        stopping=None):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = m * x(k - 1) // d
+    with initial value equal `n`.
+
+    Must be that `d > m`.
+
+    If `d=11, m=4`, this is yielding near-optimal empirical performances
+    in the average case [Gonnet1991], but unknown worst-case.
+
+    Args:
+        n (int): The length of the sequence.
+        d (int): The divider for subsequent values.
+        m (int): The multiplier for subsequent values.
+        stopping (callable|None): The modifier for the stopping value.
+            If None, defaults to `n`.
+            If callable, must have the signature: stopping(int): int.
+            The input is `n`.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_d_m(100000))
+        [45454, 20660, 9390, 4268, 1940, 881, 400, 181, 82, 37, 16, 7, 3, 1]
+
+    See Also:
+        - Gonnet, Gaston H.; Baeza-Yates, Ricardo (1991). "Shellsort".
+          Handbook of Algorithms and Data Structures: In Pascal and C (2nd
+          ed.). Reading, Massachusetts: Addison-Wesley. pp. 161–163.
+          ISBN 978-0-201-41607-7.
+    """
+    if callable(stopping):
+        n = stopping(n)
+        yield n
+    while True:
+        n = n * m // d
+        if n > 1:
+            yield n
+        else:
+            yield 1
+            break
+
+
+# ======================================================================
+def steps_exp(n, x=1, k=2):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These follow an exponential law.
+
+    Args:
+        n (int): The length of the sequence.
+        x (int): The initial value.
+        k (int): The initial exponent.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_exp(100000))
+        [1, 7, 20, 54, 148, 403, 1096, 2980, 8103, 22026, 59874]
+    """
+    while x < n:
+        yield x
+        x = int(math.exp(k))
+        k += 1
+
+
+# ======================================================================
+def steps_pow_k(
+        n,
+        x=1,
+        k=2,
+        b=3,
+        c=-1,
+        d=2,
+        stopping=lambda x: x // 3):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = (b ** k + c) // d
+    with some initial value.
+
+    With `x=1, k=2, b=2, c=-1, d=1, stopping=None` this has worst-case
+    complexity O(n √n) [Hibbard1963].
+    With `x=1, k=2, b=2, c=1, d=1, stopping=None` this has worst-case
+    complexity O(n √n) [Papernov1965].
+    With `x=1, k=2, b=3, c=-1, d=2, stopping=lambda x: x // 3` this has
+    worst-case complexity O(n √n) [Knuth1973].
+
+    Args:
+        n (int): The length of the sequence.
+        x (int): The initial value.
+        k (int): The initial exponent.
+        b (int): The base.
+        c (int): The constant term.
+        d (int): The deonominator.
+        stopping (callable|None): The modifier for the stopping value.
+            If None, defaults to `n`.
+            If callable, must have the signature: stopping(int): int.
+            The input is `n`.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_pow_k(500000))
+        [1, 4, 13, 40, 121, 364, 1093, 3280, 9841, 29524, 88573]
+        >>> list(steps_pow_k(20000, x=1, k=2, b=2, c=-1, d=1, stopping=None))
+        [1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383]
+        >>> list(steps_pow_k(20000, x=1, k=2, b=2, c=1, d=1, stopping=None))
+        [1, 5, 9, 17, 33, 65, 129, 257, 513, 1025, 2049, 4097, 8193, 16385]
+
+    See Also:
+        - Knuth, Donald E. (1997). "Shell's method". The Art of Computer
+          Programming. Volume 3: Sorting and Searching (2nd ed.). Reading,
+          Massachusetts: Addison-Wesley. pp. 83–95. ISBN 978-0-201-89685-5.
+    """
+    if callable(stopping):
+        n = stopping(n)
+    while x < n:
+        yield x
+        x = (b ** k + c) // d
+        k += 1
+
+
+# ======================================================================
+def steps_bi_factors(n, a=2, b=3):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = (a ** i) * (b ** j)
+    with some initial value.
+
+    With `a=2, b=3` this has worst-case complexity O(n log² n) [Pratt1971].
+    However, for applications, other sequences are preferred as they perform
+    generally faster, even if they have inferior worst-case complexity.
+
+    Args:
+        n (int): The length of the sequence.
+        a (int): The first base.
+        b (int): The second base.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> sorted(steps_bi_factors(100))
+         [1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 27, 32, 36, 48, 54, 72, 81]
+
+    See Also:
+        - Pratt, Vaughan Ronald (1979). Shellsort and Sorting Networks
+          (Outstanding Dissertations in the Computer Sciences). Garland.
+          ISBN 978-0-8240-4406-0.
+    """
+    m = fc.ilog2(n)
+    for k in range(m):
+        for i in range(k + 1):
+            j = k - i
+            x = a ** i * b ** j
+            if x < n:
+                yield x
+
+
+# ======================================================================
+def steps_sum_pow_k(
+        n,
+        x=1,
+        k=0,
+        a=(1, 3),
+        b=(4, 2),
+        c=1):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = (b ** k + c) // d
+    with some initial value.
+
+    With `x=1, k=0, a=(1, 3), b=(4, 2), c=1` this has worst-case complexity
+    O(n ^ (4/3)) [Sedgewick1985].
+
+    Args:
+        n (int): The length of the sequence.
+        x (int): The initial value.
+        k (int): The initial exponent.
+        a (int): The amplitudes.
+            Must match the number of elements.
+        b (int): The bases.
+        c (int): The constant term.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_sum_pow_k(2000000))
+        [1, 8, 23, 77, 281, 1073, 4193, 16577, 65921, 262913, 1050113]
+
+    See Also:
+        - Sedgewick, Robert (1998). Algorithms in C. 1 (3rd ed.).
+          Addison-Wesley. pp. 273–281. ISBN 978-0-201-31452-6.
+    """
+    offset = len(a) - 1
+    while x < n:
+        yield x
+        x = c + sum(
+            a_i * b_i ** (k + offset - i)
+            for i, (a_i, b_i) in enumerate(zip(a, b)))
+        k += 1
+
+
+# ======================================================================
+def steps_pow_frac(
+        n,
+        x=1,
+        k=1,
+        m=9,
+        d=4,
+        a=-4,
+        b=5,
+        c=1):
+    """
+    Generate steps for `step_sort()` (Shell sort).
+
+    These are of the form: x(k) = (m ** (k + 1) // d ** k + a) // b + c
+    with some initial value.
+
+    With `x=1, k=1, m=9, d=4, a=-4, b=5, c=1` this has near optimal empirical
+    average-case complexity [Tokuda1992].
+
+    This is very similar, but not identical to:
+     `steps_m_d(init=(1, 4), m=9, d=4)`.
+
+    Args:
+        n (int): The length of the sequence.
+        x (int): The initial value.
+        k (int): The initial exponent.
+        a (int): The amplitudes.
+            Must match the number of elements.
+        b (int): The bases.
+        c (int): The constant term.
+
+    Yields:
+        int: The next step.
+
+    Examples:
+        >>> list(steps_pow_frac(50000))
+        [1, 4, 9, 20, 46, 103, 233, 525, 1182, 2660, 5985, 13467, 30301]
+
+    See Also:
+        - Tokuda, Naoyuki (1992). "An Improved Shellsort". In van Leeuven,
+          Jan (ed.). Proceedings of the IFIP 12th World Computer Congress on
+          Algorithms, Software, Architecture. Amsterdam: North-Holland
+          Publishing Co. pp. 449–457. ISBN 978-0-444-89747-3.
+    """
+    while x < n:
+        yield x
+        x = (m ** (k + 1) // d ** k + a) // b + c
+        k += 1
+
+
+# ======================================================================
 def sequence(
         start,
         stop,
