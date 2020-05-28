@@ -1463,6 +1463,43 @@ def multi_compare(
 
 
 # ======================================================================
+def in_(
+        obj,
+        items,
+        eq=operator.eq):
+    """
+    Check if an object is equal to any of the items.
+
+    This is useful if any among the object or the items does not implement
+    `__eq__` to return a `bool` for any given input.
+    Note that this operation is always of O(N) complexity
+    (N being the `items` size).
+
+    Args:
+        obj (Any): The object to check.
+        items (Iterable): The container to check.
+        eq (callable): The function to check for equality.
+            Must have the following signature: eq(Any, Any): bool
+
+    Returns:
+        bool: The result of the check.
+
+    Examples:
+        >>> in_(1, [1, 2, 3])
+        True
+        >>> in_(0, [1, 2, 3])
+        False
+        >>> in_(1, {1, 2, 3})
+        True
+        >>> in_(0, {1, 2, 3})
+        False
+    """
+    for item in items:
+        if eq(obj, item):
+            return True
+    return False
+
+# ======================================================================
 def all_equal(items):
     """
     Check if all items are equal.
