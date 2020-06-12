@@ -4709,6 +4709,7 @@ def unique_permutations(
 # ======================================================================
 def cartesian_product(
         *seqs,
+        k=1,
         container=None):
     """
     Generate the cartesian product of the input sequences.
@@ -4718,6 +4719,8 @@ def cartesian_product(
 
     Args:
         *seqs (Sequence[Sequence]): The input sequences.
+        k (int): Repetition factor for the input sequences.
+            The input sequences are repeated `k` times.
         container (callable|None): The container for the result.
             If None, this is inferred from `items` if possible, otherwise
             uses `tuple`.
@@ -4734,6 +4737,15 @@ def cartesian_product(
         [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
         >>> sorted(cartesian_product('abc', 'ABC'))
         ['aA', 'aB', 'aC', 'bA', 'bB', 'bC', 'cA', 'cB', 'cC']
+        >>> sorted(cartesian_product([1, 2], k=2))
+        [[1, 1], [1, 2], [2, 1], [2, 2]]
+        >>> sorted(cartesian_product('ab', k=3))
+        ['aaa', 'aab', 'aba', 'abb', 'baa', 'bab', 'bba', 'bbb']
+        >>> sorted(cartesian_product('ab', 'c', k=2))
+        ['acac', 'acbc', 'bcac', 'bcbc']
+        >>> sorted(cartesian_product('ab', 'cd', k=2))
+        ['acac', 'acad', 'acbc', 'acbd', 'adac', 'adad', 'adbc', 'adbd',\
+ 'bcac', 'bcad', 'bcbc', 'bcbd', 'bdac', 'bdad', 'bdbc', 'bdbd']
 
     See Also:
         - flyingcircus.combinations()
@@ -4745,6 +4757,8 @@ def cartesian_product(
     """
     containers = [_guess_container(seq, container) for seq in seqs]
     container = tuple if not all_equal(containers) else containers[0]
+    if k > 1:
+        seqs = seqs * k
 
     # : iterative method (fast but very memory-consuming method)
     # results = ((),)
