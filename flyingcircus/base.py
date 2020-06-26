@@ -4208,6 +4208,98 @@ def split_by(
 
 
 # ======================================================================
+def group_by(
+        items,
+        key=None):
+    """
+    Split consecutive items into groups by some criterion.
+
+    This similar to `flyingcircus.split_by()` except that it also
+    yields the value that determines the splitting.
+
+    Args:
+        items (Iterable): The input items.
+        key (callable|None): Splitting criterion.
+            Must have the following signature: key(Any): Any
+            Each element of the sequence is given as input.
+            If None, the element itself is used.
+
+    Yields:
+        tuple[Any, list]: The grouping item and the groups.
+
+    Examples:
+        >>> items = [1, 1, 1, 2, 2, 2, 3, 3, 3]
+        >>> print(list(group_by(items)))
+        [(1, [1, 1, 1]), (2, [2, 2, 2]), (3, [3, 3, 3])]
+
+        >>> items = [0, 0, 2, 2, 2, 1, 1, 3, 3, 3]
+        >>> print(list(group_by(items)))
+        [(0, [0, 0]), (2, [2, 2, 2]), (1, [1, 1]), (3, [3, 3, 3])]
+
+        >>> items = [0, 0, 2, 2, 2, 1, 1, 3, 3, 3]
+        >>> print(list(group_by(items, lambda x: x % 2)))
+        [(0, [0, 0, 2, 2, 2]), (1, [1, 1, 3, 3, 3])]
+
+        >>> items = (0, 0, 2, 2, 2, 1, 1, 3, 3, 3)
+        >>> print(list(group_by(items, lambda x: x % 2)))
+        [(0, [0, 0, 2, 2, 2]), (1, [1, 1, 3, 3, 3])]
+
+    See Also:
+        - flyingcircus.split()
+        - flyingcircus.chunks()
+        - flyingcircus.split_by()
+        - flyingcircus.regroup_by()
+    """
+    items = iter(items)
+    try:
+        item = next(items)
+    except StopIteration:
+        return
+    else:
+        # : slower but more compact alternative
+        # last = key(item) if callable(key) else item
+        # group = [item]
+        # for item in items:
+        #     current = key(item) if callable(key) else item
+        #     if last == current:
+        #         group.append(item)
+        #     else:
+        #         yield last, group
+        #         last = current
+        #         group = [item]
+        # if group:
+        #     yield last, group
+
+        # : faster but more verbose alternative
+        if callable(key):
+            last = key(item)
+            group = [item]
+            for item in items:
+                current = key(item)
+                if last == current:
+                    group.append(item)
+                else:
+                    yield last, group
+                    last = current
+                    group = [item]
+            if group:
+                yield last, group
+        else:
+            last = item
+            group = [item]
+            for item in items:
+                current = item
+                if last == current:
+                    group.append(item)
+                else:
+                    yield last, group
+                    last = current
+                    group = [item]
+            if group:
+                yield last, group
+
+
+# ======================================================================
 def rolling(
         seq,
         size,
