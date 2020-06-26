@@ -4300,6 +4300,70 @@ def group_by(
 
 
 # ======================================================================
+def regroup_by(
+        items,
+        key=None):
+    """
+    Split items into groups by some criterion.
+
+    The items are not required to be consecutive.
+    For splitting consecutive items use `flyingcircus.split_by()`
+    or `flyingcircus.group_by()`.
+
+    Args:
+        items (Iterable): The input items.
+        key (callable|None): Splitting criterion.
+            Must have the following signature: key(Any): Any
+            Each element of the sequence is given as input.
+            If None, the element itself is used.
+
+    Returns:
+        dict: Contains the criterion and a list of the grouped items.
+
+    Examples:
+        >>> items = [1, 2, 3, 2, 1, 3, 2, 1, 3, 2, 1, 3]
+        >>> print(regroup_by(items))
+        {1: [1, 1, 1, 1], 2: [2, 2, 2, 2], 3: [3, 3, 3, 3]}
+
+        >>> items = [1, 2, 3, 0, 3, 1, 2, 0, 0, 2, 1, 3]
+        >>> print(regroup_by(items, lambda x: x % 2))
+        {1: [1, 3, 3, 1, 1, 3], 0: [2, 0, 2, 0, 0, 2]}
+
+        >>> items = range(16)
+        >>> print(regroup_by(items, lambda x: x % 2))
+        {0: [0, 2, 4, 6, 8, 10, 12, 14], 1: [1, 3, 5, 7, 9, 11, 13, 15]}
+
+    See Also:
+        - flyingcircus.split()
+        - flyingcircus.chunks()
+        - flyingcircus.split_by()
+        - flyingcircus.group_by()
+    """
+    result = {}
+    # : slower but more compact alternative
+    # for item in items:
+    #     key_value = key(item) if callable(key) else item
+    #     if key_value not in result:
+    #         result[key_value] = []
+    #     result[key_value].append(item)
+
+    # : faster but more verbose alternative
+    if callable(key):
+        for item in items:
+            key_value = key(item)
+            if key_value not in result:
+                result[key_value] = []
+            result[key_value].append(item)
+    else:
+        for item in items:
+            key_value = item
+            if key_value not in result:
+                result[key_value] = []
+            result[key_value].append(item)
+    return result
+
+
+# ======================================================================
 def rolling(
         seq,
         size,
