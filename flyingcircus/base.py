@@ -211,21 +211,21 @@ def _is_special(stats_mode):
 
 
 # ======================================================================
-def _guess_container(items, container=None):
+def _guess_container(seq, container=None):
     """
     Guess container for combinatorial computations.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Returns:
         container (callable): The container function.
     """
     if container is None:
-        container = type(items)
+        container = type(seq)
     if not callable(container):
         container = tuple
     elif container is str:
@@ -233,7 +233,7 @@ def _guess_container(items, container=None):
     elif container in (bytes, bytearray):
         container = bytes
     try:
-        container(items)
+        container(seq[0:0])
     except TypeError:
         container = tuple
     return container
@@ -897,7 +897,7 @@ def reverse_mapping_iter(mapping):
 
 # ======================================================================
 def multi_at(
-        items,
+        seq,
         indexes,
         container=None):
     """
@@ -907,10 +907,10 @@ def multi_at(
     `flyingcircus.iter_at()`.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         indexes (Iterable[int|slice]): The items to select.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Returns:
@@ -945,19 +945,19 @@ def multi_at(
     try:
         iter(indexes)
     except TypeError:
-        return items[indexes]
+        return seq[indexes]
     else:
         if container is None:
-            container = type(items)
+            container = type(seq)
         if not callable(container):
             container = tuple
-        result = operator.itemgetter(*indexes)(items)
+        result = operator.itemgetter(*indexes)(seq)
         return result if container == tuple else container(result)
 
 
 # ======================================================================
 def iter_at(
-        items,
+        seq,
         indexes):
     """
     Iterate over selected items according to the specified indexes.
@@ -966,7 +966,7 @@ def iter_at(
     except that this yields a generator.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         indexes (Iterable[int|slice]): The items to select.
 
     Yields:
@@ -991,15 +991,15 @@ def iter_at(
         iter(indexes)
     except TypeError:
         try:
-            iter(items[indexes])
+            iter(seq[indexes])
         except TypeError:
-            yield items[indexes]
+            yield seq[indexes]
         else:
-            for item in items[indexes]:
+            for item in seq[indexes]:
                 yield item
     else:
         for index in indexes:
-            yield items[index]
+            yield seq[index]
 
 
 # ======================================================================
@@ -1498,6 +1498,7 @@ def in_(
         if eq(obj, item):
             return True
     return False
+
 
 # ======================================================================
 def all_equal(items):
@@ -2069,13 +2070,13 @@ def flip_slice(
 
 # ======================================================================
 def complement(
-        items,
+        seq,
         slice_):
     """
     Extract the elements not matching a given slice.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         slice_ (slice): The slice to be complemented.
 
     Yields:
@@ -2157,15 +2158,15 @@ def complement(
         ...     for sl in sls)
         True
     """
-    to_exclude = set(range(len(items))[slice_])
+    to_exclude = set(range(len(seq))[slice_])
     step = slice_.step if slice_.step else 1
     if step > 0:
-        for i, item in enumerate(items):
+        for i, item in enumerate(seq):
             if i not in to_exclude:
                 yield item
     else:
-        num_items = len(items)
-        for i, item in enumerate(reversed(items)):
+        num_items = len(seq)
+        for i, item in enumerate(reversed(seq)):
             if (num_items - i - 1) not in to_exclude:
                 yield item
 
@@ -2223,7 +2224,7 @@ def deep_map(
             Must have the following signature: func(Any): Any.
         items (Iterable): The input items.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
         skip (tuple|None): Types to skip descending into.
@@ -2289,7 +2290,7 @@ def deep_filter(
             Must have the following signature: func(Any): bool
         items (Iterable): The input items.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
         is_deep_kws (Mapping|None): Keyword parameters for `is_deep()`.
@@ -2450,7 +2451,7 @@ def deep_filter_map(
             container(Iterable): container.
             If None, the original container is retained.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
         max_depth (int): Maximum depth to reach. Negative for unlimited.
         skip (tuple|None): Types to skip descending into.
@@ -3523,6 +3524,7 @@ def nat_merge_sort(
             l = first
     return seq
 
+
 # ======================================================================
 def argsort(seq):
     """
@@ -3978,7 +3980,7 @@ def separate(
 
 # ======================================================================
 def split(
-        items,
+        seq,
         sizes):
     """
     Split items into groups according to size(s).
@@ -3989,7 +3991,7 @@ def split(
     All and only the elements in `items` are ever yielded.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         sizes (int|Sequence[int]): The size(s) of each group.
             If Sequence, each group has the number of elements specified.
             If int, all groups have the same number of elements.
@@ -4019,22 +4021,25 @@ def split(
         - flyingcircus.sliding()
         - flyingcircus.separate()
         - flyingcircus.chunks()
+        - flyingcircus.split_by()
+        - flyingcircus.group_by()
+        - flyingcircus.regroup_by()
     """
     if isinstance(sizes, int):
-        sizes = auto_repeat(sizes, len(items) // sizes)
+        sizes = auto_repeat(sizes, len(seq) // sizes)
 
-    num_items = len(items)
+    num_items = len(seq)
     if sum(sizes) >= num_items:
         sizes = sizes[:-1]
     index = (0,) + tuple(itertools.accumulate(sizes)) + (num_items,)
     num = len(index) - 1
     for i in range(num):
-        yield items[index[i]:index[i + 1]]
+        yield seq[index[i]:index[i + 1]]
 
 
 # ======================================================================
 def chunks(
-        items,
+        seq,
         n,
         mode='+',
         balanced=True):
@@ -4046,7 +4051,7 @@ def chunks(
     All and only the elements in `items` are ever yielded.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         n (int): Approximate number of chunks.
             The exact number depends on the value of `mode`.
         mode (str|int): Determine which approximation to use.
@@ -4095,6 +4100,9 @@ def chunks(
         - flyingcircus.sliding()
         - flyingcircus.separate()
         - flyingcircus.split()
+        - flyingcircus.split_by()
+        - flyingcircus.group_by()
+        - flyingcircus.regroup_by()
     """
     reversed_modes = {
         math.ceil: ['upper', '+', 1],
@@ -4106,12 +4114,12 @@ def chunks(
     else:
         raise ValueError('Invalid mode `{mode}`'.format(mode=mode))
     n = max(1, n)
-    size = int(approx(len(items) / n))
-    if balanced and 0 < len(items) % size <= size // 2:
-        k = len(items) // size + 1
-        q = -len(items) % size
+    size = int(approx(len(seq) / n))
+    if balanced and 0 < len(seq) % size <= size // 2:
+        k = len(seq) // size + 1
+        q = -len(seq) % size
         size = (size,) * (k - q) + (size - 1,) * q
-    for group in split(items, size):
+    for group in split(seq, size):
         yield group
 
 
@@ -4237,7 +4245,7 @@ def rolling(
 
 # ======================================================================
 def combinations(
-        items,
+        seq,
         k,
         container=None):
     """
@@ -4247,10 +4255,10 @@ def combinations(
     The `itertools` version should be preferred to this function.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int): The number of items to select.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4305,12 +4313,12 @@ def combinations(
         - flyingcircus.unique_permutations()
         - flyingcircus.cartesian_product()
     """
-    container = _guess_container(items, container)
-    num = len(items)
+    container = _guess_container(seq, container)
+    num = len(seq)
     if not num or k > num or k < 1:
         return
     indices = list(range(k))
-    yield container(items[i] for i in indices)
+    yield container(seq[i] for i in indices)
     while True:
         for i in range(k - 1, -1, -1):
             if indices[i] != i + num - k:
@@ -4320,12 +4328,12 @@ def combinations(
         indices[i] += 1
         for j in range(i + 1, k):
             indices[j] = indices[j - 1] + 1
-        yield container(items[i] for i in indices)
+        yield container(seq[i] for i in indices)
 
 
 # ======================================================================
 def multi_combinations(
-        items,
+        seq,
         k,
         container=None):
     """
@@ -4337,10 +4345,10 @@ def multi_combinations(
     The `itertools` version should be preferred to this function.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int): The number of items to select.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4387,12 +4395,12 @@ def multi_combinations(
         - flyingcircus.unique_permutations()
         - flyingcircus.cartesian_product()
     """
-    container = _guess_container(items, container)
-    num = len(items)
+    container = _guess_container(seq, container)
+    num = len(seq)
     if not num or not k:
         return
     indices = [0] * k
-    yield container(items[i] for i in indices)
+    yield container(seq[i] for i in indices)
     while True:
         for i in range(k - 1, -1, -1):
             if indices[i] != num - 1:
@@ -4400,12 +4408,12 @@ def multi_combinations(
         else:
             return
         indices[i:] = [indices[i] + 1] * (k - i)
-        yield container(items[i] for i in indices)
+        yield container(seq[i] for i in indices)
 
 
 # ======================================================================
 def permutations(
-        items,
+        seq,
         k=None,
         container=None):
     """
@@ -4418,11 +4426,11 @@ def permutations(
     The `itertools` version should be preferred to this function.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int|None): The number of items to select.
             If k is None, all permutations are generated.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4469,14 +4477,14 @@ def permutations(
         - flyingcircus.unique_permutations()
         - flyingcircus.cartesian_product()
     """
-    container = _guess_container(items, container)
-    num = len(items)
+    container = _guess_container(seq, container)
+    num = len(seq)
     k = num if k is None else k
     if k > num or k < 1 or num < 1:
         return
     indices = list(range(num))
     cycles = list(range(num, num - k, -1))
-    yield container(items[i] for i in indices[:k])
+    yield container(seq[i] for i in indices[:k])
     while num:
         for i in range(k - 1, -1, -1):
             cycles[i] -= 1
@@ -4486,7 +4494,7 @@ def permutations(
             else:
                 j = cycles[i]
                 indices[i], indices[-j] = indices[-j], indices[i]
-                yield container(items[i] for i in indices[:k])
+                yield container(seq[i] for i in indices[:k])
                 break
         else:
             return
@@ -4494,7 +4502,7 @@ def permutations(
 
 # ======================================================================
 def multi_permutations(
-        items,
+        seq,
         k=None,
         container=None):
     """
@@ -4506,11 +4514,11 @@ def multi_permutations(
     The `itertools` version should be preferred to this function.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int|None): The number of items to select.
             If k is None, all permutations are generated.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4558,12 +4566,12 @@ def multi_permutations(
         - flyingcircus.unique_permutations()
         - flyingcircus.cartesian_product()
     """
-    container = _guess_container(items, container)
-    num = len(items)
+    container = _guess_container(seq, container)
+    num = len(seq)
     if not num or k < 1:
         return
     indices = [0] * k
-    yield container(items[i] for i in indices)
+    yield container(seq[i] for i in indices)
     while True:
         for i in range(k - 1, -1, -1):
             if indices[i] != num - 1:
@@ -4574,18 +4582,18 @@ def multi_permutations(
         else:
             return
         indices[i] += 1
-        yield container(items[i] for i in indices)
+        yield container(seq[i] for i in indices)
 
 
 # ======================================================================
 def cyclic_permutations(
-        items,
+        seq,
         forward=True):
     """
     Generate cyclic permutations of given items.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         forward (bool): Determine how to advance through permutations.
 
     Yields:
@@ -4620,13 +4628,13 @@ def cyclic_permutations(
         [b'abcdef', b'fabcde', b'efabcd', b'defabc', b'cdefab', b'bcdefa']
     """
     sign = 1 if forward else -1
-    for i in range(len(items)):
-        yield items[sign * i:] + items[:sign * i]
+    for i in range(len(seq)):
+        yield seq[sign * i:] + seq[:sign * i]
 
 
 # ======================================================================
 def unique_permutations(
-        items,
+        seq,
         container=None):
     """
     Generate unique permutations of items in an efficient way.
@@ -4635,9 +4643,9 @@ def unique_permutations(
     `flyingcircus.permutations()`.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4686,24 +4694,24 @@ def unique_permutations(
         - flyingcircus.cyclic_permutations()
         - flyingcircus.cartesian_product()
     """
-    container = _guess_container(items, container)
-    indexes = range(len(items) - 1, -1, -1)
-    items = sorted(items)
+    container = _guess_container(seq, container)
+    indexes = range(len(seq) - 1, -1, -1)
+    seq = sorted(seq)
     while True:
-        yield container(items)
+        yield container(seq)
         for k in indexes[1:]:
-            if items[k] < items[k + 1]:
+            if seq[k] < seq[k + 1]:
                 break
         else:
             return
-        k_val = items[k]
+        k_val = seq[k]
         for i in indexes:
-            if k_val < items[i]:
+            if k_val < seq[i]:
                 break
         else:
             i = 0
-        items[k], items[i] = items[i], items[k]
-        items[k + 1:] = items[-1:k:-1]
+        seq[k], seq[i] = seq[i], seq[k]
+        seq[k + 1:] = seq[-1:k:-1]
 
 
 # ======================================================================
@@ -4722,7 +4730,7 @@ def cartesian_product(
         k (int): Repetition factor for the input sequences.
             The input sequences are repeated `k` times.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4825,18 +4833,18 @@ def cartesian_product(
 
 # ======================================================================
 def partitions(
-        items,
+        seq,
         k,
         container=None):
     """
     Generate all k-partitions for the items.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int): The number of splitting partitions.
             Each group has exactly `k` elements.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -4868,24 +4876,24 @@ def partitions(
         ([[0], [1], [2, 3]], [[0], [1, 2], [3]], [[0, 1], [2], [3]])
     """
     if container is None:
-        container = type(items)
+        container = type(seq)
     if not callable(container) or container in (str, bytes, bytearray):
         container = tuple
     try:
-        container(items)
+        container(seq)
     except TypeError:
         container = tuple
-    num = len(items)
+    num = len(seq)
     indexes = tuple(
         (0,) + tuple(index) + (num,)
         for index in itertools.combinations(range(1, num), k - 1))
     for index in indexes:
-        yield container(items[index[i]:index[i + 1]] for i in range(k))
+        yield container(seq[index[i]:index[i + 1]] for i in range(k))
 
 
 # ======================================================================
 def random_unique_combinations_k(
-        items,
+        seq,
         k,
         container=None,
         pseudo=False):
@@ -4893,10 +4901,10 @@ def random_unique_combinations_k(
     Obtain a number of random unique combinations of a sequence of sequences.
 
     Args:
-        items (Sequence[Sequence]): The input sequence of sequences.
+        seq (Sequence[Sequence]): The input sequence of sequences.
         k (int): The number of random unique combinations to obtain.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
         pseudo (bool): Generate random combinations somewhat less randomly.
             If True, the memory requirements for intermediate steps will
@@ -4940,12 +4948,12 @@ def random_unique_combinations_k(
         ('A', 'C')
     """
     if container is None:
-        container = type(items)
+        container = type(seq)
     if not callable(container):
         container = tuple
     if pseudo:
         # randomize generators
-        comb_gens = list(items)
+        comb_gens = list(seq)
         for num, comb_gen in enumerate(comb_gens):
             shuffle(list(comb_gens[num]))
         # get the first `k` combinations
@@ -4954,7 +4962,7 @@ def random_unique_combinations_k(
         for combination in itertools.islice(combs, k):
             yield container(combination)
     else:
-        max_lens = [len(list(item)) for item in items]
+        max_lens = [len(list(item)) for item in seq]
         max_k = prod(max_lens)
         try:
             for num in random.sample(range(max_k), min(k, max_k)):
@@ -4962,7 +4970,7 @@ def random_unique_combinations_k(
                 for max_len in max_lens:
                     indexes.append(num % max_len)
                     num = num // max_len
-                yield container(item[i] for i, item in zip(indexes, items))
+                yield container(item[i] for i, item in zip(indexes, seq))
         except OverflowError:
             # use `set` to ensure uniqueness
             index_combs = set()
@@ -4977,23 +4985,23 @@ def random_unique_combinations_k(
             index_combs = list(index_combs)
             shuffle(index_combs)
             for index_comb in itertools.islice(index_combs, k):
-                yield container(item[i] for i, item in zip(index_comb, items))
+                yield container(item[i] for i, item in zip(index_comb, seq))
 
 
 # ======================================================================
 def unique_partitions(
-        items,
+        seq,
         k,
         container=None):
     """
     Generate all k-partitions for all unique permutations of the items.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         k (int): The number of splitting partitions.
             Each group has exactly `k` elements.
         container (callable|None): The container for the result.
-            If None, this is inferred from `items` if possible, otherwise
+            If None, this is inferred from `seq` if possible, otherwise
             uses `tuple`.
 
     Yields:
@@ -5008,16 +5016,16 @@ def unique_partitions(
         ((((0,), (1,)),), (((1,), (0,)),))
     """
     if container is None:
-        container = type(items)
+        container = type(seq)
     if not callable(container):
         container = tuple
-    for perms in unique_permutations(items):
+    for perms in unique_permutations(seq):
         yield container(partitions(container(perms), k))
 
 
 # ======================================================================
 def latin_square(
-        items,
+        seq,
         randomize=True,
         cyclic=True,
         forward=True):
@@ -5025,7 +5033,7 @@ def latin_square(
     Generate a latin square.
 
     Args:
-        items (Sequence): The input items.
+        seq (Sequence): The input items.
         randomize (bool): Shuffle the output "rows".
         cyclic (bool): Generate cyclic permutations only.
         forward (bool): Determine how to advance through permutations.
@@ -5086,13 +5094,13 @@ def latin_square(
         6789012345
     """
     if cyclic:
-        result = list(cyclic_permutations(items, forward))
+        result = list(cyclic_permutations(seq, forward))
     else:
         result = []
         # note: reversed(permutations(items)) == permutations(reversed(items))
         if not forward:
-            items = list(reversed(items))
-        for elems in permutations(items):
+            seq = list(reversed(seq))
+        for elems in permutations(seq):
             valid = True
             for i, elem in enumerate(elems):
                 orthogonals = [x[i] for x in result] + [elem]
@@ -8272,7 +8280,7 @@ def polynomial(
 
 
 # ======================================================================
-def mean(items):
+def mean(seq):
     """
     Compute the arithmetic mean of a numeric sequence.
 
@@ -8284,7 +8292,7 @@ def mean(items):
     This is substantially faster than `statistics.mean()`.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (Number): The arithmetic mean.
@@ -8312,18 +8320,18 @@ def mean(items):
         - flyingcircus.i_amean()
         - flyingcircus.i_mean()
     """
-    return sum(items) / len(items)
+    return sum(seq) / len(seq)
 
 
 # ======================================================================
 def gmean(
-        items,
+        seq,
         valid=True):
     """
     Compute the geometric mean of a numeric sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         valid (bool): Include only valid (non-zero) items.
 
     Returns:
@@ -8346,22 +8354,22 @@ def gmean(
         - flyingcircus.next_gmean()
         - flyingcircus.i_gmean()
     """
-    if valid and items:
-        items = tuple(i for i in items if i)
-        if not items:
+    if valid and seq:
+        seq = tuple(i for i in seq if i)
+        if not seq:
             return 1.0
-    return prod(items) ** (1 / len(items))
+    return prod(seq) ** (1 / len(seq))
 
 
 # ======================================================================
 def hmean(
-        items,
+        seq,
         valid=True):
     """
     Compute the harmonic mean of a numeric sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
             The values within the sequence should be numeric.
         valid (bool): Include only valid (non-zero) items.
 
@@ -8388,24 +8396,24 @@ def hmean(
         - flyingcircus.i_hmean()
     """
     if valid:
-        items = tuple((1 / i) for i in items if i)
-        if not items:
+        seq = tuple((1 / i) for i in seq if i)
+        if not seq:
             return 0.0
     else:
-        items = tuple((1 / i) for i in items)
-    return 1 / mean(items)
+        seq = tuple((1 / i) for i in seq)
+    return 1 / mean(seq)
 
 
 # ======================================================================
 def absolute_deviations(
         value,
-        items):
+        seq):
     """
     Yield the absolute deviations of the items from a value.
 
     Args:
         value (Number): The input value.
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Yields:
         result (Number): The next absolute deviation.
@@ -8420,20 +8428,20 @@ def absolute_deviations(
         - flyingcircus.mean_and_soad()
         - flyingcircus.mean_abs_dev()
     """
-    for item in items:
+    for item in seq:
         yield abs(value - item)
 
 
 # ======================================================================
 def squared_deviations(
         value,
-        items):
+        seq):
     """
     Yield the squared deviations of the items from a value.
 
     Args:
         value (Number): The input value.
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Yields:
         result (Number): The next squared deviation.
@@ -8448,12 +8456,12 @@ def squared_deviations(
         - flyingcircus.mean_and_sosd()
         - flyingcircus.var()
     """
-    for item in items:
+    for item in seq:
         yield (value - item) * (value - item)
 
 
 # ======================================================================
-def mean_and_soad(items):
+def mean_and_soad(seq):
     """
     Compute the mean and the sum-of-absolute-deviations of a numeric sequence.
 
@@ -8461,7 +8469,7 @@ def mean_and_soad(items):
     mean absolute deviation (MeanAD).
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (tuple): The tuple
@@ -8485,13 +8493,13 @@ def mean_and_soad(items):
         - flyingcircus.next_mean_and_sosd()
         - flyingcircus.i_mean_and_sosd()
     """
-    mean_val = mean(items)
-    soad_val = sum(absolute_deviations(mean_val, items))
+    mean_val = mean(seq)
+    soad_val = sum(absolute_deviations(mean_val, seq))
     return mean_val, soad_val
 
 
 # ======================================================================
-def soad(items):
+def soad(seq):
     """
     Compute the sum-of-absolute-deviations of a numeric sequence.
 
@@ -8499,7 +8507,7 @@ def soad(items):
     mean absolute deviation (MeanAD).
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (Number): The sum-of-absolute-deviations (SoAD) of the items.
@@ -8515,11 +8523,11 @@ def soad(items):
         - flyingcircus.sosd()
         - flyingcircus.mean_and_sosd()
     """
-    return sum(absolute_deviations(mean(items), items))
+    return sum(absolute_deviations(mean(seq), seq))
 
 
 # ======================================================================
-def mean_and_sosd(items):
+def mean_and_sosd(seq):
     """
     Compute the mean and the sum-of-squared-deviations of a numeric sequence.
 
@@ -8531,7 +8539,7 @@ def mean_and_sosd(items):
     computation of the variance and the standard deviation.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (tuple): The tuple
@@ -8556,13 +8564,13 @@ def mean_and_sosd(items):
         - flyingcircus.next_mean_and_sosd()
         - flyingcircus.i_mean_and_sosd()
     """
-    mean_val = mean(items)
-    sosd_val = sum(squared_deviations(mean_val, items))
+    mean_val = mean(seq)
+    sosd_val = sum(squared_deviations(mean_val, seq))
     return mean_val, sosd_val
 
 
 # ======================================================================
-def sosd(items):
+def sosd(seq):
     """
     Compute the mean and the sum-of-squared-deviations of a numeric sequence.
 
@@ -8574,7 +8582,7 @@ def sosd(items):
     computation of the variance and the standard deviation.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (Number): The sum-of-squared-deviations (SoSD) of the items.
@@ -8595,7 +8603,7 @@ def sosd(items):
         - flyingcircus.next_mean_and_sosd()
         - flyingcircus.i_mean_and_sosd()
     """
-    return sum(squared_deviations(mean(items), items))
+    return sum(squared_deviations(mean(seq), seq))
 
 
 # ======================================================================
@@ -8736,7 +8744,7 @@ def stdev2sosd(
 
 # ======================================================================
 def var(
-        items,
+        seq,
         ddof=0):
     """
     Compute the variance of a numeric sequence.
@@ -8752,7 +8760,7 @@ def var(
     Note that the variance is the mean of squared deviations.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         ddof (int): The number of degrees of freedom.
 
     Returns:
@@ -8776,13 +8784,13 @@ def var(
         - flyingcircus.sosd2var()
         - flyingcircus.var2sosd()
     """
-    mean_val, sosd_val = mean_and_sosd(items)
-    return sosd2var(sosd_val, len(items), ddof)
+    mean_val, sosd_val = mean_and_sosd(seq)
+    return sosd2var(sosd_val, len(seq), ddof)
 
 
 # ======================================================================
 def stdev(
-        items,
+        seq,
         ddof=0):
     """
     Compute the standard deviation of a numeric sequence.
@@ -8799,7 +8807,7 @@ def stdev(
     and hence it is also the square root of the mean of squared deviations.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
             The values within the sequence should be numeric.
         ddof (int): The number of degrees of freedom.
 
@@ -8824,13 +8832,13 @@ def stdev(
         - flyingcircus.sosd2stdev()
         - flyingcircus.stdev2sosd()
     """
-    mean_val, sosd_val = mean_and_sosd(items)
-    return sosd2stdev(sosd_val, len(items), ddof)
+    mean_val, sosd_val = mean_and_sosd(seq)
+    return sosd2stdev(sosd_val, len(seq), ddof)
 
 
 # ======================================================================
 def mean_and_var(
-        items,
+        seq,
         ddof=0):
     """
     Compute the mean and variance of a numeric sequence.
@@ -8847,7 +8855,7 @@ def mean_and_var(
     This is faster than computing the two values separately.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
             The values within the sequence should be numeric.
         ddof (int): The number of degrees of freedom.
 
@@ -8874,13 +8882,13 @@ def mean_and_var(
         - flyingcircus.sosd2var()
         - flyingcircus.var2sosd()
     """
-    mean_, sosd_ = mean_and_sosd(items)
-    return mean_, sosd2var(sosd_, len(items), ddof)
+    mean_, sosd_ = mean_and_sosd(seq)
+    return mean_, sosd2var(sosd_, len(seq), ddof)
 
 
 # ======================================================================
 def mean_and_stdev(
-        items,
+        seq,
         ddof=0):
     """
     Compute the mean and the standard deviation of a numeric sequence.
@@ -8897,7 +8905,7 @@ def mean_and_stdev(
     This is faster than computing the two values separately.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
             The values within the sequence should be numeric.
         ddof (int): The number of degrees of freedom.
 
@@ -8924,19 +8932,19 @@ def mean_and_stdev(
         - flyingcircus.sosd2stdev()
         - flyingcircus.stdev2sosd()
     """
-    mean_, sosd_ = mean_and_sosd(items)
-    return mean_, sosd2stdev(sosd_, len(items), ddof)
+    mean_, sosd_ = mean_and_sosd(seq)
+    return mean_, sosd2stdev(sosd_, len(seq), ddof)
 
 
 # ======================================================================
-def mean_and_mean_abs_dev(items):
+def mean_and_mean_abs_dev(seq):
     """
     Compute the mean and the mean absolute deviation of a numeric sequence.
 
     This is faster than computing the two values separately.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (tuple): The tuple
@@ -8958,18 +8966,18 @@ def mean_and_mean_abs_dev(items):
         - flyingcircus.soad()
         - flyingcircus.absolute_deviations()
     """
-    mean_, soad_ = mean_and_soad(items)
-    mean_abs_dev_ = soad_ / len(items)
+    mean_, soad_ = mean_and_soad(seq)
+    mean_abs_dev_ = soad_ / len(seq)
     return mean_, mean_abs_dev_
 
 
 # ======================================================================
-def mean_abs_dev(items):
+def mean_abs_dev(seq):
     """
     Compute the mean absolute deviation of a numeric sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
 
     Returns:
         result (Number): The mean absolute deviation of the items.
@@ -8986,12 +8994,12 @@ def mean_abs_dev(items):
         - flyingcircus.soad()
         - flyingcircus.absolute_deviations()
     """
-    return soad(items) / len(items)
+    return soad(seq) / len(seq)
 
 
 # ======================================================================
 def median(
-        items,
+        seq,
         force_sort=True):
     """
     Compute the median of a numeric sequence.
@@ -9010,7 +9018,7 @@ def median(
     perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it should be set to True.
@@ -9038,9 +9046,9 @@ def median(
         - flyingcircus.sym_interquantilic_range()
         - flyingcircus.median_abs_dev()
     """
-    n = len(items)
+    n = len(seq)
     i = n // 2
-    sorted_items = sorted(items) if force_sort else items
+    sorted_items = sorted(seq) if force_sort else seq
     if not (n % 2) and sorted_items[i - 1] != sorted_items[i]:
         median_ = (sorted_items[i - 1] + sorted_items[i]) / 2
     else:
@@ -9050,13 +9058,13 @@ def median(
 
 # ======================================================================
 def median_and_median_abs_dev(
-        items,
+        seq,
         force_sort=True):
     """
     Compute the median and the median absolute deviation of a numeric sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
@@ -9081,20 +9089,20 @@ def median_and_median_abs_dev(
         - flyingcircus.absolute_deviations()
 
     """
-    median_val = median(items, force_sort=force_sort)
-    delta_items = tuple(absolute_deviations(median_val, items))
+    median_val = median(seq, force_sort=force_sort)
+    delta_items = tuple(absolute_deviations(median_val, seq))
     return median_val, median(delta_items, force_sort=force_sort)
 
 
 # ======================================================================
 def median_abs_dev(
-        items,
+        seq,
         force_sort=True):
     """
     Compute the median absolute deviation of a numeric sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
             Otherwise, it must be set to True.
@@ -9117,13 +9125,13 @@ def median_abs_dev(
     """
     return median(
         tuple(
-            absolute_deviations(median(items, force_sort=force_sort), items)),
+            absolute_deviations(median(seq, force_sort=force_sort), seq)),
         force_sort=force_sort)
 
 
 # ======================================================================
 def quantile(
-        items,
+        seq,
         factor,
         int_base=100,
         interp='linear',
@@ -9139,7 +9147,7 @@ def quantile(
     perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
             If int, it is divided by `int_base` and its value must be in the
@@ -9209,9 +9217,9 @@ def quantile(
     # interps = 'linear', 'lower', 'upper', 'midpoint', 'nearest'
     use_tuple = is_deep(factor)
     kk = auto_repeat(factor, 1, False, False)
-    n = len(items)
+    n = len(seq)
     interp = interp.lower()
-    sorted_items = sorted(items) if force_sort else items
+    sorted_items = sorted(seq) if force_sort else seq
     is_exact = not ((n - 1) % int_base)
     exact_factor = (n - 1) // int_base
     result = []
@@ -9262,7 +9270,7 @@ def quantile(
 
 # ======================================================================
 def medoid(
-        items,
+        seq,
         force_sort=True,
         lower=True):
     """
@@ -9282,7 +9290,7 @@ def medoid(
     upper half depending on the value of `lower` being True or False.
 
     Args:
-        items (Sequence[Number|Any]): The input items.
+        seq (Sequence[Number|Any]): The input items.
             The values within the sequence do not need to be numeric.
         force_sort (bool): Force sorting of the input items.
             If the items are already sorted, this can be safely set to False.
@@ -9322,16 +9330,16 @@ def medoid(
         - flyingcircus.interquantilic_range()
         - flyingcircus.sym_interquantilic_range()
     """
-    n = len(items)
+    n = len(seq)
     i = int(round((n - 1) / 2)) if lower else n // 2
-    sorted_items = sorted(items) if force_sort else items
+    sorted_items = sorted(seq) if force_sort else seq
     medoid_ = sorted_items[i]
     return medoid_
 
 
 # ======================================================================
 def quantiloid(
-        items,
+        seq,
         factor,
         int_base=100,
         rounding=round,
@@ -9347,7 +9355,7 @@ def quantiloid(
     perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence[Number|Any]): The input items.
+        seq (Sequence[Number|Any]): The input items.
             The values within the sequence do not need to be numeric.
         factor (int|float|Iterable[int|float]): The quantile index.
             If float, must be a number in the [0, 1] range.
@@ -9392,21 +9400,21 @@ def quantiloid(
         - flyingcircus.interquantilic_range()
         - flyingcircus.sym_interquantilic_range()
     """
-    n = len(items)
+    n = len(seq)
     if not int_base:
         int_base = n
     kk = auto_repeat(factor, 1, False, False)
     kk = tuple(
         int(rounding((k if isinstance(k, float) else k / int_base) * (n - 1)))
         for k in kk)
-    sorted_items = sorted(items) if force_sort else items
+    sorted_items = sorted(seq) if force_sort else seq
     result = operator.itemgetter(*kk)(sorted_items)
     return result
 
 
 # ======================================================================
 def interquantilic_range(
-        items,
+        seq,
         lower_factor=0.25,
         upper_factor=0.75,
         int_base=100,
@@ -9421,7 +9429,7 @@ def interquantilic_range(
     perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
             The values within the sequence may not need to be numeric,
             depending on the `quantilic_func` used.
         lower_factor (int|float): The lower quantilic index.
@@ -9456,14 +9464,14 @@ def interquantilic_range(
     """
     quantilic_kws = dict(quantilic_kws) if quantilic_kws is not None else {}
     q_a, q_b = quantilic_func(
-        items, (lower_factor, upper_factor), int_base, force_sort=force_sort,
+        seq, (lower_factor, upper_factor), int_base, force_sort=force_sort,
         **quantilic_kws)
     return q_b - q_a
 
 
 # ======================================================================
 def sym_interquantilic_range(
-        items,
+        seq,
         sym_factor=0.25,
         force_sort=True,
         quantilic_func=quantile,
@@ -9478,7 +9486,7 @@ def sym_interquantilic_range(
     perform the multiple required calle with `force_sort` set to False.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         sym_factor (float): The symmetric quantilic factor.
             Must be a number in the [0, 0.5] range.
         force_sort (bool): Force sorting of the input items.
@@ -9505,7 +9513,7 @@ def sym_interquantilic_range(
         - flyingcircus.median_abs_dev()
     """
     return interquantilic_range(
-        items, 0.5 - sym_factor, 0.5 + sym_factor, force_sort=force_sort,
+        seq, 0.5 - sym_factor, 0.5 + sym_factor, force_sort=force_sort,
         quantilic_func=quantilic_func, quantilic_kws=quantilic_kws)
 
 
@@ -13894,13 +13902,13 @@ def sum_progression(name, start, step, num=None):
 
 # ======================================================================
 def guess_numerical_sequence(
-        items,
+        seq,
         rounding=3):
     """
     Guess a compact expression for a numerical sequence.
 
     Args:
-        items (Sequence[Number]): The input items.
+        seq (Sequence[Number]): The input items.
         rounding (int|None): The maximum number of decimals to show.
 
     Returns:
@@ -13968,21 +13976,21 @@ def guess_numerical_sequence(
         >>> print(guess_numerical_sequence(items))
         1.527 ** range(1.333, 4.333, 1)
     """
-    tol = 10 ** -min(guess_decimals(item) for item in items if item)
+    tol = 10 ** -min(guess_decimals(item) for item in seq if item)
     result = None
-    diffs = tuple(diff(items))
+    diffs = tuple(diff(seq))
     base = diffs[0]
     if all(x - base < tol for x in diffs):
         if base < tol:
             # : constant sequence
-            result = '[{}] * {}'.format(round(items[0], rounding), len(items))
+            result = '[{}] * {}'.format(round(seq[0], rounding), len(seq))
         else:
             # : linear sequence
             result = 'range({}, {}, {})'.format(
-                round(items[0], rounding), round(items[-1] + base, rounding),
+                round(seq[0], rounding), round(seq[-1] + base, rounding),
                 round(base, rounding))
     else:
-        divs = tuple(div(items))
+        divs = tuple(div(seq))
         base = divs[0]
         if all(x - base < tol for x in divs):
             # find optimal base (least number of decimals)
@@ -13995,9 +14003,9 @@ def guess_numerical_sequence(
             while new_base >= 2.0:
                 new_base = base ** (1 / step)
                 bases.append(new_base)
-                firsts.append(math.log2(items[0]) / math.log2(new_base))
+                firsts.append(math.log2(seq[0]) / math.log2(new_base))
                 lasts.append(
-                    math.log2(items[-1] * new_base) / math.log2(new_base))
+                    math.log2(seq[-1] * new_base) / math.log2(new_base))
                 steps.append(step)
                 sum_decimals = sum(
                     [guess_decimals(x) if x else 0
