@@ -4124,6 +4124,90 @@ def chunks(
 
 
 # ======================================================================
+def split_by(
+        seq,
+        key=None):
+    """
+    Split consecutive items into groups by some criterion.
+
+    Args:
+        seq (Sequence): The input items.
+        key (callable|None): Splitting criterion.
+            Must have the following signature: key(Any): Any
+            Each element of the sequence is given as input.
+            If None, the element itself is used.
+
+    Yields:
+        group (Iterable): The next grouping.
+
+    Examples:
+        >>> items = [1, 1, 1, 2, 2, 2, 3, 3, 3]
+        >>> print(list(split_by(items)))
+        [[1, 1, 1], [2, 2, 2], [3, 3, 3]]
+
+        >>> items = [0, 0, 2, 2, 2, 1, 1, 3, 3, 3]
+        >>> print(list(split_by(items)))
+        [[0, 0], [2, 2, 2], [1, 1], [3, 3, 3]]
+
+        >>> items = [0, 0, 2, 2, 2, 1, 1, 3, 3, 3]
+        >>> print(list(split_by(items, lambda x: x % 2)))
+        [[0, 0, 2, 2, 2], [1, 1, 3, 3, 3]]
+
+    See Also:
+        - flyingcircus.split()
+        - flyingcircus.chunks()
+        - flyingcircus.group_by()
+        - flyingcircus.regroup_by()
+    """
+    items = iter(seq)
+    try:
+        item = next(items)
+    except StopIteration:
+        return
+    else:
+        # : slower but more compact alternative
+        # last = key(item) if callable(key) else item
+        # i = j = 0
+        # for i, item in enumerate(items, 1):
+        #     current = key(item) if callable(key) else item
+        #     if last != current:
+        #         yield seq[j:i]
+        #         last = current
+        #         j = i
+        # if i >= j:
+        #     yield seq[j:i + 1]
+
+        # : faster but more verbose alternative
+        if callable(key):
+            last = key(item)
+            i = j = 0
+            for i, item in enumerate(items, 1):
+                current = key(item)
+                if last != current:
+                    yield seq[j:i]
+                    last = current
+                    j = i
+            if i >= j:
+                yield seq[j:i + 1]
+        else:
+            last = item
+            i = j = 0
+            for i, item in enumerate(items, 1):
+                current = item
+                if last != current:
+                    yield seq[j:i]
+                    last = current
+                    j = i
+            if i >= j:
+                yield seq[j:i + 1]
+
+    # : comparable alternative using `itertools.groupby`
+    # container = _guess_container(seq)
+    # for _, group in itertools.groupby(seq, key):
+    #     yield container(group)
+
+
+# ======================================================================
 def rolling(
         seq,
         size,
