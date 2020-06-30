@@ -3981,7 +3981,8 @@ def separate(
 # ======================================================================
 def split(
         seq,
-        sizes):
+        sizes,
+        slices=False):
     """
     Split items into groups according to size(s).
 
@@ -3996,9 +3997,12 @@ def split(
             If Sequence, each group has the number of elements specified.
             If int, all groups have the same number of elements.
             The last group will have the remaining items (if any).
+        slices (bool): Yield the slices.
+            If True, yield the slices that would split the input.
+            Otherwise, yield the splitted input.
 
     Yields:
-        group (Sequence): The items from the grouping.
+        Sequence: The items/slices from the grouping.
             Its container matches the one of `items`.
 
     Examples:
@@ -4033,8 +4037,11 @@ def split(
         sizes = sizes[:-1]
     index = (0,) + tuple(itertools.accumulate(sizes)) + (num_items,)
     num = len(index) - 1
-    for i in range(num):
-        yield seq[index[i]:index[i + 1]]
+    if slices:
+        yield slice(index[i], index[i + 1])
+    else:
+        for i in range(num):
+            yield seq[index[i]:index[i + 1]]
 
 
 # ======================================================================
@@ -4042,7 +4049,8 @@ def chunks(
         seq,
         n,
         mode='+',
-        balanced=True):
+        balanced=True,
+        slices=False):
     """
     Split items into groups according to the number desired.
 
@@ -4067,9 +4075,12 @@ def chunks(
             If True, the size of any two chunks is not larger than one.
             Otherwise, the first chunks except the last have the same size.
             This has no effect if the number of items is a multiple of `n`.
+        slices (bool): Yield the slices.
+            If True, yield the slices that would split the input.
+            Otherwise, yield the splitted input.
 
     Yields:
-        group (Sequence): The items from the grouping.
+        Sequence: The items/slices from the grouping.
             Its container matches the one of `items`.
 
     Examples:
@@ -4119,14 +4130,15 @@ def chunks(
         k = len(seq) // size + 1
         q = -len(seq) % size
         size = (size,) * (k - q) + (size - 1,) * q
-    for group in split(seq, size):
+    for group in split(seq, size, slices):
         yield group
 
 
 # ======================================================================
 def split_by(
         seq,
-        key=None):
+        key=None,
+        slices=False):
     """
     Split consecutive items into groups by some criterion.
 
@@ -4136,9 +4148,13 @@ def split_by(
             Must have the following signature: key(Any): Any
             Each element of the sequence is given as input.
             If None, the element itself is used.
+        slices (bool): Yield the slices.
+            If True, yield the slices that would split the input.
+            Otherwise, yield the splitted input.
 
     Yields:
-        group (Iterable): The next grouping.
+        Sequence: The items/slices from the grouping.
+            Its container matches the one of `items`.
 
     Examples:
         >>> items = [1, 1, 1, 2, 2, 2, 3, 3, 3]
@@ -4165,41 +4181,17 @@ def split_by(
     except StopIteration:
         return
     else:
-        # : slower but more compact alternative
-        # last = key(item) if callable(key) else item
-        # i = j = 0
-        # for i, item in enumerate(items, 1):
-        #     current = key(item) if callable(key) else item
-        #     if last != current:
-        #         yield seq[j:i]
-        #         last = current
-        #         j = i
-        # if i >= j:
-        #     yield seq[j:i + 1]
-
-        # : faster but more verbose alternative
-        if callable(key):
-            last = key(item)
-            i = j = 0
-            for i, item in enumerate(items, 1):
-                current = key(item)
-                if last != current:
-                    yield seq[j:i]
-                    last = current
-                    j = i
-            if i >= j:
-                yield seq[j:i + 1]
-        else:
-            last = item
-            i = j = 0
-            for i, item in enumerate(items, 1):
-                current = item
-                if last != current:
-                    yield seq[j:i]
-                    last = current
-                    j = i
-            if i >= j:
-                yield seq[j:i + 1]
+        callable_key = callable(key)
+        last = key(item) if callable_key else item
+        i = j = 0
+        for i, item in enumerate(items, 1):
+            current = key(item) if callable_key else item
+            if last != current:
+                yield slice(j, i) if slices else seq[j:i]
+                last = current
+                j = i
+        if i >= j:
+            yield slice(j, i + 1) if slices else seq[j:i + 1]
 
     # : comparable alternative using `itertools.groupby`
     # container = _guess_container(seq)
@@ -4256,47 +4248,19 @@ def group_by(
     except StopIteration:
         return
     else:
-        # : slower but more compact alternative
-        # last = key(item) if callable(key) else item
-        # group = [item]
-        # for item in items:
-        #     current = key(item) if callable(key) else item
-        #     if last == current:
-        #         group.append(item)
-        #     else:
-        #         yield last, group
-        #         last = current
-        #         group = [item]
-        # if group:
-        #     yield last, group
-
-        # : faster but more verbose alternative
-        if callable(key):
-            last = key(item)
-            group = [item]
-            for item in items:
-                current = key(item)
-                if last == current:
-                    group.append(item)
-                else:
-                    yield last, group
-                    last = current
-                    group = [item]
-            if group:
+        callable_key = callable(key)
+        last = key(item) if callable_key else item
+        group = [item]
+        for item in items:
+            current = key(item) if callable_key else item
+            if last == current:
+                group.append(item)
+            else:
                 yield last, group
-        else:
-            last = item
-            group = [item]
-            for item in items:
-                current = item
-                if last == current:
-                    group.append(item)
-                else:
-                    yield last, group
-                    last = current
-                    group = [item]
-            if group:
-                yield last, group
+                last = current
+                group = [item]
+        if group:
+            yield last, group
 
 
 # ======================================================================
@@ -4339,27 +4303,28 @@ def regroup_by(
         - flyingcircus.split_by()
         - flyingcircus.group_by()
     """
-    result = {}
-    # : slower but more compact alternative
+    # : defaultdict-based solution
+    # result = collections.defaultdict(list)
+    # callable_key = callable(key)
     # for item in items:
-    #     key_value = key(item) if callable(key) else item
-    #     if key_value not in result:
-    #         result[key_value] = []
-    #     result[key_value].append(item)
+    #     result[key(item) if callable_key else item].append(item)
+    # return dict(result)
 
-    # : faster but more verbose alternative
-    if callable(key):
-        for item in items:
-            key_value = key(item)
-            if key_value not in result:
-                result[key_value] = []
-            result[key_value].append(item)
-    else:
-        for item in items:
-            key_value = item
-            if key_value not in result:
-                result[key_value] = []
-            result[key_value].append(item)
+    # : setdefault-based solution
+    # result = {}
+    # callable_key = callable(key)
+    # for item in items:
+    #     key_value = key(item) if callable_key else item
+    #     result.setdefault(key_value, []).append(item)
+    # return result
+
+    result = {}
+    callable_key = callable(key)
+    for item in items:
+        key_value = key(item) if callable_key else item
+        if key_value not in result:
+            result[key_value] = []
+        result[key_value].append(item)
     return result
 
 
