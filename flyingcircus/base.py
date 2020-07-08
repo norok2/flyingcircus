@@ -6500,7 +6500,7 @@ def ilog2(num):
     """
     Compute the integer base-2 logarithm of a number.
 
-    This is defined as the largest integer whose power-2 value is smaller then
+    This is defined as the largest integer whose power-2 value is smaller than
     the number, i.e. floor(log2(n))
 
     Args:
@@ -6548,8 +6548,8 @@ def isqrt(num):
     """
     Compute the integer square root of a number.
 
-    This is defined as the largest integer whose square is smaller then the
-    number, i.e. floor(sqrt(n))
+    This is defined as the largest integer whose square is smaller than the
+    number, i.e. floor(sqrt(num))
 
     Args:
         num (int): The input number.
@@ -6578,6 +6578,61 @@ def isqrt(num):
         result = (guess + num // guess) // 2
     while result * result > num:
         result -= 1
+    return result
+
+
+# ======================================================================
+def iroot(
+        num,
+        k=2):
+    """
+    Compute the integer k-th root of a number.
+
+    This is defined as the largest integer whose n-th power is smaller than
+    the number, i.e. floor(num ** (1 / base))
+
+    Args:
+        num (int): The input number.
+        k (int): The order of the root.
+            Must be k >= 1. When k == 1, the result is `num`.
+
+    Returns:
+        result (int): The integer k-th root of num.
+
+    Examples:
+        >>> iroot(64, 3)
+        4
+        >>> iroot(63, 3)
+        3
+        >>> iroot(65, 3)
+        4
+        >>> iroot(2 ** 300, 3)
+        1267650600228229401496703205376
+        >>> iroot(2 ** 300, 3) == 2 ** 100
+        True
+        >>> all(iroot(2 ** (2 * i)) == 2 ** i for i in range(1000))
+        True
+    """
+    if num < 0:
+        num = -num
+    if k > 1:
+        result = 1 << num.bit_length() // 2
+        update = result
+        guess = result ** k
+        limit = 1 << k
+        while abs(guess - num) > limit and update > 1:
+            update //= 2
+            if guess < num:
+                result += update
+            else:
+                result -= update
+            guess = result ** k
+        while result ** k < num:
+            result += 1
+        while result ** k > num:
+            result -= 1
+    else:
+        return num
     return result
 
 
