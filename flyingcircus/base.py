@@ -1167,14 +1167,14 @@ def span(
 
     Args:
         first (int): The first value of the span.
-            If `second` is None, the `start` value is 1 and this is the `stop`
-            value.
+            If `second` is None, the `start` value is 1,
+            and this is the `stop` value.
             It is included if `step` is a multiple of the sequence length.
             Otherwise, this is the `start` value and it is always included.
         second (int|None): The second value of the span.
-            If None, the start value is 1.
-            Otherwise, this is the stop value and is included.
-            if `step` is a multiple of the length of the sequence.
+            If None, the start value is 1 and this parameter is ignored.
+            Otherwise, this is the `stop` value of the range.
+            It is included if `step` is a multiple of the sequence length.
             If `first < second` the sequence is yielded backwards.
         step (int): The step of the rows range.
             If `start > stop`, the step parameter should be negative in order
