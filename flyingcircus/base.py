@@ -6566,6 +6566,8 @@ def isqrt(num):
         32
         >>> isqrt(2 ** 400)
         1606938044258990275541962092341162602522202993782792835301376
+        >>> isqrt(2 ** 400) == 2 ** 200
+        True
         >>> all(isqrt(2 ** (2 * i)) == 2 ** i for i in range(1000))
         True
     """
@@ -6610,7 +6612,9 @@ def iroot(
         1267650600228229401496703205376
         >>> iroot(2 ** 300, 3) == 2 ** 100
         True
-        >>> all(iroot(2 ** (2 * i)) == 2 ** i for i in range(1000))
+        >>> all(
+        ...     iroot(2 ** (k * i), k) == 2 ** i
+        ...     for i in range(1000) for k in range(2, 10))
         True
     """
     if num < 0:
@@ -6619,7 +6623,7 @@ def iroot(
         result = 1 << num.bit_length() // 2
         update = result
         guess = result ** k
-        limit = 1 << k
+        limit = 1 << k  # same as: 2 ** k but faster
         while abs(guess - num) > limit and update > 1:
             update //= 2
             if guess < num:
