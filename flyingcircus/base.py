@@ -4017,6 +4017,8 @@ def split(
         ([0, 1], [2, 3, 4, 5], [6], [7, 8, 9])
         >>> tuple(split(tuple(l), 4))
         ((0, 1, 2, 3), (4, 5, 6, 7), (8, 9))
+        >>> tuple(split(tuple(l), 4, True))
+        (slice(0, 4, None), slice(4, 8, None), slice(8, 10, None))
         >>> tuple(split(tuple(l), 2)) == tuple(separate(l, 2))
         True
 
@@ -4038,7 +4040,8 @@ def split(
     index = (0,) + tuple(itertools.accumulate(sizes)) + (num_items,)
     num = len(index) - 1
     if slices:
-        yield slice(index[i], index[i + 1])
+        for i in range(num):
+            yield slice(index[i], index[i + 1])
     else:
         for i in range(num):
             yield seq[index[i]:index[i + 1]]
