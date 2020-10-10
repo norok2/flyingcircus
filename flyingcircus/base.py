@@ -3830,6 +3830,12 @@ def slide(
         >>> tuple(slide(range(8), 2, reverse=True))
         ((1, 0), (2, 1), (3, 2), (4, 3), (5, 4), (6, 5), (7, 6))
 
+        >>> def irange(*args):
+        ...    for x in range(*args):
+        ...        yield x
+        >>> tuple(slide(irange(8), 2))
+        ((0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7))
+
     See Also:
         - flyingcircus.sliding()
         - flyingcircus.separate()
@@ -3837,16 +3843,19 @@ def slide(
         - flyingcircus.chunks()
         - flyingcircus.rolling()
     """
+    iters = itertools.tee(iter(items), size)
     if step > 1:
         iters = [
-            itertools.islice(iter(items), i, None, step) for i in range(size)]
+            itertools.islice(itering, i, None, step)
+            for i, itering in enumerate(iters)]
     else:
         # : alternate (slightly faster, but less flexible) implementation
         def consumed(iterator, n):
             next(itertools.islice(iterator, n, n), None)
             return iterator
 
-        iters = [consumed(iter(items), i) for i in range(size)]
+        iters = [
+            consumed(itering, i) for i, itering in enumerate(iters)]
     if reverse:
         iters = reversed(iters)
     if truncate:
