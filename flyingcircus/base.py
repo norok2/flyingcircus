@@ -808,6 +808,95 @@ def join_(*operands, **_kws):
 
 
 # ======================================================================
+def get_nested_attr(
+        obj,
+        *names):
+    """
+    Get the nested attributes of an object.
+
+    Args:
+        obj (Any): The input object.
+        *names (tuple[str]): The attributes to get.
+
+    Returns:
+        Any: The specified attribute.
+
+    Examples:
+        >>> print(get_nested_attr(1, 'real'))
+        1
+        >>> print(get_nested_attr(1, 'real', 'imag'))
+        0
+        >>> print(get_nested_attr(1, '__class__'))
+        <class 'int'>
+        >>> print(get_nested_attr(1, '__class__', '__name__'))
+        int
+        >>> print(get_nested_attr(1, '__class__', '__name__', '__class__'))
+        <class 'str'>
+    """
+    for name in names:
+        obj = getattr(obj, name)
+    return obj
+
+
+# ======================================================================
+def idir(
+        obj,
+        skip='_',
+        methods=True,
+        attributes=True,
+        yield_attr=False):
+    """
+    Iteratively (and selectively) list the attributes of an object.
+
+    Args:
+        obj (Any): The input object.
+        skip (str|callable): The skip criterion.
+            If str, names starting with the specified string are skipped.
+            If callable, skips when `skip(name)` evaluates to True.
+        methods (bool): Include methods.
+            If False, the callable attributes are excluded.
+        attributes (bool): Include non-callable attributes.
+            If False, the non-callable attributes are excluded.
+        yield_attr (bool): Yield both the name and the attribute.
+            If False, only the name is yielded (same behavior as `dir()`).
+
+    Yields:
+        str|tuple[str, Any]: The name or the name/attribute pair.
+            The return type/mode depends on the value of `yield_attr`.
+
+    Examples:
+        >>> list(idir(1, '_', True, True))
+        [..., 'from_bytes', 'imag', 'numerator', 'real', 'to_bytes']
+        >>> list(idir(1, '_', False, True))
+        ['denominator', 'imag', 'numerator', 'real']
+        >>> list(idir(1, '_', True, False))
+        ['bit_length', 'conjugate', 'from_bytes', 'to_bytes']
+        >>> list(idir(1, '_', False, False))
+        []
+        >>> list(idir(1, '_', False, True, True))
+        [('denominator', 1), ('imag', 0), ('numerator', 1), ('real', 1)]
+        >>> list(idir(1, '_', True, False, True))  # doctest:+ELLIPSIS
+        [\
+('bit_length', <built-in method bit_length of int object at ...>), \
+('conjugate', <built-in method conjugate of int object at ...>), \
+('from_bytes', <built-in method from_bytes of type object at ...>), \
+('to_bytes', <built-in method to_bytes of int object at ...>)]
+    """
+    if not callable(skip):
+        def skip(t, s=skip):
+            return t.startswith(s)
+
+    if not methods and not attributes:
+        return
+    for name in dir(obj):
+        if not skip(name):
+            attr = getattr(obj, name)
+            is_callable = callable(attr)
+            if (methods and is_callable) or (attributes and not is_callable):
+                yield (name, attr) if yield_attr else name
+
+
+# ======================================================================
 def reverse_mapping(
         mapping,
         check=True):
@@ -6626,7 +6715,7 @@ def iroot(
         True
         >>> all(
         ...     iroot(2 ** (k * i), k) == 2 ** i
-        ...     for i in range(1000) for k in range(2, 10))
+        ...     for i in range(100) for k in range(2, 10))
         True
     """
     if num < 0:
@@ -8344,7 +8433,7 @@ def cont_frac(b, a=1, limit=None):
 
     .. math::
 
-        \\frac{a}{b} = b_0 + \\frac{a_1}{b_1 +} \\frac{a_2}{b_2 +} \ldots
+        \\frac{a}{b} = b_0 + \\frac{a_1}{b_1 +} \\frac{a_2}{b_2 +} \\ldots
 
     Args:
         b (int|Iterable[int]): Generalized continued fraction denominators.
@@ -13232,6 +13321,83 @@ def compact_num_str(
         warnings.warn('Could not convert value `{}` to float'.format(val))
         val_str = 'NaN'
     return val_str
+
+
+# ======================================================================
+def obj2str(
+        obj,
+        names=None,
+        skip='_',
+        blacklist=(),
+        base=('__class__', '__name__'),
+        base_sep=': ',
+        attr_sep=', ',
+        kv_sep='=',
+        pre_delim='<',
+        post_delim='>'):
+    """
+    Generate a meaningful string representation of an object.
+
+    Args:
+        obj (Any): The input object.
+        names (Iterable[str]|None): The attribute names to consider.
+            If None, uses `idir(obj, skip, methods=False, attributes=True)`
+        skip (str|callable): The skip criterion.
+            If str, names starting with it are skipped.
+            If callable, skips when `skip(name)` evaluates to True.
+        base (str|Iterable[str]|callable): The base object name.
+            If str, uses `getattr(obj, base)`.
+            If Iterable[str], uses `get_nested_attr(obj, *base)`.
+            If callable, uses `base(obj)`.
+            If None, the base part is skipped.
+        base_sep (str): The name-to-attributes separator.
+        attr_sep (str): The attributes separator.
+        kv_sep (str): The key-value separator.
+        pre_delim (str): The prefix delimiter.
+            This is prepended to the final string.
+        post_delim (str): The postfix delimiter.
+            This is appended to the final string.
+
+    Returns:
+        str: A text representation of the object.
+
+    Examples:
+        >>> print(obj2str(1))
+        <int: denominator=1, imag=0, numerator=1, real=1>
+        >>> print(obj2str(1, base=None))
+        <denominator=1, imag=0, numerator=1, real=1>
+        >>> print(obj2str(1, ('real', 'imag')))
+        <int: real=1, imag=0>
+        >>> print(obj2str(1, pre_delim='{', post_delim='}'))
+        {int: denominator=1, imag=0, numerator=1, real=1}
+        >>> print(obj2str(1, pre_delim='<!', post_delim='>'))
+        <!int: denominator=1, imag=0, numerator=1, real=1>
+        >>> print(obj2str(1, base_sep='::', attr_sep=',', kv_sep=':'))
+        <int::denominator:1,imag:0,numerator:1,real:1>
+        >>> print(obj2str(1, blacklist=('denominator', 'imag')))
+        <int: numerator=1, real=1>
+    """
+    if callable(base):
+        base_name = base(obj)
+    elif isinstance(base, str):
+        base_name = getattr(obj, base)
+    elif base is not None:
+        base_name = get_nested_attr(obj, *base)
+    else:
+        base_name = base_sep = ''
+    if names is None:
+        if blacklist:
+            def skip(name, s=skip):
+                return name.startswith(s) or name in blacklist
+        text = attr_sep.join(
+            '{}{}{}'.format(name, kv_sep, attr)
+            for name, attr in idir(obj, skip, False, True, True))
+    else:
+        text = attr_sep.join(
+            '{}{}{}'.format(name, kv_sep, getattr(obj, name))
+            for name in names if hasattr(obj, name))
+    return '{}{}{}{}{}'.format(
+        pre_delim, base_name, base_sep, text, post_delim)
 
 
 # ======================================================================
