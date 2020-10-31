@@ -865,7 +865,7 @@ def idir(
             The return type/mode depends on the value of `yield_attr`.
 
     Examples:
-        >>> list(idir(1, '_', True, True))
+        >>> list(idir(1, '_', True, True))  # doctest:+ELLIPSIS
         [..., 'from_bytes', 'imag', 'numerator', 'real', 'to_bytes']
         >>> list(idir(1, '_', False, True))
         ['denominator', 'imag', 'numerator', 'real']
