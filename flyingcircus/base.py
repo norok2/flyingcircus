@@ -767,7 +767,8 @@ def join(
     elif hasattr(result, 'update'):
         if coerce:
             for x in iter_operands:
-                result.update(type_result(x) if type_result != type(x) else x)
+                result.update(
+                    x if isinstance(x, type_result) else type_result(x))
         else:
             for x in iter_operands:
                 result.update(x)
