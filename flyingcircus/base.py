@@ -6791,7 +6791,50 @@ def perm(n, k):
         raise ValueError(
             'Values must be non-negative and n >= k in perm(n, k)')
     else:
-        return prod(range(n - k + 1, n + 1))
+        return prod(range(1, n + 1))
+
+
+
+# ======================================================================
+def factorial(n):
+    """
+    Compute the factorial of a number `n!`.
+
+    n! = n * (n - 1) * ... * 1
+
+    Args:
+        n (int): The input number.
+            Must be non-negative.
+
+    Returns:
+        result (int): The number of k-permutation of n items.
+
+    Raises:
+        ValueError: if the inputs are invalid.
+
+    Examples:
+        >>> factorial(5)
+        120
+        >>> [factorial(i) for i in range(12)]
+        [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800]
+        >>> factorial(0)
+        1
+        >>> factorial(1)
+        1
+        >>> factorial(-1)
+        Traceback (most recent call last):
+            ...
+        ValueError: Value must be non-negative
+        >>> all(factorial(n) == math.factorial(n) for n in range(20))
+        True
+
+    References:
+        - https://en.wikipedia.org/wiki/Factorial
+    """
+    if n < 0:
+        raise ValueError('Value must be non-negative')
+    else:
+        return prod(range(1, n + 1))
 
 
 # ======================================================================
@@ -6874,18 +6917,24 @@ def comb(n, k):
     if not 0 <= k <= n:
         raise ValueError(
             fmtm('Values must be non-negative and n={n} >= k={k}'))
-    k = k if k < n - k else n - k
-    # : purely factorial (slower) implementation
-    # return math.factorial(n) // math.factorial(n - k) // math.factorial(k)
+    # elif k == 0:
+    #     return 1
+    # elif k == 1 or n == k:
+    #     return n
+    else:
+        k = k if k < n - k else n - k
+        # : purely factorial (slower) implementation
+        # return \
+        #     math.factorial(n) // math.factorial(n - k) // math.factorial(k)
 
-    # : purely iterative (slower) implementation
-    # result = 1
-    # for i in range(1, k + 1):
-    #     result = result * (n - i + 1) // i
-    # return result
+        # : purely iterative (slower) implementation
+        # result = 1
+        # for i in range(1, k + 1):
+        #     result = result * (n - i + 1) // i
+        # return result
 
-    # equivalent to: `perm(n, k) // math.factorial(k)`
-    return prod(range(n - k + 1, n + 1)) // math.factorial(k)
+        # equivalent to: `perm(n, k) // math.factorial(k)`
+        return prod(range(n - k + 1, n + 1)) // math.factorial(k)
 
 
 # ======================================================================
