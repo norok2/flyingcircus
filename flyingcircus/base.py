@@ -6787,7 +6787,7 @@ def perm(n, k):
     References:
         - https://en.wikipedia.org/wiki/Permutation
     """
-    if k > n or k < 0 or n < 0:
+    if not 0 <= k <= n:
         raise ValueError(
             'Values must be non-negative and n >= k in perm(n, k)')
     else:
@@ -6871,22 +6871,21 @@ def comb(n, k):
         - https://en.wikipedia.org/wiki/Binomial_coefficient
         - https://en.wikipedia.org/wiki/Binomial_triangle
     """
-    # : iterative (slower) implementation
-    # value = 1
-    # for i in range(n + 1):
-    #     if i in {k, n - k}:
-    #         break
-    #     value = value * (n - i) // (i + 1)
-    # return value
     if not 0 <= k <= n:
         raise ValueError(
             fmtm('Values must be non-negative and n={n} >= k={k}'))
-    elif k > n - k:
-        # return perm(n, k) // math.factorial(n - k)
-        return math.factorial(n) // math.factorial(k) // math.factorial(n - k)
-    else:
-        # return perm(n, n - k) // math.factorial(k)
-        return math.factorial(n) // math.factorial(n - k) // math.factorial(k)
+    k = k if k < n - k else n - k
+    # : purely factorial (slower) implementation
+    # return math.factorial(n) // math.factorial(n - k) // math.factorial(k)
+
+    # : purely iterative (slower) implementation
+    # result = 1
+    # for i in range(1, k + 1):
+    #     result = result * (n - i + 1) // i
+    # return result
+
+    # equivalent to: `perm(n, k) // math.factorial(k)`
+    return prod(range(n - k + 1, n + 1)) // math.factorial(k)
 
 
 # ======================================================================
