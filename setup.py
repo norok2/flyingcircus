@@ -150,6 +150,7 @@ setup(
     setup_requires=[
         'setuptools',
         'setuptools_scm',
+        'appdirs',
     ],
 
     extras_require={
