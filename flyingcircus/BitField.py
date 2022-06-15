@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-flyingcircus.BitMask: BitMask class.
+flyingcircus.BitField: Bit Field class.
 """
 
 # ======================================================================
@@ -98,7 +98,7 @@ def bits_r(value):
 
 
 # ======================================================================
-class BitMaskMeta(type):
+class BitFieldMeta(type):
     def __new__(mcs, cls_name, cls_bases, cls_dict):
         keys = cls_dict['KEYS']
         empty = cls_dict['EMPTY']
@@ -112,18 +112,18 @@ class BitMaskMeta(type):
 
 
 # ======================================================================
-class BitMask(object, metaclass=BitMaskMeta):
+class BitField(object, metaclass=BitFieldMeta):
     """
-    Generic bit-mask class.
+    Generic bit-field class.
 
     The recommended usage is to subclass for specialized representations.
 
     Typically, while subclassing, `KEYS` and `EMPTY` should probably be
     replaced.
-    Additionally, `FULL_REPR` and `IGNORE_INVALID` control the bit-mask
+    Additionally, `FULL_REPR` and `IGNORE_INVALID` control the bit-field
     default behavior.
     In particular:
-     - `KEYS` determines which flags to use for encoding/decoding the bit-mask.
+     - `KEYS` determines which flags to use for encoding/decoding the bit-field.
        **IMPORTANT!**: Items in `KEYS` must be unique.
      - `EMPTY` is used during encoding/decoding for marking empty/unset flags.
        **IMPORTANT!**: `EMPTY` must not be present in `KEYS`.
@@ -133,10 +133,10 @@ class BitMask(object, metaclass=BitMaskMeta):
        ignored during encoding or rather a ValueError should be raised.
 
     Examples:
-        >>> print(BitMask(127))
-        BitMask(abcdefg)
-        >>> repr(BitMask(127))
-        "BitMask(0b1111111){'a': True, 'b': True, 'c': True, 'd': True,\
+        >>> print(BitField(127))
+        BitField(abcdefg)
+        >>> repr(BitField(127))
+        "BitField(0b1111111){'a': True, 'b': True, 'c': True, 'd': True,\
  'e': True, 'f': True, 'g': True, 'h': False, 'i': False, 'j': False,\
  'k': False, 'l': False, 'm': False, 'n': False, 'o': False, 'p': False,\
  'q': False, 'r': False, 's': False, 't': False, 'u': False, 'v': False,\
@@ -146,21 +146,21 @@ class BitMask(object, metaclass=BitMaskMeta):
  'O': False, 'P': False, 'Q': False, 'R': False, 'S': False, 'T': False,\
  'U': False, 'V': False, 'W': False, 'X': False, 'Y': False, 'Z': False}"
 
-        >>> int(BitMask(12))
+        >>> int(BitField(12))
         12
 
-        >>> print(BitMask(8) + BitMask(1))
-        BitMask(ad)
-        >>> print(BitMask('a') + BitMask('d'))
-        BitMask(ad)
+        >>> print(BitField(8) + BitField(1))
+        BitField(ad)
+        >>> print(BitField('a') + BitField('d'))
+        BitField(ad)
 
-        >>> print(list(BitMask(11)))
+        >>> print(list(BitField(11)))
         ['a', 'b', 'd']
 
-        >>> print(list(reversed(BitMask(11))))
+        >>> print(list(reversed(BitField(11))))
         ['d', 'b', 'a']
 
-        >>> class UnixPermissions(BitMask):
+        >>> class UnixPermissions(BitField):
         ...     KEYS = 'rwx'
         ...     EMPTY = '-'
         ...     FULL_REPR = True
@@ -175,14 +175,14 @@ class BitMask(object, metaclass=BitMaskMeta):
         >>> acl['x'] = True
         >>> print(acl)
         UnixPermissions(r-x)
-        >>> acl.bitmask = 7
+        >>> acl.BitField = 7
         >>> print(acl)
         UnixPermissions(rwx)
         >>> del acl.x
         >>> print(acl)
         UnixPermissions(rw-)
 
-        >>> class RGB(BitMask):
+        >>> class RGB(BitField):
         ...     KEYS = ['red', 'green', 'blue']
         ...     EMPTY = None
         ...     FULL_REPR = True
@@ -199,13 +199,12 @@ class BitMask(object, metaclass=BitMaskMeta):
         RGB(['red', None, 'blue'])
         >>> print(list(rgb))
         ['red', 'blue']
-        >>> rgb.bitmask = 7
+        >>> rgb.BitField = 7
         >>> print(rgb)
         RGB(['red', 'green', 'blue'])
         >>> del rgb.blue
-        >>> print(acl)
-        UnixPermissions(rw-)
-
+        >>> print(rgb)
+        RGB(['red', 'green', None])
     """
     KEYS = string.ascii_letters
     EMPTY = ' '
@@ -215,48 +214,48 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __init__(
             self,
-            bitmask=0):
+            BitField=0):
         """
-        Instantiate a BitMask object.
+        Instantiate a BitField object.
 
         Args:
-            bitmask (int|Sequence): The input bit-mask.
-                If int, the flags of the bit-mask are according to the bit
+            BitField (int|Sequence): The input bit-field.
+                If int, the flags of the bit-field are according to the bit
                 boolean values.
                 If a sequence, uses `KEYS` to encode the input into the
-                corresponding bit-mask, using `from_keys()` method.
+                corresponding bit-field, using `from_keys()` method.
                 The value of `EMPTY` is used to mark empty / unset bits.
                 The value of `IGNORE_INVALID` determines whether invalid
                 items in the sequence are ignored or will raise a ValueError.
         """
         cls = type(self)
-        super(BitMask, self).__setattr__('_bitmask', None)
-        if isinstance(bitmask, int):
-            self.bitmask = bitmask
+        super(BitField, self).__setattr__('_BitField', None)
+        if isinstance(BitField, int):
+            self.BitField = BitField
         else:
-            self.bitmask = self.encode(
-                bitmask, cls.KEYS, cls.EMPTY, cls.IGNORE_INVALID)
+            self.BitField = self.encode(
+                BitField, cls.KEYS, cls.EMPTY, cls.IGNORE_INVALID)
 
     # ----------------------------------------------------------
     @property
-    def bitmask(self):
-        return super(BitMask, self).__getattribute__('_bitmask')
+    def BitField(self):
+        return super(BitField, self).__getattribute__('_BitField')
 
     # ----------------------------------------------------------
-    @bitmask.setter
-    def bitmask(self, bitmask_):
-        max_bitmask = (1 << self.size) - 1
-        if 0 <= bitmask_ <= max_bitmask:
-            super(BitMask, self).__setattr__('_bitmask', bitmask_)
+    @BitField.setter
+    def BitField(self, BitField_):
+        max_BitField = (1 << self.size) - 1
+        if 0 <= BitField_ <= max_BitField:
+            super(BitField, self).__setattr__('_BitField', BitField_)
         else:
             raise ValueError(fmtm(
-                '{self.__class__.__name__}() bit-mask must be between'
-                ' 0 and {max_bitmask}, not `{bitmask_}`'))
+                '{self.__class__.__name__}() bit-field must be between'
+                ' 0 and {max_BitField}, not `{BitField_}`'))
 
     # ----------------------------------------------------------
-    @bitmask.deleter
-    def bitmask(self):
-        del self._bitmask
+    @BitField.deleter
+    def BitField(self):
+        del self._BitField
 
     # ----------------------------------------------------------
     @classmethod
@@ -269,17 +268,17 @@ class BitMask(object, metaclass=BitMaskMeta):
     @property
     def size(self):
         """
-        Compute the maximum lenght for the bit-mask (given the class keys).
+        Compute the maximum lenght for the bit-field (given the class keys).
 
         Returns:
-            result (int): The maximum length for the bit-mask.
+            result (int): The maximum length for the bit-field.
 
         Examples:
-            >>> BitMask().size
+            >>> BitField().size
             52
-            >>> BitMask(123).size
+            >>> BitField(123).size
             52
-            >>> len(BitMask(123))
+            >>> len(BitField(123))
             52
         """
         return len(type(self).KEYS)
@@ -291,23 +290,23 @@ class BitMask(object, metaclass=BitMaskMeta):
     @property
     def active_len(self):
         """
-        Compute the actual lenght for the bit-mask.
+        Compute the actual lenght for the bit-field.
 
         Returns:
-            result (int): The actual length of the bit-mask.
+            result (int): The actual length of the bit-field.
 
         Examples:
-            >>> BitMask().active_len
+            >>> BitField().active_len
             0
-            >>> BitMask(123).active_len
+            >>> BitField(123).active_len
             7
         """
-        return self._bitmask.bit_length()
+        return self._BitField.bit_length()
 
     # ----------------------------------------------------------
     def values(self):
         """
-        Iterate forward over the bit-mask values.
+        Iterate forward over the bit-field values.
 
         The iteration is from the least to the most significant bit.
 
@@ -315,13 +314,13 @@ class BitMask(object, metaclass=BitMaskMeta):
             value (bool): The next bit value.
 
         Examples:
-            >>> print(list(BitMask('ac').values()))
+            >>> print(list(BitField('ac').values()))
             [True, False, True, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False]
-            >>> print(list(BitMask(11).values()))
+            >>> print(list(BitField(11).values()))
             [True, True, False, True, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
@@ -329,12 +328,12 @@ class BitMask(object, metaclass=BitMaskMeta):
  False, False, False, False, False, False, False, False, False, False]
         """
         for i in range(self.size):
-            yield (self._bitmask & (1 << i)) > 0
+            yield (self._BitField & (1 << i)) > 0
 
     # ----------------------------------------------------------
     def values_r(self):
         """
-        Iterate backward over the bit-mask values.
+        Iterate backward over the bit-field values.
 
         The iteration is from the most to the least significant bit.
 
@@ -342,13 +341,13 @@ class BitMask(object, metaclass=BitMaskMeta):
             value (bool): The previous bit value.
 
         Examples:
-            >>> print(list(BitMask('ac').values_r()))
+            >>> print(list(BitField('ac').values_r()))
             [False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, True, False, True]
-            >>> print(list(BitMask(11).values_r()))
+            >>> print(list(BitField(11).values_r()))
             [False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
  False, False, False, False, False, False, False, False, False, False, False,\
@@ -356,52 +355,52 @@ class BitMask(object, metaclass=BitMaskMeta):
  False, False, False, False, False, False, True, False, True, True]
         """
         for i in range(self.size - 1, -1, -1):
-            yield ((self._bitmask >> i) & 1) > 0
+            yield ((self._BitField >> i) & 1) > 0
 
     # ----------------------------------------------------------
     def active_values(self):
         """
-        Iterate forward over the active bit-mask values.
+        Iterate forward over the active bit-field values.
 
         Yields:
             value (bool): The next active value.
 
         Examples:
-            >>> flags = BitMask('ac')
+            >>> flags = BitField('ac')
             >>> print(list(flags.active_values()))
             [True, False, True]
-            >>> print(list(BitMask(11).active_values()))
+            >>> print(list(BitField(11).active_values()))
             [True, True, False, True]
         """
-        yield from bits(self._bitmask)
+        yield from bits(self._BitField)
 
 # ----------------------------------------------------------
     def active_values_r(self):
         """
-        Iterate backward over the active bit-mask values.
+        Iterate backward over the active bit-field values.
 
         Yields:
             value (bool): The previous active value.
 
         Examples:
-            >>> flags = BitMask('ac')
+            >>> flags = BitField('ac')
             >>> print(list(flags.active_values()))
             [True, False, True]
-            >>> print(list(BitMask(11).active_values()))
+            >>> print(list(BitField(11).active_values()))
             [True, True, False, True]
         """
-        yield from bits_r(self._bitmask)
+        yield from bits_r(self._BitField)
 
     # ----------------------------------------------------------
     def keys(self):
         """
-        Yields the keys of the bit-mask.
+        Yields the keys of the bit-field.
 
         Yields:
             key (str): The next key.
 
         Examples:
-            >>> print(''.join((BitMask(7).keys())))
+            >>> print(''.join((BitField(7).keys())))
             abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
         """
         for key in type(self).KEYS:
@@ -410,13 +409,13 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def keys_r(self):
         """
-        Yields the keys of the bit-mask in reversed order.
+        Yields the keys of the bit-field in reversed order.
 
         Yields:
             key (str): The previous key.
 
         Examples:
-            >>> print(''.join((BitMask(7).keys_r())))
+            >>> print(''.join((BitField(7).keys_r())))
             ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvutsrqponmlkjihgfedcba
         """
         for key in reversed(type(self).KEYS):
@@ -425,51 +424,51 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def active_keys(self):
         """
-        Yields the active keys of the bit-mask.
+        Yields the active keys of the bit-field.
 
         Yields:
             key (str): The next key.
 
         Examples:
-            >>> print(list(BitMask(7).active_keys()))
+            >>> print(list(BitField(7).active_keys()))
             ['a', 'b', 'c']
-            >>> print(list(BitMask(5).active_keys()))
+            >>> print(list(BitField(5).active_keys()))
             ['a', 'c']
         """
         for key, value in zip(
-                type(self).KEYS, bits(self._bitmask)):
+                type(self).KEYS, bits(self._BitField)):
             if value:
                 yield key
 
     # ----------------------------------------------------------
     def active_keys_r(self):
         """
-        Yields the active keys of the bit-mask in reversed order.
+        Yields the active keys of the bit-field in reversed order.
 
         Yields:
             key (str): The previous key.
 
         Examples:
-            >>> print(list(BitMask(7).active_keys_r()))
+            >>> print(list(BitField(7).active_keys_r()))
             ['c', 'b', 'a']
         """
         for key, value in zip(
                 reversed(type(self).KEYS[:self.active_len]),
-                bits_r(self._bitmask)):
+                bits_r(self._BitField)):
             if value:
                 yield key
 
     # ----------------------------------------------------------
     def items(self):
         """
-        Yields the key-value pairs of the bit-mask.
+        Yields the key-value pairs of the bit-field.
 
         Yields:
             key (str): The next key.
             value (bool): The next value.
 
         Examples:
-            >>> print(dict(BitMask(7).items()))
+            >>> print(dict(BitField(7).items()))
             {'a': True, 'b': True, 'c': True, 'd': False, 'e': False,\
  'f': False, 'g': False, 'h': False, 'i': False, 'j': False, 'k': False,\
  'l': False, 'm': False, 'n': False, 'o': False, 'p': False, 'q': False,\
@@ -486,14 +485,14 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def items_r(self):
         """
-        Yields the key-value pairs of the bit-mask.
+        Yields the key-value pairs of the bit-field.
 
         Yields:
             key (str): The next key.
             value (bool): The next value.
 
         Examples:
-            >>> print(dict(BitMask(7).items_r()))
+            >>> print(dict(BitField(7).items_r()))
             {'Z': False, 'Y': False, 'X': False, 'W': False, 'V': False,\
  'U': False, 'T': False, 'S': False, 'R': False, 'Q': False, 'P': False,\
  'O': False, 'N': False, 'M': False, 'L': False, 'K': False, 'J': False,\
@@ -511,41 +510,41 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def active_items(self):
         """
-        Yields the active key-value pairs of the bit-mask.
+        Yields the active key-value pairs of the bit-field.
 
         Yields:
             key (str): The next key.
             value (bool): The next value.
 
         Examples:
-            >>> print(dict(BitMask(7).active_items()))
+            >>> print(dict(BitField(7).active_items()))
             {'a': True, 'b': True, 'c': True}
-            >>> print(dict(BitMask(5).active_items()))
+            >>> print(dict(BitField(5).active_items()))
             {'a': True, 'c': True}
         """
         for key, value in zip(
-                type(self).KEYS, bits(self._bitmask)):
+                type(self).KEYS, bits(self._BitField)):
             if value:
                 yield key, value
 
     # ----------------------------------------------------------
     def active_items_r(self):
         """
-        Yields the active key-value pairs of the bit-mask.
+        Yields the active key-value pairs of the bit-field.
 
         Yields:
             key (str): The next key.
             value (bool): The next value.
 
         Examples:
-            >>> print(dict(BitMask(7).active_items_r()))
+            >>> print(dict(BitField(7).active_items_r()))
             {'c': True, 'b': True, 'a': True}
-            >>> print(dict(BitMask(5).active_items_r()))
+            >>> print(dict(BitField(5).active_items_r()))
             {'c': True, 'a': True}
         """
         for key, value in zip(
                 reversed(type(self).KEYS[:self.active_len]),
-                bits_r(self._bitmask)):
+                bits_r(self._BitField)):
             if value:
                 yield key, value
 
@@ -562,10 +561,10 @@ class BitMask(object, metaclass=BitMaskMeta):
             key (int|str): The index or key of the item.
 
         Returns:
-            result (bool): The bit value at the given index in the bit-mask.
+            result (bool): The bit value at the given index in the bit-field.
 
         Examples:
-            >>> flags = BitMask('ac')
+            >>> flags = BitField('ac')
             >>> print([flags[i] for i in range(flags.active_len)])
             [True, False, True]
             >>> print([flags[c] for c in 'abc'])
@@ -573,7 +572,7 @@ class BitMask(object, metaclass=BitMaskMeta):
         """
         if isinstance(key, str):
             key = self.KEYS.index(key)
-        return (self._bitmask & (1 << key)) > 0
+        return (self._BitField & (1 << key)) > 0
 
     # ----------------------------------------------------------
     def __setitem__(self, key, value):
@@ -588,32 +587,32 @@ class BitMask(object, metaclass=BitMaskMeta):
             None.
 
         Examples:
-            >>> flags = BitMask('c')
+            >>> flags = BitField('c')
             >>> flags[0] = True
             >>> print(flags)
-            BitMask(ac)
+            BitField(ac)
             >>> flags[0] = False
             >>> print(flags)
-            BitMask(c)
+            BitField(c)
             >>> flags[1] = True
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> flags[2] = False
             >>> print(flags)
-            BitMask(b)
+            BitField(b)
             >>> flags['a'] = True
             >>> print(flags)
-            BitMask(ab)
+            BitField(ab)
             >>> flags['b'] = False
             >>> print(flags)
-            BitMask(a)
+            BitField(a)
         """
         if isinstance(key, str):
             key = self.KEYS.index(key)
         if value:
-            self._bitmask = self._bitmask | (1 << key)
+            self._BitField = self._BitField | (1 << key)
         else:
-            self._bitmask = self._bitmask & ~(1 << key)
+            self._BitField = self._BitField & ~(1 << key)
 
     # ----------------------------------------------------------
     def __delitem__(self, key):
@@ -627,15 +626,15 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (bool): The bit value before deletion.
 
         Examples:
-            >>> flags = BitMask(7)
+            >>> flags = BitField(7)
             >>> print(flags)
-            BitMask(abc)
+            BitField(abc)
             >>> del flags[0]
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> del flags['b']
             >>> print(flags)
-            BitMask(c)
+            BitField(c)
         """
         bit_value = self[key]
         self[key] = False
@@ -644,7 +643,7 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __contains__(self, key):
         """
-        Check if the specified key is present in the bit-mask.
+        Check if the specified key is present in the bit-field.
 
         Args:
             key (str): The key of the item.
@@ -653,11 +652,11 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (bool): The result of the check.
 
         Examples:
-            >>> 'a' in BitMask()
+            >>> 'a' in BitField()
             True
-            >>> 'fc' in BitMask()
+            >>> 'fc' in BitField()
             False
-            >>> 'a' in BitMask(0) and 'a' in BitMask(1)
+            >>> 'a' in BitField(0) and 'a' in BitField(1)
             True
         """
         return key in self.KEYS
@@ -676,9 +675,9 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (int): The index corresponding to a specific key.
 
         Examples:
-            >>> print(BitMask().index('a'))
+            >>> print(BitField().index('a'))
             0
-            >>> print(BitMask().index('A'))
+            >>> print(BitField().index('A'))
             26
         """
         if start is None and stop is None:
@@ -705,12 +704,12 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (int): The number of matches found.
 
         Examples:
-            >>> BitMask().count(True)
+            >>> BitField().count(True)
             0
-            >>> BitMask().count(False)
+            >>> BitField().count(False)
             52
 
-            >>> flags = BitMask(127)
+            >>> flags = BitField(127)
             >>> print(flags.count())
             7
             >>> print(flags.count(True))
@@ -718,21 +717,21 @@ class BitMask(object, metaclass=BitMaskMeta):
             >>> print(flags.count(False))
             45
         """
-        ones = bin(self._bitmask).count('1')
+        ones = bin(self._BitField).count('1')
         if value in (1, True):
             return ones
         elif value in (0, False):
             return self.size - ones
         else:
-            raise ValueError('BitMask only contains boolean values.')
+            raise ValueError('BitField only contains boolean values.')
 
     def clear(self):
-        self._bitmask = 0
+        self._BitField = 0
 
     # ----------------------------------------------------------
     def __ior__(self, other):
         if type(self) == type(other):
-            self._bitmask |= other._bitmask
+            self._BitField |= other._BitField
             return self
         else:
             raise NotImplemented
@@ -740,34 +739,34 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __or__(self, other):
         """
-        Perform bitwise-or operation between two bit-masks.
+        Perform bitwise-or operation between two bit-fields.
 
         Args:
-            other (BitMask): The other bit-mask.
+            other (BitField): The other bit-field.
 
         Returns:
-            result (BitMask): The result of the operation.
+            result (BitField): The result of the operation.
 
         Examples:
-            >>> a = BitMask(1)
-            >>> b = BitMask(2)
+            >>> a = BitField(1)
+            >>> b = BitField(2)
 
             >>> print(a | b)
-            BitMask(ab)
+            BitField(ab)
             >>> print(a)
-            BitMask(a)
+            BitField(a)
             >>> print(b)
-            BitMask(b)
+            BitField(b)
 
             >>> print(a + b)
-            BitMask(ab)
+            BitField(ab)
             >>> print(a)
-            BitMask(a)
+            BitField(a)
             >>> print(b)
-            BitMask(b)
+            BitField(b)
 
         """
-        result = type(self)(self._bitmask)
+        result = type(self)(self._BitField)
         result |= other
         return result
 
@@ -777,7 +776,7 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __iand__(self, other):
         if type(self) == type(other):
-            self._bitmask &= other._bitmask
+            self._BitField &= other._BitField
             return self
         else:
             raise NotImplemented
@@ -785,34 +784,34 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __and__(self, other):
         """
-        Perform bitwise-and operation between two bit-masks.
+        Perform bitwise-and operation between two bit-fields.
 
         Args:
-            other (BitMask): The other bit-mask.
+            other (BitField): The other bit-field.
 
         Returns:
-            result (BitMask): The result of the operation.
+            result (BitField): The result of the operation.
 
         Examples:
-            >>> a = BitMask(3)
-            >>> b = BitMask(6)
+            >>> a = BitField(3)
+            >>> b = BitField(6)
 
             >>> print(a & b)
-            BitMask(b)
+            BitField(b)
             >>> print(a)
-            BitMask(ab)
+            BitField(ab)
             >>> print(b)
-            BitMask(bc)
+            BitField(bc)
 
             >>> print(a * b)
-            BitMask(b)
+            BitField(b)
             >>> print(a)
-            BitMask(ab)
+            BitField(ab)
             >>> print(b)
-            BitMask(bc)
+            BitField(bc)
 
         """
-        result = type(self)(self._bitmask)
+        result = type(self)(self._BitField)
         result &= other
         return result
 
@@ -830,52 +829,52 @@ class BitMask(object, metaclass=BitMaskMeta):
     # ----------------------------------------------------------
     def __xor__(self, item):
         """
-        Flip the specified bit from the bit-masks.
+        Flip the specified bit from the bit-fields.
 
         Args:
             item (int): The position of the bit to flip.
 
         Returns:
-            result (BitMask): The result of the operation.
+            result (BitField): The result of the operation.
 
         Examples:
-            >>> flags = BitMask('bd')
+            >>> flags = BitField('bd')
             >>> flags ^= 0
             >>> print(flags)
-            BitMask(abd)
+            BitField(abd)
             >>> flags ^= 0
             >>> print(flags)
-            BitMask(bd)
+            BitField(bd)
             >>> print(flags ^ 0)
-            BitMask(abd)
+            BitField(abd)
         """
-        result = type(self)(self._bitmask)
+        result = type(self)(self._BitField)
         result ^= item
         return result
 
     # ----------------------------------------------------------
     def __eq__(self, other):
-        return type(self) == type(other) and self._bitmask == other._bitmask
+        return type(self) == type(other) and self._BitField == other._BitField
 
     # ----------------------------------------------------------
     def __ne__(self, other):
-        return type(self) != type(other) or self._bitmask != other._bitmask
+        return type(self) != type(other) or self._BitField != other._BitField
 
     # ----------------------------------------------------------
     def __repr__(self):
-        return self.__class__.__name__ + '(' + bin(self._bitmask) + ')' \
+        return self.__class__.__name__ + '(' + bin(self._BitField) + ')' \
                + str(dict(self.items()))
 
     # ----------------------------------------------------------
     def __str__(self):
-        keys = self.decode(self._bitmask)
+        keys = self.decode(self._BitField)
         text = str(keys) if keys else self.EMPTY
         return self.__class__.__name__ + '(' + text + ')'
 
     # ----------------------------------------------------------
     def __mod__(self, ext_keys):
         """
-        Decode bit-mask using the specified extended keys.
+        Decode bit-field using the specified extended keys.
 
         Extended keys include the empty token as first element.
 
@@ -885,53 +884,53 @@ class BitMask(object, metaclass=BitMaskMeta):
                 All the other keys follow.
 
         Returns:
-            result (Sequence): The decoded bit-mask.
+            result (Sequence): The decoded bit-field.
 
         Examples:
-            >>> flags = BitMask(3)
+            >>> flags = BitField(3)
             >>> flags % '-rwx'
             'rw-'
         """
         return self.decode(
-            self._bitmask, ext_keys[1:], ext_keys[0], True, True)
+            self._BitField, ext_keys[1:], ext_keys[0], True, True)
 
     # ----------------------------------------------------------
     def __truediv__(self, keys):
         """
-        Decode bit-mask using the specified keys.
+        Decode bit-field using the specified keys.
 
         Args:
             keys (Sequence): The decoding keys.
                 Unset bits are ignored.
 
         Returns:
-            result (Sequence): The decoded bit-mask.
+            result (Sequence): The decoded bit-field.
 
         Examples:
-            >>> flags = BitMask(3)
+            >>> flags = BitField(3)
             >>> flags / '123'
             '12'
         """
-        return self.decode(self._bitmask, keys, None, False, True)
+        return self.decode(self._BitField, keys, None, False, True)
 
     # ----------------------------------------------------------
     def __floordiv__(self, keys):
         """
-        Decode bit-mask using the specified keys (and a list container).
+        Decode bit-field using the specified keys (and a list container).
 
         Args:
             keys (Sequence): The decoding keys.
                 Unset bits are ignored.
 
         Returns:
-            result (Sequence): The decoded bit-mask.
+            result (Sequence): The decoded bit-field.
 
         Examples:
-            >>> flags = BitMask(3)
+            >>> flags = BitField(3)
             >>> flags // '123'
             ['1', '2']
         """
-        return self.decode(self._bitmask, keys, None, False, list)
+        return self.decode(self._BitField, keys, None, False, list)
 
     # ----------------------------------------------------------
     def flip(self, item):
@@ -945,7 +944,7 @@ class BitMask(object, metaclass=BitMaskMeta):
             result (bool): The value of the item after flipping.
 
         Examples:
-            >>> flags = BitMask(7)
+            >>> flags = BitField(7)
             >>> print(flags[0])
             True
             >>> print(flags.flip_slice(0))
@@ -966,17 +965,17 @@ class BitMask(object, metaclass=BitMaskMeta):
     @classmethod
     def decode(
             cls,
-            bitmask,
+            BitField,
             keys=None,
             empty=None,
             full_repr=None,
             container=True):
         """
-        Decode a bit-mask according to the specified keys.
+        Decode a bit-field according to the specified keys.
 
         Args:
-            bitmask (int): The input bitmask.
-            keys (Iterable): The keys to use for decoding the bit-mask.
+            BitField (int): The input BitField.
+            keys (Iterable): The keys to use for decoding the bit-field.
             empty (Any|None): The value to use for unset flags.
             full_repr (bool): Represent all available flags.
             container (bool|callable|None): Determine the container to use.
@@ -985,10 +984,10 @@ class BitMask(object, metaclass=BitMaskMeta):
                 Otherwise, the generator itself is returned.
 
         Returns:
-            result (Sequence|generator): The keys associated to the bit-mask.
+            result (Sequence|generator): The keys associated to the bit-field.
 
         Examples:
-            >>> BitMask.decode(42)
+            >>> BitField.decode(42)
             'bdf'
         """
         if keys is None:
@@ -1001,9 +1000,9 @@ class BitMask(object, metaclass=BitMaskMeta):
             result = (
                 key if value else empty
                 for key, value in
-                itertools.zip_longest(keys, bits(bitmask), fillvalue=False))
+                itertools.zip_longest(keys, bits(BitField), fillvalue=False))
         else:
-            result = (key for key, value in zip(keys, bits(bitmask)) if value)
+            result = (key for key, value in zip(keys, bits(BitField)) if value)
         if callable(container):
             return container(result)
         elif container:
@@ -1023,24 +1022,24 @@ class BitMask(object, metaclass=BitMaskMeta):
             empty=None,
             ignore_invalid=None):
         """
-        Encode a bit-mask according to the specified keys.
+        Encode a bit-field according to the specified keys.
 
         Args:
-            items (Iterable): The items from the bit-mask.
-            keys (Iterable): The keys to use for decoding the bit-mask.
+            items (Iterable): The items from the bit-field.
+            keys (Iterable): The keys to use for decoding the bit-field.
             empty (Any|None): The value to use for unset flags.
             ignore_invalid (bool): Ignore invalid items.
                 If False, a ValueError is raised if invalid items are present.
 
         Returns:
-            result (int): The value associated to the items in the bit-mask.
+            result (int): The value associated to the items in the bit-field.
 
         Raises:
             ValueError: If ignore is False and invalid items are present in
                 in the input.
 
         Examples:
-            >>> BitMask.encode('acio')
+            >>> BitField.encode('acio')
             16645
         """
         if keys is None:
@@ -1063,7 +1062,7 @@ class BitMask(object, metaclass=BitMaskMeta):
 
     # ----------------------------------------------------------
     def __int__(self):
-        return self._bitmask
+        return self._BitField
 
     # ----------------------------------------------------------
     def __getattr__(self, name):
@@ -1077,11 +1076,11 @@ class BitMask(object, metaclass=BitMaskMeta):
             value (bool): The value of the flag.
 
         Examples:
-            >>> print(BitMask(1).a)
+            >>> print(BitField(1).a)
             True
-            >>> print(BitMask(0).a)
+            >>> print(BitField(0).a)
             False
-            >>> print(BitMask(1).something)
+            >>> print(BitField(1).something)
             Traceback (most recent call last):
                 ...
             AttributeError: Unknown key `something`.
@@ -1110,22 +1109,22 @@ class BitMask(object, metaclass=BitMaskMeta):
             None.
 
         Examples:
-            >>> flags = BitMask(6)
+            >>> flags = BitField(6)
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> flags.a = True
             >>> print(flags)
-            BitMask(abc)
+            BitField(abc)
             >>> flags.a = False
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> flags.something = True
             Traceback (most recent call last):
                 ...
             AttributeError: Unknown key `something`.
         """
-        if name in {'bitmask', '_bitmask'}:
-            super(BitMask, self).__setattr__(name, value)
+        if name in {'BitField', '_BitField'}:
+            super(BitField, self).__setattr__(name, value)
         else:
             try:
                 i = type(self).KEYS.index(name)
@@ -1148,15 +1147,15 @@ class BitMask(object, metaclass=BitMaskMeta):
             None.
 
         Examples:
-            >>> flags = BitMask(6)
+            >>> flags = BitField(6)
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> del flags.a
             >>> print(flags)
-            BitMask(bc)
+            BitField(bc)
             >>> del flags.b
             >>> print(flags)
-            BitMask(c)
+            BitField(c)
             >>> flags.something = True
             Traceback (most recent call last):
                 ...
