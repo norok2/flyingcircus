@@ -1313,6 +1313,66 @@ def span(
 
 
 # ======================================================================
+def any_range(
+        start,
+        stop,
+        step=1,
+        zero=0,
+        adapt_step_sign=True):
+    """
+    Generate a range of objects.
+
+    It is a generalization of `range()` built-in to non-integer arguments.
+    The objects must be ordered and support addition and subtraction.
+
+    Args:
+        start (Any): The initial value (included).
+        stop (Any): The final value (excluded).
+        step (Any): The step value.
+        zero (Any): The "zero" value (used to determine the sign of `step`).
+        adapt_step_sign (bool): Swap the sign of `step`.
+            This is used to ensure a non-empty range.
+
+    Yields:
+        The value(s) between `start` and `stop` (excluded) in `step` steps.
+
+    Raises:
+        ValueError: If the step is zero.
+        
+    Examples:
+        >>> list(any_range(0, 4))
+        [0, 1, 2, 3]
+        >>> list(any_range(4, 0))
+        [4, 3, 2, 1]
+        >>> list(any_range(0, 4, 2))
+        [0, 2]
+        >>> list(any_range(4, 0, 2))
+        [4, 2]
+        >>> list(any_range(4, 0, adapt_step_sign=False))
+        []
+        >>> list(any_range(4, 0, -2))
+        [4, 2]
+        >>> list(any_range(4, 0, -2, adapt_step_sign=False))
+        [4, 2]
+    """
+    if adapt_step_sign and (
+            ((start < stop) and (step < zero))
+            or ((start > stop) and (step > zero))):
+        step = -step
+    if step > zero:
+        comparer = operator.lt
+    elif step < zero:
+        comparer = operator.gt
+    else:
+        raise ValueError
+
+    curr = start
+    while comparer(curr, stop):
+        yield curr
+        curr += step
+
+
+# ======================================================================
 def is_deep(
         obj,
         skip=(str, bytes, bytearray)):
