@@ -943,6 +943,35 @@ def reverse_mapping(
         return result
 
 
+def as_dict(obj: typ.Any) -> dict:
+    """Transparently convert any object to dict.
+
+    If the object cannot be converted to `dict`, returns an empty `dict`.
+
+    Args:
+        obj: The input object.
+
+    Returns:
+        The object converted to a dict.
+
+    Examples:
+        >>> as_dict({1: 2, 3: 4})
+        {1: 2, 3: 4}
+        >>> as_dict(((1, 2), (3, 4)))
+        {1: 2, 3: 4}
+        >>> as_dict([[1, 2], [3, 4]])
+        {1: 2, 3: 4}
+        >>> as_dict(())
+        {}
+        >>> as_dict(None)
+        {}
+    """
+    try:
+        return dict(obj)
+    except TypeError:
+        return {}
+
+
 # ======================================================================
 def reverse_mapping_iter(mapping):
     """
