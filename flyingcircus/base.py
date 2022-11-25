@@ -840,6 +840,84 @@ def get_nested_attr(
 
 
 # ======================================================================
+def checksum(
+    obj,
+    chksum_func="sha256",
+    ser_func=pickle.dumps,
+    to_str_func="hex",
+    max_len=None,
+):
+    """Compute a checksum of an object.
+
+    Args:
+        obj (Any): The input object.
+        chksum_func (callable|str): The checksum computing function.
+            If str, must be in `hashlib.algorithm_available`
+            or one of {"crc32", "adler32"}.
+        ser_func (callable|str|None): The serialization function.
+        to_str_func (callable|str|None): The checksum-to-string conversion function.
+            If str, must be one of:
+             - "hex": uses `binascii.b2a_hex()`
+             - "b16": uses `base64.b16encode()`
+             - "b32": uses `base64.b32encode()`
+             - "b64": uses `base64.b64encode()`
+             - "b85": uses `base64.b85encode()`
+             - "urlsafe_b64": uses `base64.urlsafe_b64encode()`
+        max_len: Max length of the checksum.
+            If the checksum exceed this value, it is coerced to the specific length.
+            If None, uses the default length.
+
+    Returns:
+        The computed checksum as string.
+
+    Examples:
+        >>> chksum(1)
+        '018f5c4626b56e8489da7abb6c8b62331933c42c35d1342037a5242b8ed148f6'
+        >>> chksum("This is some text")
+        '388ef7c8f5cb46a241f12dbb7eefb5bde22b4cf1db539a03a71cb00b94b790e1'
+        >>> chksum(None)
+        '9c298d589a2158eb513cb52191144518a2acab2cb0c04f1df14fca0f712fa4a1'
+        >>> chksum({1: {2: 3, 4: {5: [6, {7: 8}], 9: 0}}})
+        'c6e3c985351ce6e394d77f931ae65fe8c78beb1c7f3521affa46c00cdd997557'
+    """
+
+    if callable(ser_func):
+        obj = ser_func(obj)
+    if isinstance(chksum_func, str):
+        if chksum_func in hashlib.algorithms_available:
+            if chksum_func in _VAR_LENGTH_HASHLIB_ALGORITHMS:
+                length = _VAR_LENGTH_HASHLIB_ALGORITHMS[chksum_func]
+                obj = getattr(hashlib, chksum_func)(obj).digest(length)
+            else:
+                obj = getattr(hashlib, chksum_func)(obj).digest()
+        elif chksum_func in _ZLIB_CHECKSUMS:
+            chksum_size = _ZLIB_CHECKSUMS[chksum_func]
+            obj = getattr(zlib, chksum_func)(obj).to_bytes(chksum_size, "little")
+            obj = binascii.b2a_hex(obj).decode("ascii")
+        else:
+            raise ValueError("Unsupported checksum method.")
+    elif callable(chksum_func):
+        obj = chksum_func(obj)
+    if isinstance(to_str_func, str):
+        if to_str_func == "hex":
+            obj = binascii.b2a_hex(obj)
+        elif to_str_func in _BASE64_ENCODINGS:
+            obj = getattr(base64, f"{to_str_func}encode")(obj)
+        else:
+            raise ValueError("Unsupported conversion method.")
+    elif callable(to_str_func):
+        obj = to_str_func(obj)
+    if isinstance(obj, bytes):
+        try:
+            obj = obj.decode("ascii")
+        except UnicodeDecodeError:
+            obj = binascii.b2a_hex(obj).decode("ascii")
+    if max_len is not None:
+        obj = obj[:max_len]
+    return obj
+
+
+# ======================================================================
 def idir(
         obj,
         skip='_',
@@ -943,7 +1021,8 @@ def reverse_mapping(
         return result
 
 
-def as_dict(obj: typ.Any) -> dict:
+# ======================================================================
+def as_dict(obj):
     """Transparently convert any object to dict.
 
     If the object cannot be converted to `dict`, returns an empty `dict`.
