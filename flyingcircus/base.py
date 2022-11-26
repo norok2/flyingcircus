@@ -169,6 +169,11 @@ DTYPE_STR.update({
 })
 
 # ======================================================================
+_ZLIB_CHECKSUMS = {"crc32": 4, "adler32": 4}
+_VAR_LENGTH_HASHLIB_ALGORITHMS = {"shake_128": 128, "shake_256": 256}
+_BASE64_ENCODINGS = {"b16", "b32", "b64", "b85", "urlsafe_b64"}
+
+# ======================================================================
 _str_join = functools.partial(str.join, '')
 
 
