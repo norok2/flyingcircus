@@ -703,7 +703,7 @@ def pkg_paths(
     ))
     for name, dirpath in dirpaths.items():
         if not os.path.isdir(dirpath):
-            os.makedirs(dirpath)
+            os.makedirs(dirpath, exist_ok=True)
     dirpaths['base'] = os.path.dirname(current_filepath)
     dirpaths['resources'] = os.path.join(dirpaths['base'], 'resources')
     return dirpaths
