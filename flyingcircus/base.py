@@ -1807,6 +1807,57 @@ def all_equal(items):
 
 
 # ======================================================================
+def edit_dist(
+    seq_a,
+    seq_b,
+    fn_eq = operator.eq,
+    cost_del = 1,
+    cost_ins = 1,
+    cost_sub = 1,
+) -> int:
+    """Compute the Levenshtein (edit) distance between two sequences.
+
+    Args:
+        seq_a: The first sequence.
+        seq_b: The second sequence.
+        fn_eq: Compute the equivalence between two sequence elements.
+
+    Returns:
+        The Levenshtein (edit) distance.
+        The value is non-negative.
+        A value of 0 indicates that the two sequences are identical.
+
+    Examples:
+        >>> dist("ciao", "ciao")
+        0
+        >>> dist("hello", "help")
+        2
+        >>> words = "", "", "ciao", "caio", "hello", "hell", "help", "shield"
+        >>> all(dist(a, b) == dist(b, a) for a, b in zip(words[1:], words[:-1]))
+        True
+    """
+    len_a = len(seq_a)
+    len_b = len(seq_b)
+    if len_a < len_b:
+        len_a, len_b = len_b, len_a
+        seq_a, seq_b = seq_b, seq_a
+    dist_prev = list(range(len_b + 1))
+    dist_curr = [None] * (len_b + 1)
+    for i in range(len_a):
+        dist_curr[0] = i + 1
+        for j in range(len_b):
+            del_cost = dist_prev[j + 1] + cost_del
+            ins_cost = dist_curr[j] + cost_ins
+            sub_cost = dist_prev[j]
+            if not fn_eq(seq_a[i], seq_b[j]):
+                sub_cost += cost_sub
+            dist_curr[j + 1] = min(del_cost, ins_cost, sub_cost)
+        dist_prev, dist_curr = dist_curr, dist_prev
+    return dist_prev[len_b]
+
+
+
+# ======================================================================
 def nesting_level(
         obj,
         deep=True,
