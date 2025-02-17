@@ -1833,7 +1833,10 @@ def edit_dist(
         >>> dist("hello", "help")
         2
         >>> words = "", "", "ciao", "caio", "hello", "hell", "help", "shield"
-        >>> all(dist(a, b) == dist(b, a) for a, b in zip(words[1:], words[:-1]))
+        >>> all(
+        ...     edit_dist(a, b) == edit_dist(b, a)
+        ...     for a, b in zip(words[1:], words[:-1])
+        ... )
         True
     """
     len_a = len(seq_a)
